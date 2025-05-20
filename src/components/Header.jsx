@@ -1,20 +1,56 @@
 
-import React, { useState } from 'react'; // Keep this one as it includes useState
-import { motion } from 'framer-motion'; // Keep one motion import
-import { Link, useNavigate } from 'react-router-dom'; // Keep one set of router imports
-import { ShoppingBag, Sparkles, LogIn, LogOut, UserCircle, CreditCard, Settings } from 'lucide-react'; // Added CreditCard, Settings
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { Link, useNavigate } from 'react-router-dom';
+import { ShoppingBag, LogIn, LogOut, Settings, Sun, Moon, Briefcase, ExternalLink, ChevronDown } from 'lucide-react'; // Adjusted icons
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"; // Import Dropdown components
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabaseClient'; // Direct import for signOut
-import SubscribeButton from '@/components/SubscribeButton'; // Added SubscribeButton
+import { supabase } from '@/lib/supabaseClient';
+import SubscribeButton from '@/components/SubscribeButton';
 
 const Header = () => {
-  const { isAuthenticated, user, session, subscriptionStatus, loadingProfile } = useAuth();
+  const { isAuthenticated, user, session, subscriptionStatus, loadingProfile, profile } = useAuth(); // Added profile
   const navigate = useNavigate();
   const [isPortalLoading, setIsPortalLoading] = useState(false);
   const [portalError, setPortalError] = useState(null);
+  const [isStripeActionLoading, setIsStripeActionLoading] = useState(false); // For Connect actions
+  const [stripeActionError, setStripeActionError] = useState(null);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   const isSubscribed = subscriptionStatus === 'active';
+  const isStripeConnected = profile?.stripe_account_id && profile?.stripe_account_details_submitted;
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+      document.documentElement.classList.add('dark');
+      setIsDarkMode(true);
+    } else {
+      document.documentElement.classList.remove('dark');
+      setIsDarkMode(false);
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    if (isDarkMode) {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    } else {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    }
+    setIsDarkMode(!isDarkMode);
+  };
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -32,29 +68,103 @@ const Header = () => {
       return;
     }
     setIsPortalLoading(true);
-    setPortalError(null);
+      setPortalError(null);
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-portal-session`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          }
+        );
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to create portal session.');
+        }
+        window.location.href = data.url; // Redirect to Stripe Customer Portal
+      } catch (err) {
+        console.error('Portal session error:', err);
+        setPortalError(err.message);
+      } finally {
+        setIsPortalLoading(false);
+      }
+    };
+
+  const handleCreateStripeConnectAccount = async () => {
+    if (!session?.access_token || !user) {
+      setStripeActionError("Authentication required.");
+      return;
+    }
+    setIsStripeActionLoading(true);
+    setStripeActionError(null);
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-portal-session`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-stripe-connect-account`,
         {
-          method: 'POST',
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
           },
+          body: JSON.stringify({ record: { id: user.id, email: user.email } }),
         }
       );
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create portal session.');
+        const errorDetail = data.error || (data.data && data.data.error) || "Failed to create Stripe Connect account link.";
+        throw new Error(errorDetail);
       }
-      window.location.href = data.url; // Redirect to Stripe Customer Portal
+      if (data.account_link_url) {
+        window.location.href = data.account_link_url;
+      } else if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("No URL returned from Stripe Connect account creation.");
+      }
     } catch (err) {
-      console.error('Portal session error:', err);
-      setPortalError(err.message);
-      // Optionally show a toast with err.message
+      console.error("Stripe Connect account creation error:", err);
+      setStripeActionError(err.message);
     } finally {
-      setIsPortalLoading(false);
+      setIsStripeActionLoading(false);
+    }
+  };
+
+  const handleManageStripeAccount = async () => {
+    if (!session?.access_token || !user || !profile?.stripe_account_id) {
+      setStripeActionError("Stripe account not connected or user not authenticated.");
+      return;
+    }
+    setIsStripeActionLoading(true);
+    setStripeActionError(null);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-stripe-login-link`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`, // Important for user identification if your function uses JWT
+          },
+          body: JSON.stringify({ user_id: user.id }), // Send user_id as expected by the function
+        }
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to create Stripe login link.");
+      }
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("No login link URL returned.");
+      }
+    } catch (err) {
+      console.error("Stripe login link error:", err);
+      setStripeActionError(err.message);
+    } finally {
+      setIsStripeActionLoading(false);
     }
   };
 
@@ -75,9 +185,6 @@ const Header = () => {
       <div className="flex items-center gap-3">
         {isAuthenticated && (
           <>
-            <Link to="/">
-              <Button variant="ghost" size="sm">Dashboard</Button>
-            </Link>
             {/* Generic Content Creation link removed, will be added to specific store pages */}
           </>
         )}
@@ -87,17 +194,53 @@ const Header = () => {
         {portalError && <p className="text-xs text-red-500">{portalError}</p> /* Display portal error if any */}
 
         {isAuthenticated && !loadingProfile && (
-          isSubscribed ? (
-            <Button variant="outline" size="sm" onClick={handleManageBilling} disabled={isPortalLoading} className="rounded-full px-3 py-1.5 text-sm font-medium">
-              <Settings className="mr-2 h-4 w-4" /> {isPortalLoading ? 'Loading...' : 'Manage Billing'}
-            </Button>
-          ) : (
+          <>
             <SubscribeButton 
               className="px-3 py-1.5 rounded-full text-sm font-medium" 
               showIcon={true} 
             />
-          )
+            {isSubscribed && (
+              <Button variant="outline" size="sm" onClick={handleManageBilling} disabled={isPortalLoading} className="rounded-full px-3 py-1.5 text-sm font-medium ml-2">
+                <Settings className="mr-2 h-4 w-4" /> {isPortalLoading ? 'Loading...' : 'Manage Billing'}
+              </Button>
+            )}
+
+            {/* Stripe Connect Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="rounded-full px-3 py-1.5 text-sm font-medium ml-2">
+                  <Briefcase className="mr-2 h-4 w-4" /> Business <ChevronDown className="ml-1 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Stripe Connect</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {!isStripeConnected ? (
+                  <DropdownMenuItem onClick={handleCreateStripeConnectAccount} disabled={isStripeActionLoading}>
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    {isStripeActionLoading ? 'Processing...' : 'Create Business Account'}
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem onClick={handleManageStripeAccount} disabled={isStripeActionLoading}>
+                    <Settings className="mr-2 h-4 w-4" />
+                    {isStripeActionLoading ? 'Processing...' : 'Manage Business Account'}
+                  </DropdownMenuItem>
+                )}
+                {stripeActionError && <DropdownMenuItem disabled><p className="text-xs text-red-500">{stripeActionError}</p></DropdownMenuItem>}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
         )}
+
+        <div className="flex items-center gap-2">
+          <Switch
+            id="theme-switcher"
+            checked={isDarkMode}
+            onCheckedChange={toggleTheme}
+            aria-label="Toggle dark mode"
+          />
+          {isDarkMode ? <Moon className="h-5 w-5 text-muted-foreground" /> : <Sun className="h-5 w-5 text-muted-foreground" />}
+        </div>
 
         {isAuthenticated ? (
           <>

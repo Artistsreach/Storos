@@ -10,10 +10,54 @@ import {
 import { Button } from "@/components/ui/button";
 // Input is not used in this file based on the provided code
 // import { Input } from "@/components/ui/input"; 
-import { CreditCard, Calendar, AlertTriangle } from "lucide-react";
+import { CreditCard, Calendar, AlertTriangle, ExternalLink } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext"; // Import useAuth
 
 const PaymentsTab = () => {
   const [activeSubTab, setActiveSubTab] = useState("transactions");
+  const { session, user } = useAuth(); // Get session and user from AuthContext
+  const [isConnectLoading, setIsConnectLoading] = useState(false);
+  const [connectError, setConnectError] = useState(null);
+
+  const handleCreateConnectAccount = async () => {
+    if (!session?.access_token || !user) {
+      setConnectError("Authentication token not found. Please log in again.");
+      return;
+    }
+    setIsConnectLoading(true);
+    setConnectError(null);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-stripe-connect-account`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ record: { id: user.id, email: user.email } }), // Add user data to the body
+        },
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        // Attempt to parse error from Stripe or function
+        const errorDetail = data.error || (data.data && data.data.error) || "Failed to create Stripe Connect account link.";
+        throw new Error(errorDetail);
+      }
+      if (data.account_link_url) { // Check for account_link_url specifically
+        window.location.href = data.account_link_url;
+      } else if (data.url) { // Fallback for general url if specific one isn't present
+        window.location.href = data.url;
+      } else {
+        throw new Error("No URL returned from Stripe Connect account creation.");
+      }
+    } catch (err) {
+      console.error("Stripe Connect account creation error:", err);
+      setConnectError(err.message);
+    } finally {
+      setIsConnectLoading(false);
+    }
+  };
 
   // Mock data for demonstration
   const mockTransactions = [
@@ -100,7 +144,11 @@ const PaymentsTab = () => {
         onValueChange={setActiveSubTab}
         className="w-full"
       >
-        <TabsList className="grid grid-cols-3 mb-6">
+        <TabsList className="grid grid-cols-4 mb-6"> {/* Updated to grid-cols-4 */}
+          <TabsTrigger value="overview"> {/* Added Overview Tab */}
+            <ExternalLink className="mr-2 h-4 w-4" />
+            Connect Account
+          </TabsTrigger>
           <TabsTrigger value="transactions">
             <CreditCard className="mr-2 h-4 w-4" />
             Transactions
@@ -114,6 +162,29 @@ const PaymentsTab = () => {
             Disputes & Chargebacks
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="overview"> {/* Added Overview Tab Content */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Connect Stripe Account</CardTitle>
+              <CardDescription>
+                Connect your Stripe account to start accepting payments and manage payouts.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                onClick={handleCreateConnectAccount} 
+                disabled={isConnectLoading}
+              >
+                <ExternalLink className="mr-2 h-4 w-4" />
+                {isConnectLoading ? "Connecting..." : "Connect with Stripe"}
+              </Button>
+              {connectError && (
+                <p className="text-sm text-red-500 mt-2">{connectError}</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="transactions">
           <Card>

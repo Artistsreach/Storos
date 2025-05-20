@@ -2,10 +2,19 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { X } from 'lucide-react'; // Import X icon
 
-const ImportSourceSelector = ({ onSelectSource }) => {
+const ImportSourceSelector = ({ onSelectSource, onClose }) => { // Added onClose prop
   return (
-    <Card className="w-full max-w-md mx-auto">
+    <Card className="w-full max-w-md mx-auto relative"> {/* Added relative positioning */}
+      <Button 
+        variant="ghost" 
+        size="icon" 
+        className="absolute top-2 right-2 text-muted-foreground hover:text-foreground"
+        onClick={onClose} // Call onClose when clicked
+      >
+        <X className="h-5 w-5" />
+      </Button>
       <CardHeader>
         <CardTitle>Import Store Data</CardTitle>
         <CardDescription>

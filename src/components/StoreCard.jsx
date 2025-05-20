@@ -100,15 +100,23 @@ const StoreCard = ({ store }) => {
           </div>
           
           <div className="grid grid-cols-2 gap-2">
-            {store.products.slice(0, 4).map((product, index) => (
-              <div 
-                key={product.id} 
-                className="bg-muted/50 p-2 rounded-md text-xs flex flex-col"
-              >
-                <span className="font-medium truncate">{product.name}</span>
-                <span className="text-primary">${product.price.toFixed(2)}</span>
-              </div>
-            ))}
+            {store && store.products && Array.isArray(store.products) && store.products.length > 0 ? (
+              store.products.slice(0, 4).map((product) => ( // Removed index as key if product.id is unique and stable
+                <div 
+                  key={product.id} 
+                  className="bg-muted/50 p-2 rounded-md text-xs flex flex-col"
+                >
+                  <span className="font-medium truncate">{product.name || 'Unnamed Product'}</span>
+                  <span className="text-primary">
+                    {typeof product.price === 'number' ? `$${product.price.toFixed(2)}` : 'Price N/A'}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p className="text-xs text-muted-foreground col-span-2">
+                {store && store.products && store.products.length === 0 ? 'No products yet.' : 'Product data unavailable.'}
+              </p>
+            )}
           </div>
         </CardContent>
         <CardFooter className="flex justify-between pt-2">

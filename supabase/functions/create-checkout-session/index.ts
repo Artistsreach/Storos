@@ -1,72 +1,84 @@
-import { serve } from 'std/http/server.ts';
-import { corsHeaders } from '../_shared/cors.ts';
-import { stripe } from '../_shared/stripe.ts';
-// No Supabase client needed here if we don't need to fetch user or product details server-side
-// However, for metadata or other checks, you might add it.
+import { serve } from "std/http/server.ts";
+import Stripe from "stripe";
+import { corsHeaders } from "../_shared/cors.ts";
 
-const YOUR_DOMAIN = Deno.env.get('SITE_URL') || 'https://9000-firebase-storegen-1747188548395.cluster-f4iwdviaqvc2ct6pgytzw4xqy4.cloudworkstations.dev';
+const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
+  apiVersion: "2023-10-16", // Use a fixed API version, or consider aligning with import map version if it implies an API version
+  // httpClient: Stripe.createFetchHttpClient(), // createFetchHttpClient is default for Deno in recent Stripe versions
+});
 
-interface CheckoutPayload {
-  priceId: string;       // Stripe Price ID for the product
-  quantity?: number;     // Optional, defaults to 1
-  storeId?: string;      // For cancel_url and metadata
-  productId?: string;    // For metadata
-  // You might also pass customer_email if known, or let Stripe collect it
-}
+const siteUrl = Deno.env.get("SITE_URL") || "http://localhost:5173"; // Fallback for local dev
 
-serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    const payload: CheckoutPayload = await req.json();
+    const { priceId, storeId, productId, quantity = 1 } = await req.json();
 
-    if (!payload.priceId) {
-      return new Response(JSON.stringify({ error: 'Missing required field: priceId' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      });
+    if (!priceId || !storeId || !productId) {
+      return new Response(
+        JSON.stringify({ error: "Missing required parameters: priceId, storeId, or productId." }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
+        }
+      );
+    }
+    
+    if (typeof quantity !== 'number' || quantity < 1) {
+        return new Response(
+            JSON.stringify({ error: "Invalid quantity." }),
+            {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 400,
+            }
+          );
     }
 
-    const quantity = payload.quantity || 1;
-    const successUrl = `${YOUR_DOMAIN}/order-confirmation?session_id={CHECKOUT_SESSION_ID}`;
-    // Fallback cancel URL if storeId is not provided, or use a generic one
-    const cancelUrl = payload.storeId ? `${YOUR_DOMAIN}/store/${payload.storeId}` : `${YOUR_DOMAIN}/`; 
+    // Basic validation for IDs (can be enhanced)
+    if (typeof priceId !== 'string' || typeof storeId !== 'string' || typeof productId !== 'string') {
+        return new Response(
+            JSON.stringify({ error: "Invalid ID format." }),
+            {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 400,
+            }
+          );
+    }
+
 
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'], // Add other payment methods as needed e.g. ['card', 'ideal']
-      mode: 'payment', // For one-time purchases
+      payment_method_types: ["card"],
+      mode: "payment",
       line_items: [
         {
-          price: payload.priceId,
+          price: priceId,
           quantity: quantity,
         },
       ],
-      success_url: successUrl,
-      cancel_url: cancelUrl,
+      success_url: `${siteUrl}/order-confirmation?session_id={CHECKOUT_SESSION_ID}&store_id=${storeId}`,
+      cancel_url: `${siteUrl}/store/${storeId}/product/${productId}`, // Or just back to product page
       metadata: {
-        store_id: payload.storeId || '',
-        product_id: payload.productId || '', // The ID from your 'products' table
-        // Add any other metadata you need for fulfillment
+        store_id: storeId,
+        product_id: productId,
+        // Add other relevant metadata if needed
       },
-      // shipping_address_collection: { // Uncomment if you need to collect shipping addresses
-      //   allowed_countries: ['US', 'CA'], // Example
-      // },
-      // automatic_tax: { enabled: true }, // If you have Stripe Tax configured
-      // allow_promotion_codes: true, // If you want to allow discount codes
     });
 
     return new Response(JSON.stringify({ sessionId: session.id }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
-
   } catch (error) {
-    console.error('Error creating checkout session:', error);
-    return new Response(JSON.stringify({ error: error.message || 'Failed to create checkout session' }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
-    });
+    console.error("Error creating checkout session:", error);
+    return new Response(
+      JSON.stringify({ error: error.message || "Failed to create checkout session." }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+      }
+    );
   }
 });

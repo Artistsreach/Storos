@@ -11,6 +11,7 @@ import StoreFooter from '@/components/store/StoreFooter';
 import PreviewControls from '@/components/PreviewControls';
 import EditStoreForm from '@/components/EditStoreForm';
 import { useToast } from '@/components/ui/use-toast';
+import RealtimeChatbot from '@/components/store/RealtimeChatbot'; // Added import
 
 const StorePreview = () => { // This component now serves as the main StorePage
   const { storeId } = useParams();
@@ -79,6 +80,7 @@ const StorePreview = () => { // This component now serves as the main StorePage
           onOpenChange={setIsEditOpen} 
         />
       )}
+      <RealtimeChatbot /> {/* Added RealtimeChatbot component */}
     </div>
   );
 };

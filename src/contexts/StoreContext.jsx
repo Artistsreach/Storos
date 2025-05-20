@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useToast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabaseClient';
+import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
 import { 
   generateStoreFromWizardData,
   generateStoreFromPromptData,
@@ -39,10 +40,11 @@ export const StoreProvider = ({ children }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoadingStores, setIsLoadingStores] = useState(true);
   const [cart, setCart] = useState([]);
-  const [user, setUser] = useState(null);
+  // const [user, setUser] = useState(null); // User will come from useAuth
   const [viewMode, setViewModeState] = useState('published'); // 'published' or 'edit'
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { user, session, profile } = useAuth(); // Get user, session, and profile from AuthContext
 
   // Function to set view mode, could be enhanced with localStorage later
   const setViewMode = (mode) => {
@@ -56,7 +58,7 @@ export const StoreProvider = ({ children }) => {
 
   // Shopify Import Wizard State
   const [shopifyWizardStep, setShopifyWizardStep] = useState(0); // 0: idle, 1: connect, 2: preview meta, 3: preview items, 4: confirm
-  const [shopifyDomain, setShopifyDomain] = useState('');
+  const [shopifyDomain, setShopifyDomain] = useState(''); // Added back
   const [shopifyToken, setShopifyToken] = useState('');
   const [shopifyPreviewMetadata, setShopifyPreviewMetadata] = useState(null);
   const [shopifyPreviewProducts, setShopifyPreviewProducts] = useState({ edges: [], pageInfo: { hasNextPage: false, endCursor: null } });
@@ -153,46 +155,26 @@ const prepareStoresForLocalStorage = (storesArray) => {
   }, [toast]);
 
   useEffect(() => {
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        loadStores(session.user.id);
-      } else {
-        // For no user:
-        const savedStores = localStorage.getItem('ecommerce-stores');
-        if (savedStores) {
-          try {
-            const parsedStores = JSON.parse(savedStores);
-            setStores(parsedStores);
-          } catch (e) {
-            console.error('Failed to parse localStorage stores:', e);
-            setStores([]); // Ensure stores is an array even on error
-          }
-        } else {
-          setStores([]); // No saved stores
+    // User state is now managed by AuthContext, so we listen to changes in `user` from `useAuth`
+    if (user) {
+      loadStores(user.id);
+    } else {
+      // For no user:
+      const savedStores = localStorage.getItem('ecommerce-stores');
+      if (savedStores) {
+        try {
+          const parsedStores = JSON.parse(savedStores);
+          setStores(parsedStores);
+        } catch (e) {
+          console.error('Failed to parse localStorage stores:', e);
+          setStores([]); // Ensure stores is an array even on error
         }
-        setIsLoadingStores(false); // Set to false AFTER attempting to load/set from LS
-      }
-    };
-    getSession();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      if (currentUser) {
-        loadStores(currentUser.id);
       } else {
-        setStores([]); // Clear stores on logout
-        localStorage.removeItem('ecommerce-stores');
-        setIsLoadingStores(false);
+        setStores([]); // No saved stores
       }
-    });
-
-    return () => {
-      authListener?.subscription?.unsubscribe();
-    };
-  }, [loadStores]);
+      setIsLoadingStores(false); // Set to false AFTER attempting to load/set from LS
+    }
+  }, [user, loadStores]); // Depend on user from useAuth and loadStores
 
 
   useEffect(() => {
@@ -213,12 +195,13 @@ const prepareStoresForLocalStorage = (storesArray) => {
   }, []);
 
   const commonStoreCreation = async (storeData) => {
-    let storeToCreate = { ...storeData };
-    let newStore;
+    let storeToCreate = { ...storeData }; // storeData comes from generateStoreFromWizardData or similar
+    let newStoreInDb;
 
     if (user) {
-      storeToCreate.user_id = user.id;
-      const { id: clientGeneratedId, ...dataToInsert } = storeToCreate;
+      storeToCreate.user_id = user.id; // Ensure user_id is set for DB insertion
+      const { id: clientGeneratedId, settings, products, ...dataToInsert } = storeToCreate;
+      
       const { data, error } = await supabase
         .from('stores')
         .insert(dataToInsert)
@@ -230,29 +213,89 @@ const prepareStoresForLocalStorage = (storesArray) => {
         toast({ title: 'Store Creation Failed', description: error.message, variant: 'destructive' });
         return null;
       }
-      newStore = data;
+      newStoreInDb = data;
+
+      // Now handle products, including Stripe creation if applicable
+      if (newStoreInDb && products && products.length > 0) {
+        console.log(`Store ${newStoreInDb.id} created. Processing ${products.length} products.`);
+        const isStripeConnected = profile?.stripe_account_id && profile?.stripe_account_details_submitted;
+        
+        if (isStripeConnected) {
+          toast({ title: "Creating Products on Stripe...", description: "This may take a moment.", duration: 5000 });
+        }
+
+        for (const product of products) {
+          try {
+            const productPayload = {
+              store_id: newStoreInDb.id,
+              name: product.name,
+              description: product.description,
+              images: product.image?.src?.large ? [product.image.src.large] : (product.image?.src?.medium ? [product.image.src.medium] : []), // Ensure images is an array of URLs
+              priceAmount: parseFloat(product.price?.amount || "0"), // Default to 0 if undefined
+              currency: product.price?.currencyCode || 'usd', // Default to USD
+            };
+
+            // The create-stripe-product function handles both Stripe creation and DB insertion
+            // It will skip Stripe if not connected and just save to platform_products
+            const response = await supabase.functions.invoke('create-stripe-product', {
+              body: productPayload,
+            });
+
+            if (response.error) {
+              throw new Error(response.error.message);
+            }
+            
+            const responseData = response.data; // Edge functions return data in response.data
+            if (responseData.error) {
+                 throw new Error(responseData.error);
+            }
+
+            console.log(`Product processing response for "${product.name}":`, responseData);
+            if (responseData.stripe_skipped) {
+              console.log(`Stripe creation skipped for product "${product.name}". Saved locally with ID ${responseData.platform_product_id}`);
+            } else {
+              console.log(`Product "${product.name}" created on Stripe: ${responseData.stripe_product_id}, Price: ${responseData.stripe_default_price_id}. DB ID: ${responseData.platform_product_id}`);
+            }
+            // No need to update platform_products here as the function does it.
+          } catch (productError) {
+            console.error(`Failed to process product "${product.name}" for store ${newStoreInDb.id}:`, productError);
+            toast({
+              title: `Product Processing Error`,
+              description: `Failed to process product "${product.name}": ${productError.message}`,
+              variant: 'destructive',
+              duration: 7000,
+            });
+            // Continue with other products
+          }
+        }
+      }
     } else {
       // No user, create store locally only
-      newStore = { 
+      newStoreInDb = { 
         ...storeToCreate, 
         id: storeToCreate.id || generateId(), 
-        createdAt: new Date().toISOString() // Add createdAt for locally created stores
+        createdAt: new Date().toISOString() 
       }; 
       toast({ title: 'Store Created Locally', description: 'Store created locally. Log in to save to the cloud.' });
     }
     
-    setStores(prevStores => [newStore, ...prevStores]);
-    setCurrentStore(newStore);
-    
+    // Update local state with the new store (newStoreInDb contains the DB representation)
+    // The products within newStoreInDb might not have Stripe IDs yet if fetched directly after store insert.
+    // For UI consistency, we might use storeToCreate which has the initial product structure.
+    // Or, better, fetch the store again with its products after all processing.
+    // For now, let's use storeToCreate for immediate UI, DB is source of truth.
+    const displayStore = { ...newStoreInDb, ...storeToCreate }; // Merge to keep products structure from wizard
+
     setStores(prevStores => {
-        const newStoresList = [newStore, ...prevStores.filter(s => s.id !== newStore.id)];
+        const newStoresList = [displayStore, ...prevStores.filter(s => s.id !== displayStore.id)];
         localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(newStoresList)));
         return newStoresList;
     });
+    setCurrentStore(displayStore);
     
-    toast({ title: 'Store Created!', description: `Store "${newStore.name}" has been created.` });
-    navigate(`/store/${newStore.id}`); // Corrected navigation path
-    return newStore;
+    toast({ title: 'Store Created!', description: `Store "${displayStore.name}" has been created.` });
+    navigate(`/store/${displayStore.id}`);
+    return displayStore; // Return the store object that includes products for UI
   };
   
   const generateStoreFromWizard = async (wizardData) => {
@@ -646,12 +689,19 @@ const finalizeBigCommerceImportFromWizard = async () => {
   };
 
   const updateStore = async (storeId, updates) => {
+    // Local state will still update with settings for immediate UI feedback
+    const storeWithFullUpdates = stores.find(s => s.id === storeId);
+    let updatedLocalStore = null;
+    if (storeWithFullUpdates) {
+      updatedLocalStore = { ...storeWithFullUpdates, ...updates };
+    }
+
     if (!user) {
       // Handle local-only updates if no user is logged in
       setStores(prevStores => {
         const newStores = prevStores.map(store => {
           if (store.id === storeId) {
-            return { ...store, ...updates }; // Merge updates into the existing store
+            return updatedLocalStore || { ...store, ...updates }; // Use the fully updated local store
           }
           return store;
         });
@@ -670,9 +720,12 @@ const finalizeBigCommerceImportFromWizard = async () => {
     // If user exists, proceed with Supabase update
     setIsLoadingStores(true); // Indicate loading state during Supabase operation
     try {
+      // Exclude 'settings' from data sent to Supabase to prevent schema error
+      const { settings, ...updatesForSupabase } = updates;
+
       const { data: updatedStoreFromSupabase, error } = await supabase
         .from('stores')
-        .update(updates)
+        .update(updatesForSupabase) // 'settings' is not included here
         .eq('id', storeId)
         .eq('user_id', user.id)
         .select()
@@ -680,24 +733,37 @@ const finalizeBigCommerceImportFromWizard = async () => {
 
       if (error) {
         console.error('Error updating store in Supabase:', error);
-        toast({ title: 'Update Failed', description: error.message, variant: 'destructive' });
+        toast({ title: 'Update Failed (Cloud)', description: `${error.message}. Settings were not saved to the cloud.`, variant: 'destructive' });
+        // Still update local state to reflect UI changes, even if cloud save failed for settings
+        setStores(prevStores => {
+          const newStores = prevStores.map(s => 
+            s.id === storeId ? (updatedLocalStore || { ...s, ...updates }) : s
+          );
+          localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(newStores)));
+          return newStores;
+        });
+        if (currentStore && currentStore.id === storeId) {
+          setCurrentStore(prevCurrent => updatedLocalStore || (prevCurrent ? {...prevCurrent, ...updates} : null) );
+        }
         setIsLoadingStores(false);
         return;
       }
 
-      // If Supabase update is successful, update local state with the fresh data from Supabase
+      // If Supabase update is successful for other fields, merge with local settings for UI consistency
+      const finalUpdatedStore = { ...updatedStoreFromSupabase, settings: updatedLocalStore?.settings || storeWithFullUpdates?.settings || {} };
+
       setStores(prevStores => {
         const newStores = prevStores.map(store =>
-          store.id === storeId ? updatedStoreFromSupabase : store
+          store.id === storeId ? finalUpdatedStore : store
         );
-        localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(newStores))); // Use newStores
+        localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(newStores)));
         return newStores;
       });
 
       if (currentStore && currentStore.id === storeId) {
-        setCurrentStore(updatedStoreFromSupabase);
+        setCurrentStore(finalUpdatedStore);
       }
-      toast({ title: 'Store Updated', description: 'Your store has been updated in the cloud.' });
+      toast({ title: 'Store Updated', description: 'Store details updated. Theme toggle setting is local until DB schema is updated.' });
     } catch (e) {
         console.error('Unexpected error in updateStore:', e);
         toast({ title: 'Update Error', description: 'An unexpected error occurred.', variant: 'destructive' });
@@ -807,9 +873,11 @@ const finalizeBigCommerceImportFromWizard = async () => {
 
     // Shopify Wizard related state and functions
     shopifyWizardStep, setShopifyWizardStep,
-    shopifyDomain, shopifyToken, // These might become generic if we have one set of credential fields
+    shopifyDomain, setShopifyDomain, // Expose shopifyDomain and its setter
+    shopifyToken, setShopifyToken, // Expose shopifyToken and its setter
     shopifyPreviewMetadata, shopifyPreviewProducts, shopifyPreviewCollections, shopifyLocalization,
     isFetchingShopifyPreviewData, shopifyImportError,
+    // setShopifyDomain, setShopifyToken, // Already exposed with domain/token
     generatedLogoImage, isGeneratingLogo, logoGenerationError,
     startShopifyImportWizard,
     fetchShopifyWizardProducts,

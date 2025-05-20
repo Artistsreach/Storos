@@ -22,10 +22,12 @@ import {
   Check,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useStore } from "@/contexts/StoreContext"; // Import useStore
 
-const SettingsTab = () => {
+const SettingsTab = ({ store }) => { // Accept store as a prop
   const [activeSubTab, setActiveSubTab] = useState("store");
   const { user, session, subscriptionStatus } = useAuth();
+  const { updateStore, isLoadingStores } = useStore(); // Get updateStore from context
   const [isPortalLoading, setIsPortalLoading] = useState(false);
   const [portalError, setPortalError] = useState(null);
   const [copied, setCopied] = useState(false);
@@ -228,9 +230,27 @@ const SettingsTab = () => {
                     Enable automatic tax calculation
                   </Label>
                 </div>
+
+                <div className="flex items-center space-x-2">
+                  <Switch 
+                    id="enable-store-theme-toggle" 
+                    checked={store?.settings?.showThemeToggle ?? true} // Read from store settings, default to true
+                    onCheckedChange={(checked) => {
+                      if (store && updateStore) {
+                        updateStore(store.id, { 
+                          settings: { ...store.settings, showThemeToggle: checked } 
+                        });
+                      }
+                    }}
+                    disabled={isLoadingStores || !store}
+                  />
+                  <Label htmlFor="enable-store-theme-toggle">
+                    Show theme (light/dark) toggle in store header
+                  </Label>
+                </div>
               </div>
 
-              <Button className="mt-6">
+              <Button className="mt-6" disabled={isLoadingStores || !store}>
                 <Save className="mr-2 h-4 w-4" />
                 Save Store Details
               </Button>

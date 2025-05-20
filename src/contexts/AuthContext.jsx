@@ -1,22 +1,44 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../lib/supabaseClient'; // Ensure this path is correct
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState({ email: 'storeowner@example.com' }); // Mock user
-  const [session, setSession] = useState({ access_token: 'mock_access_token' }); // Mock session
-  const [subscriptionStatus, setSubscriptionStatus] = useState('active'); // Mock subscription status: 'active', 'free', etc.
-  const [loading, setLoading] = useState(false); // Or true if you fetch on load
+  const [user, setUser] = useState(null);
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true); // Start with loading true
+  const [userRole, setUserRole] = useState(null);
 
-  // Add any auth logic here if needed in the future, e.g., fetching user from Supabase
-  // For now, it's using mock data.
+  useEffect(() => {
+    setLoading(true); // Start with loading true
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, currentSession) => {
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+        // Placeholder role assignment; adjust if actual role logic is more complex
+        setUserRole(currentSession?.user ? 'store_owner' : null);
+        setLoading(false); // Auth state resolved, set loading to false
+      }
+    );
+
+    // Cleanup subscription on unmount
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, []); // Empty dependency array ensures this runs once on mount
+
+  // isAuthenticated is derived from session and user state
+  const isAuthenticated = !!session && !!user;
 
   const value = {
     user,
     session,
-    subscriptionStatus,
-    loading,
-    // Add any functions like login, logout, etc. if needed
+    isAuthenticated,
+    userRole,
+    loadingRole: loading, // Corresponds to 'loadingRole' in ProtectedRoute
+    // Mock subscriptionStatus for now, can be integrated later
+    subscriptionStatus: 'active', 
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

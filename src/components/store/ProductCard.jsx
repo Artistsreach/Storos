@@ -31,11 +31,14 @@ const ProductCard = ({ product, theme, index, storeId, isPublishedView = false }
     e.preventDefault();
     e.stopPropagation();
 
-    if (!stripe_price_id) {
-      setCheckoutError('This product is not available for purchase at the moment.');
-      console.error('Stripe Price ID is missing for product:', product);
-      return;
-    }
+    // The stripe_price_id is fetched by the backend function now, 
+    // but we can keep a client-side check if product object is expected to have it.
+    // For now, let's rely on the backend to check if the product has a valid Stripe price ID.
+    // if (!stripe_price_id) { 
+    //   setCheckoutError('This product is not available for purchase at the moment (missing local Stripe Price ID).');
+    //   console.error('Stripe Price ID is missing for product on client:', product);
+    //   return;
+    // }
 
     setIsCheckoutLoading(true);
     setCheckoutError(null);
@@ -51,9 +54,8 @@ const ProductCard = ({ product, theme, index, storeId, isPublishedView = false }
             // 'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY // If function requires it
           },
           body: JSON.stringify({ 
-            priceId: stripe_price_id,
-            storeId: storeId,
-            productId: rawProductId, // Using the original product ID for metadata
+            platform_product_id: rawProductId, // Use platform_product_id
+            store_id: storeId,                 // Use store_id
             quantity: 1 
           }),
         }
@@ -65,13 +67,18 @@ const ProductCard = ({ product, theme, index, storeId, isPublishedView = false }
         throw new Error(data.error || 'Failed to create checkout session.');
       }
 
-      const { sessionId } = data;
-      const stripe = await stripePromise;
-      const { error: stripeError } = await stripe.redirectToCheckout({ sessionId });
-
-      if (stripeError) {
-        console.error('Stripe redirect error:', stripeError);
-        setCheckoutError(stripeError.message);
+      // The function now returns checkoutUrl directly
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      } else if (data.sessionId) { // Fallback if only sessionId is returned (older Stripe.js integration)
+        const stripe = await stripePromise;
+        const { error: stripeError } = await stripe.redirectToCheckout({ sessionId: data.sessionId });
+        if (stripeError) {
+          console.error('Stripe redirect error:', stripeError);
+          setCheckoutError(stripeError.message);
+        }
+      } else {
+        throw new Error('Checkout session created, but no URL or Session ID returned.');
       }
     } catch (err) {
       console.error('Checkout error:', err);
@@ -80,6 +87,12 @@ const ProductCard = ({ product, theme, index, storeId, isPublishedView = false }
       setIsCheckoutLoading(false);
     }
   };
+
+  // Conditionally render Buy Now button only if product has a stripe_default_price_id
+  // This implies it's available for purchase via Stripe.
+  // The backend function `create-stripe-checkout-session` will also verify this.
+  const canBuyNow = !!product.stripe_default_price_id || !!stripe_price_id;
+
 
   return (
     <motion.div
@@ -146,7 +159,7 @@ const ProductCard = ({ product, theme, index, storeId, isPublishedView = false }
             <ShoppingCart className="mr-2 h-4 w-4" />
             Add to Cart
           </Button>
-          {stripe_price_id && ( // Only show Buy Now if stripe_price_id exists
+          {canBuyNow && ( 
             <Button 
               variant="outline"
               className="w-full transition-transform duration-200 hover:scale-105"

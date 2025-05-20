@@ -2,6 +2,7 @@ import React from 'react';
 import SubscribeButton from '../components/SubscribeButton';
 import { Link } from 'react-router-dom'; // Assuming you use React Router for navigation
 import { useAuth } from '../contexts/AuthContext';
+import Header from '@/components/Header'; // Added Header import
 
 const PricingPage = () => {
   const { isAuthenticated, user } = useAuth();
@@ -11,8 +12,10 @@ const PricingPage = () => {
   const isSubscribed = false; // Replace with actual check, e.g., user?.profile?.is_subscribed
 
   return (
-    <div style={{ padding: '20px', textAlign: 'center' }}>
-      <h1>Our Plan</h1>
+    <>
+      <Header />
+      <div style={{ padding: '20px', textAlign: 'center' }}>
+        <h1>Our Plan</h1>
       <p>Get full access to all store creation and management features.</p>
       
       <div style={{ border: '1px solid #ccc', padding: '20px', margin: '20px auto', maxWidth: '400px', borderRadius: '8px' }}>
@@ -38,6 +41,7 @@ const PricingPage = () => {
         )}
       </div>
     </div>
+    </>
   );
 };
 

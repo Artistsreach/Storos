@@ -73,9 +73,10 @@ function AuthPage() {
         <Auth
           supabaseClient={supabase}
           appearance={{ theme: customTheme }}
-          providers={['google', 'facebook']} // Added 'facebook' provider
+          providers={['google']} // Added 'facebook' provider
           socialLayout="vertical" // Changed to vertical to move social buttons below
           theme="dark" // You can toggle this based on your app's theme preference
+          redirectTo={window.location.origin + '/'}
         />
       </div>
     </div>

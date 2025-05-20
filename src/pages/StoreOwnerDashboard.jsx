@@ -58,6 +58,10 @@ const StoreOwnerDashboard = () => {
     setIsImportSelectorOpen(true);
   };
 
+  const handleCloseImportSelector = () => { // Added this handler
+    setIsImportSelectorOpen(false);
+  };
+
   const handleSourceSelected = (source) => {
     setCurrentImportSourceForWizard(source);
     setIsImportSelectorOpen(false);
@@ -95,25 +99,7 @@ const StoreOwnerDashboard = () => {
           </p>
         </motion.div>
 
-        {!loadingProfile && isSubscribed && user && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="mb-10 p-4 bg-blue-100 dark:bg-blue-900 border border-blue-300 dark:border-blue-700 rounded-lg text-center"
-          >
-            <h2 className="text-xl font-semibold text-blue-800 dark:text-blue-200 mb-2">
-              Manage Your Subscription
-            </h2>
-            <p className="text-blue-700 dark:text-blue-300 mb-3">
-              You are currently subscribed to the Store Creator Plan.
-            </p>
-            <Button onClick={handleManageBilling} disabled={isPortalLoading} variant="outline">
-              {isPortalLoading ? 'Loading Portal...' : 'Manage Billing'}
-            </Button>
-            {portalError && <p style={{ color: 'red', marginTop: '10px' }}>Error: {portalError}</p>}
-          </motion.div>
-        )}
+        {/* Removed the blue "Manage Your Subscription" container */}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full max-w-3xl mx-auto mb-12">
           <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 mb-6">
@@ -156,7 +142,10 @@ const StoreOwnerDashboard = () => {
 
       {isImportSelectorOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <ImportSourceSelector onSelectSource={handleSourceSelected} />
+          <ImportSourceSelector 
+            onSelectSource={handleSourceSelected} 
+            onClose={handleCloseImportSelector} // Passed onClose prop
+          />
         </div>
       )}
 

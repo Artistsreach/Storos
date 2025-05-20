@@ -272,23 +272,36 @@ async function removeBackgroundFromLogo(base64ImageData, mimeType) {
   }
 }
 
-export async function editImageWithGemini(base64ImageData, mimeType, editPrompt) {
+export async function editImageWithGemini(
+  referenceImageBase64, 
+  referenceImageMimeType, 
+  productImageBase64, 
+  productImageMimeType, 
+  editPrompt
+) {
   if (!GEMINI_API_KEY) {
     console.error("[editImageWithGemini] VITE_GEMINI_API_KEY is not available.");
     throw new Error("Gemini API key is not configured.");
   }
-  if (!base64ImageData || !mimeType || !editPrompt) {
-    throw new Error("Base64 image data, mime type, and edit prompt are required for image editing.");
+  if (!referenceImageBase64 || !referenceImageMimeType || !productImageBase64 || !productImageMimeType || !editPrompt) {
+    throw new Error("Reference image data/type, product image data/type, and edit prompt are required for image editing.");
   }
 
   const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
+  // Order: Prompt, then Product Image (first image for prompt context), then Reference Image (second image for prompt context)
   const contents = [
     { text: editPrompt },
     {
       inlineData: {
-        mimeType: mimeType,
-        data: base64ImageData,
+        mimeType: productImageMimeType,
+        data: productImageBase64,
+      },
+    },
+    {
+      inlineData: {
+        mimeType: referenceImageMimeType,
+        data: referenceImageBase64,
       },
     },
   ];
@@ -304,7 +317,7 @@ export async function editImageWithGemini(base64ImageData, mimeType, editPrompt)
   try {
     console.log(`[editImageWithGemini] Calling Gemini for image editing with prompt: "${editPrompt}"`);
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash-preview-image-generation", // Model that supports image editing
+      model: "gemini-1.5-flash-latest", // Changed to a general multimodal model
       contents: contents,
       safetySettings: editSafetySettings,
       config: {

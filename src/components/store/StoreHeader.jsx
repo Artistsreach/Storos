@@ -1,8 +1,9 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Search, Menu, X, Trash2 } from 'lucide-react';
+import { ShoppingCart, Search, Menu, X, Trash2, Sun, Moon } from 'lucide-react'; // Added Sun, Moon
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch'; // Added Switch
 import { useStore } from '@/contexts/StoreContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
@@ -11,15 +12,45 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 
 const StoreHeader = ({ store, isPublishedView = false }) => {
-  const { name, theme, logo_url: logoUrl, id: storeId } = store;
+  const { name, theme, logo_url: logoUrl, id: storeId, settings } = store; // Destructure settings
   const { cart, removeFromCart, updateQuantity } = useStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false); // Added dark mode state
   const navigate = useNavigate();
 
   const storeCartItems = cart.filter(item => item.storeId === storeId);
   const cartItemCount = storeCartItems.reduce((sum, item) => sum + item.quantity, 0);
   const cartTotal = storeCartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+  useEffect(() => {
+    // This component might be used on pages that don't control the global HTML class.
+    // For now, we'll manage a local state and assume the global class is handled elsewhere (e.g., by the main Header or a theme provider).
+    // If this StoreHeader is meant to *also* control the global theme, this logic would need to be more robust
+    // or ideally, theme state would be managed globally (e.g. in a context).
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+      setIsDarkMode(true);
+      // Optionally, if this header *should* control the theme:
+      // document.documentElement.classList.add('dark');
+    } else {
+      setIsDarkMode(false);
+      // document.documentElement.classList.remove('dark');
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const newIsDarkMode = !isDarkMode;
+    setIsDarkMode(newIsDarkMode);
+    if (newIsDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  };
 
   // Simplified base path, as there's only one main store URL structure now
   const basePath = `/store/${storeId}`; 
@@ -77,6 +108,18 @@ const StoreHeader = ({ store, isPublishedView = false }) => {
           </nav>
           
           <div className="flex items-center gap-2">
+            {(settings?.showThemeToggle ?? true) && ( // Conditionally render based on store setting, default to true if not set
+            <div className="hidden md:flex items-center gap-2 mr-2">
+              <Switch
+                id={`store-theme-switcher-${storeId}`}
+                checked={isDarkMode}
+                onCheckedChange={toggleTheme}
+                aria-label="Toggle dark mode"
+              />
+              {isDarkMode ? <Moon className="h-5 w-5 text-muted-foreground" /> : <Sun className="h-5 w-5 text-muted-foreground" />}
+            </div>
+            )}
+
             <Button variant="ghost" size="icon" className="hidden md:flex text-muted-foreground hover:text-primary" style={{ '--hover-color': theme.primaryColor }}>
               <Search className="h-5 w-5" />
             </Button>
@@ -128,6 +171,19 @@ const StoreHeader = ({ store, isPublishedView = false }) => {
                   {link.label}
                 </a>
               ))}
+               {/* Theme toggle for mobile menu */}
+              {(settings?.showThemeToggle ?? true) && ( // Conditionally render based on store setting
+              <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border">
+                <Switch
+                  id={`mobile-store-theme-switcher-${storeId}`}
+                  checked={isDarkMode}
+                  onCheckedChange={toggleTheme}
+                  aria-label="Toggle dark mode"
+                />
+                {isDarkMode ? <Moon className="h-5 w-5 text-muted-foreground" /> : <Sun className="h-5 w-5 text-muted-foreground" />}
+                <span className="text-sm text-muted-foreground">{isDarkMode ? 'Dark Mode' : 'Light Mode'}</span>
+              </div>
+              )}
             </nav>
           </motion.div>
         )}

@@ -21,11 +21,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch'; // Added Switch import
 import { useStore } from '@/contexts/StoreContext';
 
 const EditStoreForm = ({ store, open, onOpenChange }) => {
   const navigate = useNavigate();
-  const { updateStore } = useStore();
+  const { updateStore, isLoadingStores } = useStore(); // Added isLoadingStores
   
   const [formData, setFormData] = useState({
     name: store.name,
@@ -36,6 +37,9 @@ const EditStoreForm = ({ store, open, onOpenChange }) => {
       secondaryColor: store.theme.secondaryColor,
       fontFamily: store.theme.fontFamily,
       layout: store.theme.layout,
+    },
+    settings: { // Initialize settings
+      showThemeToggle: store.settings?.showThemeToggle ?? true,
     }
   });
   
@@ -56,12 +60,29 @@ const EditStoreForm = ({ store, open, onOpenChange }) => {
       }
     }));
   };
+
+  const handleSettingsChange = (name, value) => {
+    setFormData(prev => ({
+      ...prev,
+      settings: {
+        ...prev.settings,
+        [name]: value
+      }
+    }));
+  };
   
   const handleSubmit = (e) => {
     e.preventDefault();
-    updateStore(store.id, formData);
+    // Ensure formData includes the settings object when updating
+    const dataToUpdate = {
+      name: formData.name,
+      description: formData.description,
+      type: formData.type,
+      theme: formData.theme,
+      settings: formData.settings, // Pass the whole settings object
+    };
+    updateStore(store.id, dataToUpdate);
     onOpenChange(false);
-    // navigate(`/preview/${store.id}`); // Removed to keep user on the current page
   };
   
   return (
@@ -196,12 +217,28 @@ const EditStoreForm = ({ store, open, onOpenChange }) => {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Theme Toggle Switch */}
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="showThemeToggle" className="flex items-center">
+                    Show Light/Dark Mode Toggle in Store Header
+                  </Label>
+                  <Switch
+                    id="showThemeToggle"
+                    checked={formData.settings.showThemeToggle}
+                    onCheckedChange={(checked) => handleSettingsChange('showThemeToggle', checked)}
+                    disabled={isLoadingStores}
+                  />
+                   <p className="text-xs text-muted-foreground">
+                    Allows customers to switch between light and dark themes on your store page.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
           
           <DialogFooter>
-            <Button type="submit">Save Changes</Button>
+            <Button type="submit" disabled={isLoadingStores}>Save Changes</Button>
           </DialogFooter>
         </form>
       </DialogContent>
