@@ -422,76 +422,43 @@ const RealtimeChatbot = () => {
     }
   };
 
-  const clientInitiatePurchase = async (args) => {
+  const clientInitiatePurchase = (args) => { // No longer async, doesn't call Stripe directly
     const { product_id, product_name } = args;
 
-    if (!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY) {
-      console.error("Stripe publishable key is not set.");
-      return { success: false, detail: "Stripe is not configured." };
-    }
-
     if (!currentStore || !currentStore.id) {
-      return { success: false, detail: "Current store information is not available." };
+      console.error("Buy Now: Current store not available.");
+      return { success: false, detail: "Current store information is not available to initiate purchase." };
     }
     if (!product_id) {
+      console.error("Buy Now: Product ID not provided.");
       return { success: false, detail: "Product ID not provided." };
     }
 
     const product = getProductById(currentStore.id, product_id);
 
     if (!product) {
+      console.error(`Buy Now: Product with ID ${product_id} not found.`);
       return { success: false, detail: `Product with ID ${product_id} not found.` };
     }
     
-    // IMPORTANT: Ensure your product object fetched by getProductById includes 'stripePriceId'
-    if (!product.stripePriceId) {
-        console.error(`Product ${product.name || product_id} is missing a Stripe Price ID.`);
-        return { success: false, detail: `Product ${product.name || product_id} is not configured for purchase.` };
-    }
-
     try {
-      // Call your backend to create the Checkout Session
-      const response = await fetch('/functions/v1/create-checkout-session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          priceId: product.stripePriceId,
-          storeId: currentStore.id,
-          productId: product.id,
-          quantity: 1, // Default to 1 for "Buy Now"
-        }),
+      // Add product to internal cart
+      contextAddToCart(product, currentStore.id); // Toast is handled by contextAddToCart
+
+      // Navigate to the internal checkout page, passing product info in state
+      navigate('/checkout', { 
+        state: { 
+          action: 'buyNow', 
+          productToAddId: product.id, 
+          // productToAddName: product.name, // Name can be fetched on checkout page using ID
+          storeId: currentStore.id 
+        } 
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Failed to create checkout session: ${response.statusText}`);
-      }
-
-      const { sessionId } = await response.json();
-      if (!sessionId) {
-        throw new Error("Session ID not received from backend.");
-      }
-
-      const stripe = await stripePromise;
-      if (!stripe) {
-        throw new Error("Stripe.js not loaded.");
-      }
       
-      const { error: stripeError } = await stripe.redirectToCheckout({ sessionId });
-
-      if (stripeError) {
-        console.error("Stripe redirectToCheckout error:", stripeError);
-        return { success: false, detail: stripeError.message || "Failed to redirect to Stripe." };
-      }
-      // This part is usually not reached if redirectToCheckout is successful, as it navigates away.
-      // If it does, it implies a non-navigation error from redirectToCheckout.
-      return { success: true, detail: "Redirecting to Stripe Checkout..." }; // Should not be seen by user if redirect works
-
+      return { success: true, detail: `Added ${product.name || 'product'} to cart and navigated to checkout.` };
     } catch (error) {
-      console.error("Error initiating purchase:", error);
-      return { success: false, detail: error.message || "Could not initiate purchase." };
+      console.error("Error during Buy Now (add to cart & navigate) process:", error);
+      return { success: false, detail: error.message || "Could not process Buy Now action." };
     }
   };
   // --- End client-side implementations ---
