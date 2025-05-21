@@ -169,17 +169,31 @@ const Header = () => {
   };
 
   return (
-    <motion.header
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="w-full py-4 px-6 flex justify-between items-center sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b"
-    >
-      <Link to="/" className="flex items-center gap-2">
-        <div className="bg-primary rounded-full p-1.5">
-          <ShoppingBag className="h-5 w-5 text-primary-foreground" />
+    <>
+      {/* Announcement Bar */}
+      {!loadingProfile && !isStripeConnected && (
+        <div className="bg-red-600 text-white py-2 px-4 text-center text-sm">
+          <button onClick={handleCreateStripeConnectAccount} disabled={isStripeActionLoading} className="hover:underline focus:outline-none">
+            {isStripeActionLoading ? 'Processing...' : "Create A Business to Activate Checkout"}
+          </button>
+          {stripeActionError && <p className="text-xs text-yellow-300 mt-1">{stripeActionError}</p>}
         </div>
-        <span className="font-bold text-xl">StoreGen</span>
+      )}
+      <motion.header
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full py-4 px-6 flex justify-between items-center sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b"
+      >
+        <Link to="/" className="flex items-center gap-2">
+          <img 
+            src={isDarkMode 
+              ? "https://uwbrgokfgelgxeonoqah.supabase.co/storage/v1/object/public/images/ffwhite.png" 
+              : "https://uwbrgokfgelgxeonoqah.supabase.co/storage/v1/object/public/images/FreshFrontLogo.png"} 
+            alt="FreshFront Logo" 
+            className="h-[60px] w-auto" // Ensure these images are publicly accessible in your Supabase bucket.
+          />
+        <span className="font-bold text-xl">FreshFront</span>
       </Link>
       
       <div className="flex items-center gap-3">
@@ -267,6 +281,7 @@ const Header = () => {
         )}
       </div>
     </motion.header>
+    </>
   );
 };
 

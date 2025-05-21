@@ -39,7 +39,7 @@ export async function generateLogoWithGemini(storeName) {
 
     // Use ai.models.generateContent() as per the user's example
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash-preview-image-generation", // Model name from the example
+      model: "gemini-2.0-flash-preview-image-generation", // Reverted to gemini-2.0-flash-preview-image-generation
       contents: prompt, // Pass the prompt string directly as per the example
       safetySettings,   // Pass safetySettings; @google/genai should support this
       config: {
@@ -317,7 +317,7 @@ export async function editImageWithGemini(
   try {
     console.log(`[editImageWithGemini] Calling Gemini for image editing with prompt: "${editPrompt}"`);
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash-latest", // Changed to a general multimodal model
+      model: "gemini-2.0-flash", // Changed to gemini-2.0-flash
       contents: contents,
       safetySettings: editSafetySettings,
       config: {

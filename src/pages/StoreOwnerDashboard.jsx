@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Header from '@/components/Header';
 import StoreGenerator from '@/components/StoreGenerator';
@@ -18,6 +18,7 @@ const StoreOwnerDashboard = () => {
   const [currentImportSourceForWizard, setCurrentImportSourceForWizard] = useState(null);
   const [activeTab, setActiveTab] = useState("ai-prompt");
   const { user, session, subscriptionStatus, loadingProfile } = useAuth();
+  const [isShimmering, setIsShimmering] = useState(false);
 
   const isSubscribed = subscriptionStatus === 'active';
   const [isPortalLoading, setIsPortalLoading] = useState(false);
@@ -75,6 +76,26 @@ const StoreOwnerDashboard = () => {
     // if (activeTab === 'store-import') setActiveTab('ai-prompt');
   };
 
+  useEffect(() => {
+    let intervalId;
+    let timeoutId;
+
+    const triggerShimmer = () => {
+      setIsShimmering(true);
+      timeoutId = setTimeout(() => {
+        setIsShimmering(false);
+      }, 2500); // Duration of the shimmer animation (matches tailwind.config.js)
+    };
+
+    intervalId = setInterval(triggerShimmer, 5000); // Trigger every 5 seconds
+
+    // Cleanup function
+    return () => {
+      clearInterval(intervalId);
+      clearTimeout(timeoutId);
+    };
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -91,11 +112,11 @@ const StoreOwnerDashboard = () => {
           transition={{ duration: 0.5 }}
           className="text-center mb-10"
         >
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
-            Build Your Dream E-commerce Store
+          <h1 className={`text-4xl md:text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-gray-500 to-slate-300 dark:from-slate-500 dark:to-gray-500 ${isShimmering ? 'animate-shimmer bg-200%' : 'bg-auto'}`}>
+            Create a Fresh Store
           </h1>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Choose your path: use our AI-powered prompt generator, follow a step-by-step wizard, or import an existing store.
+            You can create a store 3 ways: Prompt, Steps or Import.
           </p>
         </motion.div>
 

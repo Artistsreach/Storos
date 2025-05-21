@@ -22,13 +22,17 @@ export function createSupabaseClient(req: Request): SupabaseClient {
   );
 }
 
-/*
 // Example of creating an admin client if you need to bypass RLS
 // Be very careful with this and only use it when absolutely necessary
-export function createSupabaseAdminClient(): SupabaseClient {
-  return createAdminClient(
+export function createSupabaseClientWithServiceRole(): SupabaseClient {
+  return createClient( // Using the same createClient, but with service role key
     Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    }
   );
 }
-*/

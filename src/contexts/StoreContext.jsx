@@ -134,7 +134,7 @@ const prepareStoresForLocalStorage = (storesArray) => {
     const { data, error } = await supabase
       .from('stores')
       .select('*')
-      .eq('user_id', userId)
+      .eq('merchant_id', userId) // Changed user_id to merchant_id
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -199,8 +199,9 @@ const prepareStoresForLocalStorage = (storesArray) => {
     let newStoreInDb;
 
     if (user) {
-      storeToCreate.user_id = user.id; // Ensure user_id is set for DB insertion
-      const { id: clientGeneratedId, settings, products, ...dataToInsert } = storeToCreate;
+      // Ensure merchant_id is set for DB insertion, using the user's ID from AuthContext
+      const { id: clientGeneratedId, settings, products, user_id, ...restOfStoreData } = storeToCreate; // Remove user_id if present
+      const dataToInsert = { ...restOfStoreData, merchant_id: user.id }; // Add merchant_id
       
       const { data, error } = await supabase
         .from('stores')
@@ -228,11 +229,11 @@ const prepareStoresForLocalStorage = (storesArray) => {
           try {
             const productPayload = {
               store_id: newStoreInDb.id,
-              name: product.name,
-              description: product.description,
-              images: product.image?.src?.large ? [product.image.src.large] : (product.image?.src?.medium ? [product.image.src.medium] : []), // Ensure images is an array of URLs
-              priceAmount: parseFloat(product.price?.amount || "0"), // Default to 0 if undefined
-              currency: product.price?.currencyCode || 'usd', // Default to USD
+              name: product.name || `Product ${generateId().substring(0, 8)}`, // Fallback for name
+              description: product.description || "No description available.", // Fallback for description
+              images: product.image?.src?.large ? [product.image.src.large] : (product.image?.src?.medium ? [product.image.src.medium] : []),
+              priceAmount: Number(product.price) >= 0 ? Number(product.price) : 0, // Use product.price directly, ensure it's a number, default 0
+              currency: 'usd', // Default to 'usd' as product objects from storeActions don't have specific currency
             };
 
             // The create-stripe-product function handles both Stripe creation and DB insertion
@@ -727,7 +728,7 @@ const finalizeBigCommerceImportFromWizard = async () => {
         .from('stores')
         .update(updatesForSupabase) // 'settings' is not included here
         .eq('id', storeId)
-        .eq('user_id', user.id)
+        .eq('merchant_id', user.id) // Changed user_id to merchant_id
         .select()
         .single();
 
@@ -771,7 +772,107 @@ const finalizeBigCommerceImportFromWizard = async () => {
         setIsLoadingStores(false);
     }
   };
+
+  const updateStorePassKey = async (storeId, passKey) => {
+    if (!user) {
+      toast({ title: 'Authentication Required', description: 'Please log in to set a pass key.', variant: 'destructive' });
+      return;
+    }
+    // Optimistically update local state for responsiveness (optional, but good for UX)
+    // This assumes 'pass_key' is a field on your store object.
+    // If not, you might not need local optimistic update for this specific field if it's only for access control.
+    
+    // Update Supabase
+    setIsLoadingStores(true); // Consider a more specific loading state if needed
+    try {
+      const { data, error } = await supabase
+        .from('stores')
+        .update({ pass_key: passKey }) // Make sure 'pass_key' is the correct column name in your DB
+        .eq('id', storeId)
+        .eq('user_id', user.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating store pass key in Supabase:', error);
+        toast({ title: 'Pass Key Update Failed', description: error.message, variant: 'destructive' });
+        setIsLoadingStores(false);
+        return;
+      }
+
+      // Update local state with the new pass_key from DB response
+      setStores(prevStores => {
+        const newStores = prevStores.map(store =>
+          store.id === storeId ? { ...store, pass_key: data.pass_key } : store
+        );
+        localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(newStores)));
+        return newStores;
+      });
+
+      if (currentStore && currentStore.id === storeId) {
+        setCurrentStore(prevCurrent => prevCurrent ? { ...prevCurrent, pass_key: data.pass_key } : null);
+      }
+      toast({ title: 'Store Pass Key Set', description: 'The pass key for the store has been updated.' });
+    } catch (e) {
+      console.error('Unexpected error in updateStorePassKey:', e);
+      toast({ title: 'Pass Key Update Error', description: 'An unexpected error occurred.', variant: 'destructive' });
+    } finally {
+      setIsLoadingStores(false);
+    }
+  };
   
+  const assignStoreManager = async (storeId, managerEmail) => {
+    if (!user) {
+      toast({ title: 'Authentication Required', description: 'Please log in to assign a manager.', variant: 'destructive' });
+      return;
+    }
+    if (!storeId || !managerEmail) {
+      toast({ title: 'Missing Information', description: 'Store ID and Manager Email are required.', variant: 'destructive' });
+      return;
+    }
+
+    setIsLoadingStores(true); // Or a more specific loading state
+    try {
+      const { data, error } = await supabase.functions.invoke('assign-store-manager', {
+        body: { store_id: storeId, manager_email: managerEmail },
+      });
+
+      if (error) {
+        console.error('Error assigning store manager:', error);
+        toast({ title: 'Manager Assignment Failed', description: error.message, variant: 'destructive' });
+        setIsLoadingStores(false);
+        return;
+      }
+      
+      if (data.error) { // Check for error within the response data from the function
+        console.error('Error from assign-store-manager function:', data.error);
+        toast({ title: 'Manager Assignment Failed', description: data.error, variant: 'destructive' });
+        setIsLoadingStores(false);
+        return;
+      }
+
+      // Optionally, update local store data if the manager_email or similar field is stored on the store object
+      // For now, just a success toast. If you store manager_email on the store locally:
+      // setStores(prevStores => {
+      //   const newStores = prevStores.map(store =>
+      //     store.id === storeId ? { ...store, manager_email: managerEmail /* or data.updatedField */ } : store
+      //   );
+      //   localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(newStores)));
+      //   return newStores;
+      // });
+      // if (currentStore && currentStore.id === storeId) {
+      //   setCurrentStore(prev => prev ? { ...prev, manager_email: managerEmail } : null);
+      // }
+
+      toast({ title: 'Store Manager Assigned', description: `Manager ${managerEmail} assigned to store.` });
+    } catch (e) {
+      console.error('Unexpected error in assignStoreManager:', e);
+      toast({ title: 'Manager Assignment Error', description: 'An unexpected error occurred.', variant: 'destructive' });
+    } finally {
+      setIsLoadingStores(false);
+    }
+  };
+
   const updateProductImage = async (storeId, productId, newImage) => {
     const storeToUpdate = stores.find(s => s.id === storeId);
     if (!storeToUpdate) {
@@ -806,7 +907,7 @@ const finalizeBigCommerceImportFromWizard = async () => {
       .from('stores')
       .delete()
       .eq('id', storeId)
-      .eq('user_id', user.id);
+      .eq('merchant_id', user.id); // Changed user_id to merchant_id
 
     if (error) {
       console.error('Error deleting store from Supabase:', error);
@@ -862,10 +963,22 @@ const finalizeBigCommerceImportFromWizard = async () => {
     toast({ title: 'Cart Cleared', description: 'Your shopping cart is now empty.' });
   };
 
+  const updateStoreTemplateVersion = async (storeId, newVersion) => {
+    if (!storeId || !newVersion) {
+      toast({ title: 'Error', description: 'Store ID and new template version are required.', variant: 'destructive' });
+      return;
+    }
+    await updateStore(storeId, { template_version: newVersion });
+    // updateStore already handles toasts and state updates.
+    // A specific toast for template change can be added here if desired,
+    // but updateStore's generic "Store Updated" might be sufficient.
+    toast({ title: 'Template Switched', description: `Store template updated to ${newVersion === 'v1' ? 'Classic' : 'Modern'}.` });
+  };
+
   const value = { 
     stores, currentStore, isGenerating, isLoadingStores, cart, user,
     generateStore, /* importShopifyStore, // Replaced by wizard functions */ 
-    getStoreById, updateStore, deleteStore, setCurrentStore,
+    getStoreById, updateStore, deleteStore, setCurrentStore, updateStorePassKey, assignStoreManager, updateStoreTemplateVersion,
     getProductById, updateProductImage, generateStoreFromWizard,
     addToCart, removeFromCart, updateQuantity, clearCart,
     generateAIProducts: generateAIProductsData,

@@ -26,7 +26,7 @@ export const renderWizardStepContent = (step, props) => {
   const {
     formData, handleInputChange, handleProductTypeChange, handleProductSourceChange,
     handleProductCountChange, handleManualProductChange, addManualProduct, removeManualProduct,
-    suggestStoreName, generateLogo, generateAiProducts, // Added generateAiProducts
+    suggestStoreName, generateLogo, generateAiProducts, generateAiCollections, // Added generateAiCollections
     isProcessing, productTypeOptions: pto, // Renamed to avoid conflict
     storeNameSuggestions, handleSuggestionClick, suggestionError, // New props for suggestions
   } = props;
@@ -192,9 +192,63 @@ export const renderWizardStepContent = (step, props) => {
           )}
         </motion.div>
       );
-    case 5: // Final Prompt
+    case 5: // Collections
       return (
-        <motion.div key="step5" initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} className="space-y-4 w-full">
+        <motion.div key="step5" initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} className="space-y-6 w-full">
+          <Label className="text-lg font-semibold">How do you want to add collections?</Label>
+          <Select onValueChange={(value) => setFormData(prev => ({ ...prev, collections: { ...prev.collections, source: value } }))} value={formData.collections.source}>
+            <SelectTrigger>
+              <SelectValue placeholder="Choose collection source..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ai">Generate with AI</SelectItem>
+              {/* <SelectItem value="manual">Add Manually</SelectItem> */}
+            </SelectContent>
+          </Select>
+
+          {formData.collections.source === 'ai' && (
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="collectionCount">Number of AI Collections to Generate</Label>
+                <Input id="collectionCount" type="number" min="1" max="5" value={formData.collections.count} onChange={(e) => setFormData(prev => ({ ...prev, collections: { ...prev.collections, count: parseInt(e.target.value) || 1 } }))} />
+              </div>
+              <Button type="button" onClick={generateAiCollections} disabled={isProcessing || !formData.productType || !formData.storeName || formData.products.items.length === 0} className="w-full">
+                {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                Generate Collections with AI
+              </Button>
+              {suggestionError && formData.collections.source === 'ai' && (
+                <p className="text-sm text-red-500 mt-2">{suggestionError}</p>
+              )}
+              {formData.collections.items.length > 0 && (
+                <div className="space-y-3 max-h-72 overflow-y-auto pr-2 mt-4">
+                  <p className="text-sm font-medium text-muted-foreground">Generated Collections:</p>
+                  {formData.collections.items.map((item, index) => (
+                    <Card key={index} className="p-4 flex gap-4 items-start">
+                      {item.imageUrl ? (
+                        <img src={item.imageUrl} alt={item.name} className="w-24 h-24 object-cover rounded-md border" />
+                      ) : (
+                        <div className="w-24 h-24 bg-muted rounded-md flex items-center justify-center text-xs text-muted-foreground">No Image</div>
+                      )}
+                      <div className="flex-1 space-y-1">
+                        <h4 className="font-semibold text-md">{item.name || "Untitled Collection"}</h4>
+                        <p className="text-xs text-gray-600 line-clamp-2">{item.description || "No description."}</p>
+                      </div>
+                      {/* Placeholder for image change/edit options */}
+                      <div className="flex flex-col gap-1">
+                        <Button variant="outline" size="sm" className="text-xs h-auto py-1">Change Image</Button>
+                        <Button variant="outline" size="sm" className="text-xs h-auto py-1">Edit Image</Button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </motion.div>
+      );
+    case 6: // Final Prompt (shifted from step 5)
+      return (
+        <motion.div key="step6" initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} className="space-y-4 w-full">
           <Label htmlFor="prompt" className="text-lg font-semibold">Describe your store's overall style and feel</Label>
           <Textarea
             id="prompt"
@@ -216,15 +270,13 @@ export const isWizardNextDisabled = (step, formData) => {
   if (step === 1 && !formData.productType) return true;
   if (step === 2 && !formData.storeName) return true;
   // Step 3 (Logo) can be skipped or have an empty URL
-  if (step === 4) {
+  if (step === 4) { // Products step
     if (formData.products.source === 'manual' && formData.products.items.some(p => !p.name || !p.price)) return true;
-    // For AI products, allow next if count > 0, even if items aren't generated yet,
-    // or enforce generation before proceeding:
-    // if (formData.products.source === 'ai' && formData.products.items.length !== parseInt(formData.products.count)) return true;
-    // For now, let's not block "Next" based on AI products not being generated yet, as generation can take time.
-    // The user might want to proceed and let generation happen or review later.
-    // However, if items are required for the final store generation, this logic might need adjustment.
+    if (formData.products.source === 'ai' && formData.products.items.length === 0 && formData.products.count > 0) return true;
   }
-  if (step === 5 && !formData.prompt) return true; // Assuming prompt is required for final step
+  if (step === 5) { // Collections step
+    if (formData.collections.source === 'ai' && formData.collections.items.length === 0 && formData.collections.count > 0) return true;
+  }
+  if (step === 6 && !formData.prompt) return true; // Final Prompt step
   return false;
 };

@@ -6,7 +6,8 @@ if (!PEXELS_API_KEY) {
   console.error("VITE_PEXELS_API_KEY is not set. Please add it to your .env file. Pexels video search will fail.");
 }
 
-const PEXELS_API_URL = 'https://api.pexels.com/videos';
+const PEXELS_VIDEO_API_URL = 'https://api.pexels.com/videos';
+const PEXELS_PHOTO_API_URL = 'https://api.pexels.com/v1';
 
 /**
  * Searches for videos on Pexels.
@@ -22,7 +23,7 @@ export async function searchPexelsVideos(query, perPage = 9) {
     return { error: "Search query cannot be empty." };
   }
 
-  const url = `${PEXELS_API_URL}/search?query=${encodeURIComponent(query)}&per_page=${perPage}`;
+  const url = `${PEXELS_VIDEO_API_URL}/search?query=${encodeURIComponent(query)}&per_page=${perPage}`;
 
   try {
     const response = await fetch(url, {
@@ -43,7 +44,7 @@ export async function searchPexelsVideos(query, perPage = 9) {
     const videos = data.videos.map(video => {
       // Pexels API returns multiple video files of different qualities/formats.
       // We try to find a decent quality MP4.
-      const mp4File = video.video_files.find(vf => vf.file_type === 'video/mp4' && (vf.quality === 'hd' || vf.quality === 'sd')) 
+      const mp4File = video.video_files.find(vf => vf.file_type === 'video/mp4' && (vf.quality === 'hd' || vf.quality === 'sd'))
                       || video.video_files.find(vf => vf.file_type === 'video/mp4'); // fallback to any mp4
       
       return {
@@ -63,5 +64,54 @@ export async function searchPexelsVideos(query, perPage = 9) {
   } catch (error) {
     console.error('Error fetching from Pexels API:', error);
     return { error: `Network error or other issue fetching Pexels videos: ${error.message}` };
+  }
+}
+
+/**
+ * Searches for photos on Pexels.
+ * @param {string} query - The search query.
+ * @param {number} perPage - Number of results per page.
+ * @returns {Promise<object>} - A promise that resolves to an object containing photos or an error.
+ */
+export async function searchPexelsPhotos(query, perPage = 9) {
+  if (!PEXELS_API_KEY) {
+    return { error: "Pexels API Key not configured." };
+  }
+  if (!query || !query.trim()) {
+    return { error: "Search query cannot be empty." };
+  }
+
+  const url = `${PEXELS_PHOTO_API_URL}/search?query=${encodeURIComponent(query)}&per_page=${perPage}`;
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Authorization: PEXELS_API_KEY,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: response.statusText }));
+      console.error('Pexels API error:', response.status, errorData);
+      return { error: `Pexels API error: ${errorData.message || response.statusText}` };
+    }
+
+    const data = await response.json();
+    
+    const photos = data.photos.map(photo => ({
+      id: photo.id,
+      width: photo.width,
+      height: photo.height,
+      src: photo.src.medium, // Use 'medium' size for general display
+      alt: photo.alt,
+      photographer: photo.photographer,
+      pexelsUrl: photo.url,
+    }));
+
+    return { photos, totalResults: data.total_results, page: data.page, perPage: data.per_page };
+
+  } catch (error) {
+    console.error('Error fetching from Pexels API:', error);
+    return { error: `Network error or other issue fetching Pexels photos: ${error.message}` };
   }
 }

@@ -1,47 +1,178 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useParams } from 'react-router-dom'; // useSearchParams no longer needed for 'edit'
 import { useStore } from '@/contexts/StoreContext';
-import StoreHeader from '@/components/store/StoreHeader';
-import StoreHero from '@/components/store/StoreHero';
-import ProductGrid from '@/components/store/ProductGrid';
-import StoreFeatures from '@/components/store/StoreFeatures';
-import StoreNewsletter from '@/components/store/StoreNewsletter';
-import StoreFooter from '@/components/store/StoreFooter';
+// import StoreHeader from '@/components/store/StoreHeader';
+// import StoreHero from '@/components/store/StoreHero';
+// import ProductGrid from '@/components/store/ProductGrid';
+// import StoreFeatures from '@/components/store/StoreFeatures';
+// import StoreNewsletter from '@/components/store/StoreNewsletter';
+// import StoreFooter from '@/components/store/StoreFooter';
 import PreviewControls from '@/components/PreviewControls';
 import EditStoreForm from '@/components/EditStoreForm';
 import { useToast } from '@/components/ui/use-toast';
-import RealtimeChatbot from '@/components/store/RealtimeChatbot'; // Added import
+import RealtimeChatbot from '@/components/store/RealtimeChatbot';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Lock, Unlock } from 'lucide-react';
 
-const StorePreview = () => { // This component now serves as the main StorePage
-  const { storeId } = useParams();
-  const { getStoreById, setCurrentStore, viewMode, isLoadingStores } = useStore(); // Get viewMode
+const StorePreview = () => {
+  const { storeId, productHandle: productHandleFromParams } = useParams(); // Get productHandle
+  const { getStoreById, setCurrentStore, viewMode, isLoadingStores, user } = useStore();
   const { toast } = useToast();
   
   const [store, setStore] = useState(null);
-  const [isEditOpen, setIsEditOpen] = useState(false); // For the EditStoreForm modal
-  // isLoading is now primarily driven by isLoadingStores from context
-  
+  const [StoreHeader, setStoreHeader] = useState(null);
+  const [StoreHero, setStoreHero] = useState(null);
+  const [ProductGrid, setProductGrid] = useState(null);
+  const [StoreFeatures, setStoreFeatures] = useState(null);
+  const [StoreNewsletter, setStoreNewsletter] = useState(null);
+  const [StoreFooter, setStoreFooter] = useState(null);
+  const [AdvancedTemplateApp, setAdvancedTemplateApp] = useState(null); // For V3 HomePage
+  const [ProductDetailPageV3, setProductDetailPageV3] = useState(null); // For V3 PDP
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [enteredPassKey, setEnteredPassKey] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isCheckingPassKey, setIsCheckingPassKey] = useState(false); // To show loading during check
+
   useEffect(() => {
-    if (isLoadingStores) return; // Wait for stores to be loaded
+    if (isLoadingStores) return;
 
     const storeData = getStoreById(storeId);
     if (storeData) {
       setStore(storeData);
       setCurrentStore(storeData);
-      // EditStoreForm modal can be opened by PreviewControls based on viewMode
+
+      const templateVersion = storeData.template_version || 'v1';
+
+      // Reset all template component states initially
+      setStoreHeader(null);
+      setStoreHero(null);
+      setProductGrid(null);
+      setStoreFeatures(null);
+      setStoreNewsletter(null);
+      setStoreFooter(null);
+      setAdvancedTemplateApp(null);
+      setProductDetailPageV3(null);
+
+      if (templateVersion === 'v1') {
+        setStoreHeader(() => lazy(() => import('@/components/store/StoreHeader.jsx')));
+        setStoreHero(() => lazy(() => import('@/components/store/StoreHero.jsx')));
+        setProductGrid(() => lazy(() => import('@/components/store/ProductGrid.jsx')));
+        setStoreFeatures(() => lazy(() => import('@/components/store/StoreFeatures.jsx')));
+        setStoreNewsletter(() => lazy(() => import('@/components/store/StoreNewsletter.jsx')));
+        setStoreFooter(() => lazy(() => import('@/components/store/StoreFooter.jsx')));
+      } else if (templateVersion === 'v2') {
+        setStoreHeader(() => lazy(() => import('@/components/store/template_v2/StoreHeader.jsx')));
+        setStoreHero(() => lazy(() => import('@/components/store/template_v2/StoreHero.jsx')));
+        setProductGrid(() => lazy(() => import('@/components/store/template_v2/ProductGrid.jsx')));
+        setStoreFeatures(() => lazy(() => import('@/components/store/template_v2/StoreFeatures.jsx')));
+        setStoreNewsletter(() => lazy(() => import('@/components/store/template_v2/StoreNewsletter.jsx')));
+        setStoreFooter(() => lazy(() => import('@/components/store/template_v2/StoreFooter.jsx')));
+      } else if (templateVersion === 'v3') {
+        if (productHandleFromParams) {
+          setProductDetailPageV3(() => lazy(() => import('../../new-ecommerce-template/src/pages/ProductDetailPage.tsx')));
+        } else {
+          setAdvancedTemplateApp(() => lazy(() => import('../../new-ecommerce-template/src/App.tsx')));
+        }
+      }
+      
+      // If the store has no pass_key, or if the current user is the store owner,
+      // then consider it authenticated.
+      // Assuming storeData.merchant_id holds the owner's user ID.
+      if (!storeData.pass_key || (user && storeData.merchant_id === user.id)) {
+        setIsAuthenticated(true);
+      } else {
+        setIsAuthenticated(false); // Requires pass key entry
+      }
     } else {
       toast({
         title: 'Store Not Found',
         description: `Could not find store with ID: ${storeId}`,
         variant: 'destructive',
       });
-      // Potentially navigate away, e.g., to dashboard or an error page
-      // navigate('/');
     }
-  }, [storeId, getStoreById, setCurrentStore, toast, isLoadingStores]);
+  }, [storeId, getStoreById, setCurrentStore, toast, isLoadingStores, user, productHandleFromParams]); // Added productHandleFromParams
+
+  const handlePassKeySubmit = () => {
+    if (!store || !store.pass_key) {
+      setIsAuthenticated(true); // Should not happen if pass_key is required
+      return;
+    }
+    setIsCheckingPassKey(true);
+    // Simulate a check; in a real app, this might involve an API call if keys were hashed server-side
+    // For now, direct comparison.
+    setTimeout(() => { // Adding a small delay to simulate async check
+      if (enteredPassKey === store.pass_key) {
+        setIsAuthenticated(true);
+        toast({ title: 'Access Granted', description: 'Welcome to the store!' });
+      } else {
+        toast({ title: 'Access Denied', description: 'Incorrect pass key.', variant: 'destructive' });
+        setEnteredPassKey(''); // Clear the input
+      }
+      setIsCheckingPassKey(false);
+    }, 500);
+  };
   
-  if (isLoadingStores || !store) { // Updated loading condition
+  if (isLoadingStores) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading store...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!store) {
+    // This case is handled by the toast in useEffect, but good to have a fallback UI
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-xl text-destructive">Store not found.</p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated && store.pass_key) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
+        <div className="bg-card p-8 rounded-xl shadow-2xl w-full max-w-md text-center">
+          <Lock className="h-16 w-16 text-primary mx-auto mb-6" />
+          <h2 className="text-3xl font-bold text-card-foreground mb-3">Protected Store</h2>
+          <p className="text-muted-foreground mb-8">
+            This store requires a pass key to view its content.
+          </p>
+          <div className="flex flex-col gap-4">
+            <Input
+              type="password"
+              placeholder="Enter Pass Key"
+              value={enteredPassKey}
+              onChange={(e) => setEnteredPassKey(e.target.value)}
+              className="h-12 text-lg text-center bg-input border-border focus:ring-primary focus:border-primary"
+              onKeyPress={(e) => e.key === 'Enter' && handlePassKeySubmit()}
+            />
+            <Button 
+              onClick={handlePassKeySubmit} 
+              disabled={isCheckingPassKey || !enteredPassKey.trim()}
+              className="h-12 text-lg w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+            >
+              {isCheckingPassKey ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current"></div>
+              ) : (
+                <>
+                  <Unlock className="mr-2 h-5 w-5" /> Access Store
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // If authenticated or no pass_key was set for the store
+  if (isLoadingStores || !store) { 
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -56,23 +187,116 @@ const StorePreview = () => { // This component now serves as the main StorePage
   // or the toast + potential navigation in useEffect.
   
   const isPublished = viewMode === 'published';
+  const templateVersion = store?.template_version || 'v1';
 
+  // Loading state for template components
+  if (templateVersion === 'v3') {
+    // For V3, check if we are on a product page or homepage, and if the respective component is loaded
+    if (productHandleFromParams && !ProductDetailPageV3) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading Advanced Product Page...</p>
+          </div>
+        </div>
+      );
+    }
+    if (!productHandleFromParams && !AdvancedTemplateApp) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading Advanced Template Home...</p>
+          </div>
+        </div>
+      );
+    }
+  } else { // For v1 and v2
+    if (!StoreHeader || !StoreHero || !ProductGrid || !StoreFeatures || !StoreNewsletter || !StoreFooter) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading Template Components...</p>
+          </div>
+        </div>
+      );
+    }
+  }
+
+  // Render logic for V3 template (either HomePage or ProductDetailPage)
+  if (templateVersion === 'v3') {
+    if (productHandleFromParams && ProductDetailPageV3) {
+      return (
+        <div className="min-h-screen bg-background">
+          <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading Advanced Product Detail...</div>}>
+            <ProductDetailPageV3 storeData={store} />
+          </Suspense>
+          <PreviewControls 
+            store={store} 
+            onEdit={() => setIsEditOpen(true)} 
+          />
+          {!isPublished && ( 
+            <EditStoreForm 
+              store={store} 
+              open={isEditOpen} 
+              onOpenChange={setIsEditOpen} 
+            />
+          )}
+          <RealtimeChatbot />
+        </div>
+      );
+    }
+    if (!productHandleFromParams && AdvancedTemplateApp) {
+      return (
+        <div className="min-h-screen bg-background">
+          <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading Advanced Store Content...</div>}>
+            <AdvancedTemplateApp storeData={store} isPublishedView={isPublished} />
+          </Suspense>
+          <PreviewControls 
+            store={store} 
+            onEdit={() => setIsEditOpen(true)} 
+          />
+          {!isPublished && ( 
+            <EditStoreForm 
+              store={store} 
+              open={isEditOpen} 
+              onOpenChange={setIsEditOpen} 
+            />
+          )}
+          <RealtimeChatbot />
+        </div>
+      );
+    }
+    // If v3 but neither component is ready (should be caught by loading state above)
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Preparing Advanced Template...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback to v1/v2 rendering
   return (
     <div className="min-h-screen bg-background">
-      <StoreHeader store={store} isPublishedView={isPublished} />
-      <StoreHero store={store} isPublishedView={isPublished} />
-      <ProductGrid store={store} isPublishedView={isPublished} />
-      <StoreFeatures store={store} isPublishedView={isPublished} />
-      <StoreNewsletter store={store} isPublishedView={isPublished} />
-      <StoreFooter store={store} isPublishedView={isPublished} />
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading Store Content...</div>}>
+        {StoreHeader && <StoreHeader store={store} isPublishedView={isPublished} />}
+        {StoreHero && <StoreHero store={store} isPublishedView={isPublished} />}
+        {ProductGrid && <ProductGrid store={store} isPublishedView={isPublished} />}
+        {StoreFeatures && <StoreFeatures store={store} isPublishedView={isPublished} />}
+        {StoreNewsletter && <StoreNewsletter store={store} isPublishedView={isPublished} />}
+        {StoreFooter && <StoreFooter store={store} isPublishedView={isPublished} />}
+      </Suspense>
       
-      {/* PreviewControls is now always rendered, it will handle its own button visibility */}
       <PreviewControls 
         store={store} 
         onEdit={() => setIsEditOpen(true)} 
       />
       
-      {/* EditStoreForm is still conditional based on isEditOpen, which is controlled by PreviewControls/viewMode */}
       {!isPublished && ( 
         <EditStoreForm 
           store={store} 
@@ -83,6 +307,7 @@ const StorePreview = () => { // This component now serves as the main StorePage
       <RealtimeChatbot /> {/* Added RealtimeChatbot component */}
     </div>
   );
+  // The duplicated block that started with "// Fallback to v1/v2 rendering" has been removed.
 };
 
 export default StorePreview; // Consider renaming file to StorePage.jsx later

@@ -49,6 +49,7 @@ CREATE TABLE public.stores (
   store_name TEXT NOT NULL,
   subdomain TEXT UNIQUE, -- e.g., 'my-awesome-store' for my-awesome-store.storegen.app
   custom_domain TEXT UNIQUE,
+  pass_key TEXT, -- For store-level access control
   -- Add other store-specific settings like logo_url, theme_settings (JSONB), etc.
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -107,3 +108,32 @@ CREATE POLICY "Merchants can manage products for their own stores."
 CREATE POLICY "Products are publicly viewable."
   ON public.platform_products FOR SELECT
   USING (true);
+
+-- Create a table for store managers
+CREATE TABLE public.store_managers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  store_id UUID NOT NULL REFERENCES public.stores(id) ON DELETE CASCADE,
+  manager_email TEXT NOT NULL,
+  secret_key_hash TEXT NOT NULL, -- Store a hash of the secret key, not the key itself
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT unique_store_manager_email UNIQUE (store_id, manager_email) -- A manager can only be assigned once per store
+);
+
+-- Add RLS for store_managers
+ALTER TABLE public.store_managers ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Store owners (merchants) can manage manager assignments for their own stores.
+CREATE POLICY "Merchants can manage store managers for their stores."
+  ON public.store_managers FOR ALL
+  USING ( EXISTS (SELECT 1 FROM public.stores WHERE stores.id = store_managers.store_id AND stores.merchant_id = auth.uid()) )
+  WITH CHECK ( EXISTS (SELECT 1 FROM public.stores WHERE stores.id = store_managers.store_id AND stores.merchant_id = auth.uid()) );
+
+-- Policy: Allow managers to read their own assignment (e.g., to verify a key, though this is tricky without a direct user link)
+-- This might be better handled by specific functions. For now, focusing on owner management.
+-- Consider if a manager, once authenticated via secret key, needs to read their own record.
+-- A function with SECURITY DEFINER would be safer for updating email/key based on providing the old key.
+
+-- Index for faster lookups
+CREATE INDEX idx_store_managers_store_id ON public.store_managers(store_id);
+CREATE INDEX idx_store_managers_manager_email ON public.store_managers(manager_email);

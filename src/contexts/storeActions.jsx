@@ -6,7 +6,10 @@ import {
     generateAIStoreContent,
     fetchPexelsVideos // Import the new video fetching utility
 } from '@/lib/utils';
-import { overlayLogoOnProductImage } from '@/lib/imageUtils';
+// import { overlayLogoOnProductImage } from '@/lib/imageUtils'; // Will be replaced by generateProductWithGemini
+import { generateLogoWithGemini } from '@/lib/geminiImageGeneration';
+import { generateProductWithGemini } from '@/lib/geminiProductGeneration';
+import { generateStoreNameSuggestions } from '@/lib/gemini'; // Import for AI store name generation
 import { 
     fetchShopifyStorefrontAPI, 
     GET_SHOP_METADATA_QUERY, 
@@ -117,12 +120,17 @@ export const generateStoreFromWizardData = async (wizardData, { fetchPexelsImage
     }
     
     const heroImages = await fetchPexelsImages(`${productType} store hero ${prompt}`, 1, 'landscape');
-    const heroVideos = await fetchPexelsVideos(`${productType} store ambiance ${prompt}`, 1, 'landscape');
-    const aiContent = generateAIStoreContent(productType, storeName);
+  const heroVideos = await fetchPexelsVideos(`${productType} store ambiance ${prompt}`, 1, 'landscape');
+  const aiContent = generateAIStoreContent(productType, storeName);
+  const cardBgImages = await fetchPexelsImages(`${productType} abstract background`, 1, 'landscape');
+  const cardBackgroundUrl = cardBgImages[0]?.src?.large || cardBgImages[0]?.src?.original || '';
+  const templateVersion = Math.random() < 0.5 ? 'v1' : 'v2';
+
 
     return {
       id: storeId,
       name: storeName,
+      template_version: templateVersion,
       type: productType,
       description: aiContent.heroDescription,
       prompt: prompt || `A ${productType} store called ${storeName}`,
@@ -139,50 +147,170 @@ export const generateStoreFromWizardData = async (wizardData, { fetchPexelsImage
       },
       content: aiContent,
       data_source: 'wizard',
+      card_background_url: cardBackgroundUrl,
     };
 };
 
-// Added storeLogoDataUrl parameter
-export const generateStoreFromPromptData = async (prompt, { storeNameOverride = null, productTypeOverride = null, storeLogoDataUrl = null, fetchPexelsImages = utilFetchPexelsImages, generateId = utilGenerateId } = {}) => {
-    const storeId = `store-ai-${generateId()}`;
-    const keywords = prompt.toLowerCase().split(' ');
-    
-    let storeType = productTypeOverride || 'general';
-    if (!productTypeOverride) {
-      if (keywords.some(word => ['clothing', 'fashion', 'apparel', 'wear'].includes(word))) storeType = 'fashion';
-      else if (keywords.some(word => ['tech', 'electronics', 'gadget', 'digital'].includes(word))) storeType = 'electronics';
-      else if (keywords.some(word => ['food', 'grocery', 'meal', 'organic'].includes(word))) storeType = 'food';
-      else if (keywords.some(word => ['jewelry', 'accessory', 'watch', 'luxury'].includes(word))) storeType = 'jewelry';
+export const generateStoreFromPromptData = async (
+  prompt,
+  {
+    storeNameOverride = null,
+    productTypeOverride = null,
+    // storeLogoDataUrl is no longer needed as an option, it will be generated
+    fetchPexelsImages = utilFetchPexelsImages,
+    generateId = utilGenerateId,
+  } = {}
+) => {
+  const storeId = `store-ai-${generateId()}`;
+  const keywords = prompt.toLowerCase().split(' ');
+
+  let storeType = productTypeOverride || 'general';
+  if (!productTypeOverride) {
+    if (keywords.some(word => ['clothing', 'fashion', 'apparel', 'wear'].includes(word))) storeType = 'fashion';
+    else if (keywords.some(word => ['tech', 'electronics', 'gadget', 'digital'].includes(word))) storeType = 'electronics';
+    else if (keywords.some(word => ['food', 'grocery', 'meal', 'organic'].includes(word))) storeType = 'food';
+    else if (keywords.some(word => ['jewelry', 'accessory', 'watch', 'luxury'].includes(word))) storeType = 'jewelry';
+  }
+
+  let brandName = storeNameOverride;
+
+  if (!brandName) { // If storeNameOverride was not provided, attempt AI generation
+    try {
+      console.log(`[generateStoreFromPromptData] No storeNameOverride. Attempting AI name generation using prompt: "${prompt}"`);
+      const nameSuggestionsResult = await generateStoreNameSuggestions(prompt); // Pass the full prompt for context
+      if (nameSuggestionsResult && nameSuggestionsResult.suggestions && nameSuggestionsResult.suggestions.length > 0) {
+        brandName = nameSuggestionsResult.suggestions[0]; // Take the first suggestion
+        console.log(`[generateStoreFromPromptData] AI generated store name: ${brandName}`);
+      } else {
+        console.warn("[generateStoreFromPromptData] AI name generation yielded no suggestions. Falling back to heuristic.");
+        const brandWordsHeuristic = prompt.split(' ').filter(word => word.charAt(0) === word.charAt(0).toUpperCase() && word.length > 2);
+        brandName = brandWordsHeuristic[0]; // Fallback 1: First capitalized word
+      }
+    } catch (error) {
+      console.error("[generateStoreFromPromptData] Error during AI store name generation:", error);
+      // Fallback to heuristic on error
+      const brandWordsHeuristic = prompt.split(' ').filter(word => word.charAt(0) === word.charAt(0).toUpperCase() && word.length > 2);
+      brandName = brandWordsHeuristic[0]; // Fallback 1: First capitalized word
     }
-    
-    const brandWords = prompt.split(' ').filter(word => word.charAt(0) === word.charAt(0).toUpperCase() && word.length > 2);
-    const brandName = storeNameOverride || brandWords[0] || `${storeType.charAt(0).toUpperCase() + storeType.slice(1)} Store ${Math.floor(Math.random() * 100)}`;
-    
-    // Pass storeLogoDataUrl to generateAIProductsData
-    const products = await generateAIProductsData(storeType, 6, brandName, storeLogoDataUrl, { fetchPexelsImages, generateId });
-    const heroImages = await fetchPexelsImages(`${storeType} ${brandName} hero ${prompt}`, 1, 'landscape');
-    const heroVideos = await fetchPexelsVideos(`${storeType} ${brandName} ambiance ${prompt}`, 1, 'landscape');
-    const aiContent = generateAIStoreContent(storeType, brandName);
-    
-    return {
-      id: storeId,
-      name: brandName,
-      type: storeType,
-      description: aiContent.heroDescription,
-      prompt,
-      products,
-      hero_image: heroImages[0] || { src: { large: 'https://via.placeholder.com/1200x800.png?text=Hero+Image' }, alt: 'Placeholder Hero Image' },
-      hero_video_url: heroVideos[0]?.url || null,
-      hero_video_poster_url: heroVideos[0]?.image || null,
-      logo_url: storeLogoDataUrl || `https://via.placeholder.com/100x100.png?text=${brandName.substring(0,1)}`, // Use actual logo if available
-      theme: {
-        primaryColor: getRandomColor(),
-        secondaryColor: getRandomColor(),
+  }
+  
+  // Final fallback if brandName is still not set (e.g., override was null, AI failed, and heuristic found no capitalized word)
+  if (!brandName) {
+    brandName = `${storeType.charAt(0).toUpperCase() + storeType.slice(1)} Emporium ${generateId().substring(0,4)}`;
+    console.log(`[generateStoreFromPromptData] Using final fallback store name: ${brandName}`);
+  }
+  
+  // Ensure brandName is not too long
+  if (brandName.length > 50) brandName = brandName.substring(0, 50);
+
+
+  // 1. Generate Logo
+  let logoImageBase64 = null;
+  let actualLogoUrl = `https://via.placeholder.com/100x100.png?text=${brandName.substring(0, 1)}`; // Default placeholder
+  try {
+    console.log(`[generateStoreFromPromptData] Generating logo for: ${brandName}`);
+    const logoGenResult = await generateLogoWithGemini(brandName);
+    if (logoGenResult && logoGenResult.imageData) {
+      logoImageBase64 = logoGenResult.imageData;
+      actualLogoUrl = `data:image/png;base64,${logoImageBase64}`;
+      console.log(`[generateStoreFromPromptData] Logo generated successfully for ${brandName}.`);
+    } else {
+      console.warn(`[generateStoreFromPromptData] Logo generation did not return image data for ${brandName}. Text response: ${logoGenResult?.textResponse}`);
+    }
+  } catch (error) {
+    console.error(`[generateStoreFromPromptData] Error generating logo for ${brandName}:`, error);
+    // actualLogoUrl remains the placeholder
+  }
+
+  // 2. Generate Products using generateProductWithGemini
+  const generatedProducts = [];
+  const generatedProductTitles = []; // To track titles for uniqueness
+  const numProductsToGenerate = 6;
+  const maxTotalAttempts = numProductsToGenerate * 2; // Safety break for the while loop
+  let currentAttempts = 0;
+
+  console.log(`[generateStoreFromPromptData] Attempting to generate ${numProductsToGenerate} unique products for ${brandName} (type: ${storeType}).`);
+
+  while (generatedProducts.length < numProductsToGenerate && currentAttempts < maxTotalAttempts) {
+    currentAttempts++;
+    try {
+      console.log(`[generateStoreFromPromptData] Generating product attempt ${currentAttempts} (aiming for ${generatedProducts.length + 1}/${numProductsToGenerate} unique products)... Excluding titles: ${generatedProductTitles.join(', ')}`);
+      
+      const singleProductData = await generateProductWithGemini(
+        storeType, 
+        brandName, 
+        logoImageBase64, 
+        'image/png',
+        generatedProductTitles // Pass existing titles to encourage uniqueness
+      );
+      
+      if (singleProductData && singleProductData.imageData && singleProductData.title && singleProductData.price && singleProductData.description) {
+        const normalizedTitle = singleProductData.title.toLowerCase().trim();
+        if (!generatedProductTitles.includes(normalizedTitle)) {
+          generatedProducts.push({
+            id: `product-gemini-${generateId()}`,
+            name: singleProductData.title,
+            price: parseFloat(singleProductData.price) || 0,
+            description: singleProductData.description,
+            image: {
+              id: generateId(),
+              src: { medium: `data:image/png;base64,${singleProductData.imageData}` }, // Assuming PNG
+              alt: singleProductData.title,
+            },
+            rating: (Math.random() * 1.5 + 3.5).toFixed(1),
+            stock: Math.floor(Math.random() * 80) + 20,
+          });
+          generatedProductTitles.push(normalizedTitle);
+          console.log(`[generateStoreFromPromptData] Product "${singleProductData.title}" generated successfully and is unique. (${generatedProducts.length}/${numProductsToGenerate})`);
+        } else {
+          console.warn(`[generateStoreFromPromptData] Duplicate product title generated and skipped: "${singleProductData.title}". Attempt ${currentAttempts}/${maxTotalAttempts}.`);
+        }
+      } else {
+        console.warn(`[generateStoreFromPromptData] Failed to generate complete data for product attempt ${currentAttempts}. Data:`, singleProductData);
+      }
+    } catch (error) {
+      console.error(`[generateStoreFromPromptData] Error during product generation attempt ${currentAttempts}:`, error);
+      // Continue to next attempt if not maxed out
+    }
+  }
+
+  if (generatedProducts.length < numProductsToGenerate) {
+    console.warn(`[generateStoreFromPromptData] Could only generate ${generatedProducts.length} unique products after ${maxTotalAttempts} total attempts.`);
+  }
+  // Removed placeholder generation block to align with wizard behavior.
+  // If all product generations fail, generatedProducts will be an empty array.
+  if (generatedProducts.length === 0 && numProductsToGenerate > 0) {
+    console.warn(`[generateStoreFromPromptData] No products were generated successfully. The store will be created with an empty product list.`);
+  }
+
+  const heroImages = await fetchPexelsImages(`${storeType} ${brandName} hero ${prompt}`, 1, 'landscape');
+  const heroVideos = await fetchPexelsVideos(`${storeType} ${brandName} ambiance ${prompt}`, 1, 'landscape');
+  const aiContent = generateAIStoreContent(storeType, brandName);
+  const cardBgImagesPrompt = await fetchPexelsImages(`${storeType} store background`, 1, 'landscape');
+  const cardBackgroundUrlPrompt = cardBgImagesPrompt[0]?.src?.large || cardBgImagesPrompt[0]?.src?.original || '';
+  const templateVersion = Math.random() < 0.5 ? 'v1' : 'v2';
+
+  return {
+    id: storeId,
+    name: brandName,
+    template_version: templateVersion,
+    type: storeType,
+    description: aiContent.heroDescription,
+    prompt,
+    products: generatedProducts,
+    hero_image: heroImages[0] || { src: { large: 'https://via.placeholder.com/1200x800.png?text=Hero+Image' }, alt: 'Placeholder Hero Image' },
+    hero_video_url: heroVideos[0]?.url || null,
+    hero_video_poster_url: heroVideos[0]?.image || null,
+    logo_url: actualLogoUrl, // Use the generated or placeholder logo URL
+    theme: {
+      primaryColor: getRandomColor(),
+      secondaryColor: getRandomColor(),
         fontFamily: getRandomFont(),
         layout: getRandomLayout(),
       },
       content: aiContent,
       data_source: 'ai',
+      card_background_url: cardBackgroundUrlPrompt,
     };
 };
 
@@ -216,7 +344,7 @@ export const fetchShopifyLocalizationInfo = async (domain, token, countryCode = 
 };
 
 // Modified to accept fetched data as parameters and a potential generated logo
-export const mapShopifyDataToInternalStore = (shopifyStore, shopifyProducts, shopifyCollections, domain, { generateId = utilGenerateId } = {}, generatedLogoDataUrl = null) => {
+export const mapShopifyDataToInternalStore = async (shopifyStore, shopifyProducts, shopifyCollections, domain, { generateId = utilGenerateId } = {}, generatedLogoDataUrl = null) => {
     const mappedProducts = shopifyProducts.map(p => ({
       id: p.id, // Already a GID string
       name: p.title,
@@ -258,13 +386,15 @@ export const mapShopifyDataToInternalStore = (shopifyStore, shopifyProducts, sho
     const shopifyProvidedLogo = shopifyStore.brand?.logo?.image?.url || shopifyStore.brand?.squareLogo?.image?.url;
     const logoUrl = generatedLogoDataUrl || shopifyProvidedLogo || `https://via.placeholder.com/100x100.png?text=${shopifyStore.name.substring(0,1)}`;
     const aiContent = generateAIStoreContent('general', shopifyStore.name); // Keep AI content for fallback
+    const cardBgImagesShopify = await utilFetchPexelsImages(`${shopifyStore.name} background`, 1, 'landscape');
+    const cardBackgroundUrlShopify = cardBgImagesShopify[0]?.src?.large || cardBgImagesShopify[0]?.src?.original || '';
 
     return {
       id: `store-shopify-${shopifyStore.primaryDomain.host.replace(/\./g, '-')}-${generateId()}`,
       name: shopifyStore.name,
       type: 'shopify-imported',
       description: shopifyStore.description || shopifyStore.brand?.shortDescription || shopifyStore.brand?.slogan || aiContent.heroDescription,
-      products: mappedProducts, // This is an existing JSONB column
+      products: mappedProducts, 
       // collections: mappedCollections, // Removed from top level
       hero_image: heroImage,
       logo_url: logoUrl,
@@ -282,7 +412,8 @@ export const mapShopifyDataToInternalStore = (shopifyStore, shopifyProducts, sho
           brandSlogan: shopifyStore.brand?.slogan,
           brandShortDescription: shopifyStore.brand?.shortDescription,
       },
-      data_source: 'shopify'
+      data_source: 'shopify',
+      card_background_url: cardBackgroundUrlShopify
       // The 'shopify_data' field containing domain, raw_metadata, and collections
       // is removed here to prevent Supabase errors if the column doesn't exist.
       // If this data needs to be persisted, a 'shopify_data' JSONB column
@@ -312,7 +443,7 @@ export const importShopifyStoreData = async (domain, token, shopifyStoreRaw, sho
         const tempProductsData = await fetchShopifyProductsList(domain, token, 250); // Max items
         const tempCollectionsData = await fetchShopifyCollectionsList(domain, token, 50); // Max items
 
-        return mapShopifyDataToInternalStore(
+        return await mapShopifyDataToInternalStore( // Added await
             tempShopData, 
             tempProductsData.edges.map(e => e.node), 
             tempCollectionsData.edges.map(e => e.node), 
@@ -321,7 +452,7 @@ export const importShopifyStoreData = async (domain, token, shopifyStoreRaw, sho
         );
     }
 
-    return mapShopifyDataToInternalStore(
+    return await mapShopifyDataToInternalStore( // Added await
         shopifyStoreRaw, 
         shopifyProductsRaw, // Assuming this is an array of product nodes
         shopifyCollectionsRaw, // Assuming this is an array of collection nodes
@@ -331,7 +462,7 @@ export const importShopifyStoreData = async (domain, token, shopifyStoreRaw, sho
 };
 
 // Placeholder for BigCommerce data mapping
-export const mapBigCommerceDataToInternalStore = (bcStoreSettings, bcProducts, domain, { generateId = utilGenerateId } = {}, generatedLogoDataUrl = null) => {
+export const mapBigCommerceDataToInternalStore = async (bcStoreSettings, bcProducts, domain, { generateId = utilGenerateId } = {}, generatedLogoDataUrl = null) => {
   console.log("Mapping BigCommerce Data:", { bcStoreSettings, bcProducts, domain, generatedLogoDataUrl });
 
   const mappedProducts = bcProducts.map(p => ({
@@ -351,8 +482,16 @@ export const mapBigCommerceDataToInternalStore = (bcStoreSettings, bcProducts, d
     stock: Math.floor(Math.random() * 100) + 10, 
   }));
 
+  // Placeholder for BigCommerce collection mapping - BC API for collections is different
+  // For now, let's add some AI generated collections as a placeholder
+  // const mappedCollections = []; // Replace with actual BC collection mapping if API is integrated
+  const aiCollectionsForBC = []; // Removed generateAICollections call for now to simplify
+
+
   const logoUrl = generatedLogoDataUrl || bcStoreSettings.logo?.image?.url || `https://via.placeholder.com/100x100.png?text=${(bcStoreSettings.storeName || "S").substring(0,1)}`;
   const aiContent = generateAIStoreContent('general', bcStoreSettings.storeName || "My BigCommerce Store");
+  const cardBgImagesBC = await utilFetchPexelsImages(`${bcStoreSettings.storeName || "store"} background`, 1, 'landscape');
+  const cardBackgroundUrlBC = cardBgImagesBC[0]?.src?.large || cardBgImagesBC[0]?.src?.original || '';
 
   return {
     id: `store-bc-${(bcStoreSettings.storeHash || domain).replace(/[\.\/\:]/g, '-')}-${generateId()}`,
@@ -360,6 +499,7 @@ export const mapBigCommerceDataToInternalStore = (bcStoreSettings, bcProducts, d
     type: 'bigcommerce-imported',
     description: bcStoreSettings.description || `Store imported from ${domain}` || aiContent.heroDescription,
     products: mappedProducts,
+    // collections: aiCollectionsForBC, // Removed AI-generated collections for BC for now
     hero_image: { 
         id: generateId(),
         src: { large: bcStoreSettings.logo?.image?.url || `https://via.placeholder.com/1200x800.png?text=${encodeURIComponent(bcStoreSettings.storeName || "Store")}` }, 
@@ -378,6 +518,7 @@ export const mapBigCommerceDataToInternalStore = (bcStoreSettings, bcProducts, d
         heroDescription: bcStoreSettings.description || aiContent.heroDescription,
     },
     data_source: 'bigcommerce',
+    card_background_url: cardBackgroundUrlBC,
     // bigcommerce_data: { // Optional: store raw data if needed
     //   domain: domain,
     //   raw_settings: bcStoreSettings,

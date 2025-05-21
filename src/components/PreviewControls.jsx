@@ -3,14 +3,21 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom'; // Added Link
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Edit, Download, Copy, Eye, EyeOff, Sparkles } from 'lucide-react'; // Added Sparkles
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select'; // Import Select components
+import { ArrowLeft, Edit, Download, Copy, Eye, EyeOff, Sparkles, Palette } from 'lucide-react'; // Added Sparkles and Palette
 import { useToast } from '@/components/ui/use-toast';
 import { useStore } from '@/contexts/StoreContext'; // Import useStore
 
 const PreviewControls = ({ store, onEdit }) => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { viewMode, setViewMode } = useStore(); // Get viewMode and setViewMode
+  const { viewMode, setViewMode, updateStoreTemplateVersion, currentStore } = useStore(); // Get viewMode, setViewMode and updateStoreTemplateVersion
   
   const handleExport = () => {
     // In a real implementation, this would generate and download the store code
@@ -43,6 +50,12 @@ const PreviewControls = ({ store, onEdit }) => {
       title: `Switched to ${newMode === 'published' ? 'Consumer View' : 'Admin View'}`,
       description: `Store is now in ${newMode === 'published' ? 'consumer' : 'admin editing'} mode.`,
     });
+  };
+
+  const handleTemplateChange = (newTemplateVersion) => {
+    if (store && store.id && newTemplateVersion) {
+      updateStoreTemplateVersion(store.id, newTemplateVersion);
+    }
   };
 
   const handleEditStoreClick = () => {
@@ -93,6 +106,21 @@ const PreviewControls = ({ store, onEdit }) => {
                   Create
                 </Link>
               </Button>
+
+              <Select
+                value={currentStore?.template_version || 'v1'}
+                onValueChange={handleTemplateChange}
+              >
+                <SelectTrigger className="w-[180px] h-9 text-sm">
+                  <Palette className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="Select Template" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="v1">Classic Template</SelectItem>
+                  <SelectItem value="v2">Modern Template</SelectItem>
+                  <SelectItem value="v3">Advanced Template</SelectItem>
+                </SelectContent>
+              </Select>
 
               <Button 
                 size="sm"

@@ -12,9 +12,10 @@ import { useStore } from '@/contexts/StoreContext';
 // import { generateImageWithGemini } from '@/lib/utils'; // Old import, to be replaced
 import { generateLogoWithGemini } from '@/lib/geminiImageGeneration'; // New import for logo generation
 import { generateStoreNameSuggestions } from '@/lib/gemini'; // Import the new function
-import { generateProductWithGemini } from '@/lib/geminiProductGeneration'; // New import for product generation
+import { generateProductWithGemini } from '@/lib/geminiProductGeneration';
+import { generateCollectionWithGemini } from '@/lib/geminiCollectionGeneration'; // New import for collection generation
 import { productTypeOptions, renderWizardStepContent, isWizardNextDisabled } from '@/components/wizard/wizardStepComponents';
-
+ 
 const StoreWizard = () => {
   const [step, setStep] = useState(1);
   const [storeNameSuggestions, setStoreNameSuggestions] = useState([]);
@@ -23,6 +24,7 @@ const StoreWizard = () => {
     storeName: '',
     logoUrl: '',
     products: { source: 'ai', count: 3, items: [] }, // Default to 3 AI products, items start empty
+    collections: { source: 'ai', count: 3, items: [] }, // Default to 3 AI collections, items start empty
     prompt: '',
   });
   const [isProcessing, setIsProcessing] = useState(false); // For AI suggestions/logo gen within wizard
@@ -204,9 +206,49 @@ const StoreWizard = () => {
     setIsProcessing(false);
   };
 
+  const generateAiCollectionsHandler = async () => {
+    if (!formData.productType || !formData.storeName || formData.products.items.length === 0) {
+      setSuggestionError("Please ensure product type, store name, and at least one product are set before generating AI collections.");
+      return;
+    }
+    setIsProcessing(true);
+    setSuggestionError(null);
+    const generatedItems = [];
+    try {
+      for (let i = 0; i < formData.collections.count; i++) {
+        console.log(`Generating AI collection ${i + 1} of ${formData.collections.count}...`);
+        const collectionData = await generateCollectionWithGemini(
+          formData.productType,
+          formData.storeName,
+          formData.products.items // Pass existing products for context
+        );
+        if (collectionData && collectionData.name && collectionData.description && collectionData.imageUrl) {
+          generatedItems.push({
+            name: collectionData.name,
+            description: collectionData.description,
+            imageUrl: collectionData.imageUrl,
+          });
+        } else {
+          console.warn(`Failed to generate full data for collection ${i + 1}. Skipping.`);
+        }
+      }
+      setFormData(prev => ({
+        ...prev,
+        collections: { ...prev.collections, items: generatedItems },
+      }));
+      if (generatedItems.length === 0 && formData.collections.count > 0) {
+        setSuggestionError("AI failed to generate any collections. Please try again or adjust settings.");
+      }
+    } catch (error) {
+      console.error("Error generating AI collections:", error);
+      setSuggestionError(`Failed to generate AI collections: ${error.message}`);
+    }
+    setIsProcessing(false);
+  };
+ 
   const nextStep = () => setStep(s => s + 1);
   const prevStep = () => setStep(s => s - 1);
-
+ 
   const handleSubmit = async () => {
     await generateStoreFromWizard(formData);
   };
@@ -222,7 +264,8 @@ const StoreWizard = () => {
     removeManualProduct,
     suggestStoreName: suggestStoreNameHandler,
     generateLogo: generateLogoHandler,
-    generateAiProducts: generateAiProductsHandler, // Add new handler to props
+    generateAiProducts: generateAiProductsHandler,
+    generateAiCollections: generateAiCollectionsHandler, // Add new handler to props
     isProcessing,
     productTypeOptions,
     storeNameSuggestions,
@@ -234,12 +277,12 @@ const StoreWizard = () => {
     <Card className="w-full max-w-2xl mx-auto shadow-xl">
       <CardHeader>
         <CardTitle className="text-2xl font-bold">Store Creation Wizard</CardTitle>
-        <CardDescription>Step {step} of 5: Let's build your online store together!</CardDescription>
+        <CardDescription>Step {step} of 6: Let's build your online store together!</CardDescription>
         <div className="w-full bg-muted rounded-full h-2.5 mt-2">
-            <motion.div 
+            <motion.div
                 className="bg-primary h-2.5 rounded-full"
                 initial={{ width: "0%"}}
-                animate={{ width: `${(step / 5) * 100}%`}}
+                animate={{ width: `${(step / 6) * 100}%`}}
                 transition={{ duration: 0.5, ease: "easeInOut" }}
             />
         </div>
@@ -253,7 +296,7 @@ const StoreWizard = () => {
         <Button variant="outline" onClick={prevStep} disabled={step === 1 || isGenerating}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Previous
         </Button>
-        {step < 5 ? (
+        {step < 6 ? (
           <Button onClick={nextStep} disabled={isWizardNextDisabled(step, formData) || isGenerating}>
             Next <ArrowRight className="ml-2 h-4 w-4" />
           </Button>

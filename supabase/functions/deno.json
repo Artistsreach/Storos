@@ -6,7 +6,7 @@
   "lint": {
     "files": {
       "include": ["./"],
-      "exclude": ["./_shared/"]
+      "exclude": []
     },
     "rules": {
       "tags": ["recommended"],

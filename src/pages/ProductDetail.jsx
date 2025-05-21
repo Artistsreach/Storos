@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { fetchPexelsImages, generateImageWithGemini, generateId } from '@/lib/utils';
 import { editImageWithGemini } from '@/lib/geminiImageGeneration';
-import { ShoppingCart, Star, ImageDown as ImageUp, Wand, Loader2, ArrowLeft, Replace, Edit3, VideoIcon } from 'lucide-react';
+import { ShoppingCart, Star, ImageDown as ImageUp, Wand, Loader2, ArrowLeft, Replace, Edit3, VideoIcon, UploadCloud } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useToast } from '@/components/ui/use-toast';
 import GenerateProductVideoModal from '@/components/product/GenerateProductVideoModal';
@@ -206,6 +206,30 @@ const ProductDetail = () => {
       toast({ title: "Gemini image generation failed", description: error.message, variant: "destructive" });
     }
     setIsImageLoading(false);
+  };
+
+  const handleImageUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setIsImageLoading(true);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const newImage = {
+          id: generateId(),
+          src: { medium: reader.result, large: reader.result },
+          alt: file.name,
+          photographer: "Uploaded by user" 
+        };
+        selectImage(newImage);
+        toast({ title: "Image Uploaded", description: `${file.name} has been set as the product image.` });
+        setIsImageLoading(false);
+      };
+      reader.onerror = () => {
+        toast({ title: "Upload Failed", description: "Could not read the selected file.", variant: "destructive" });
+        setIsImageLoading(false);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleProductVideoGenerated = async (newVideoUrl) => {
@@ -416,8 +440,18 @@ const ProductDetail = () => {
                   <Button onClick={handleGeminiGenerate} variant="outline" disabled={isImageLoading || !imageSearchQuery.trim()}>
                      {isImageLoading && searchedImages.length > 0 ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand className="h-4 w-4" />} <span className="ml-2 hidden sm:inline">Gemini</span>
                   </Button>
+                  <Button variant="outline" onClick={() => document.getElementById('upload-image-input')?.click()} disabled={isImageLoading}>
+                    <UploadCloud className="h-4 w-4" /> <span className="ml-2 hidden sm:inline">Upload</span>
+                  </Button>
+                  <Input 
+                    type="file" 
+                    id="upload-image-input" 
+                    className="hidden" 
+                    accept="image/*" 
+                    onChange={handleImageUpload}
+                  />
                 </div>
-                {isImageLoading && searchedImages.length === 0 && <p className="text-center text-sm text-muted-foreground">Searching for images...</p>}
+                {isImageLoading && searchedImages.length === 0 && <p className="text-center text-sm text-muted-foreground">Searching for images or processing upload...</p>}
                 {searchedImages.length > 0 && (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-80 overflow-y-auto">
                     {searchedImages.map(img => (

@@ -4,7 +4,7 @@ import { stripePromise } from '../lib/stripe';
 import { Button } from './ui/button'; // Assuming you have a Button component
 import { Star } from 'lucide-react'; // Added Star icon
 
-const SubscribeButton = ({ onSubscribed, className = '', showIcon = false }) => { // Added className and showIcon props
+const SubscribeButton = ({ onSubscribed, className = '' }) => { // Added className and showIcon props
   const { session, isAuthenticated } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -76,9 +76,8 @@ const SubscribeButton = ({ onSubscribed, className = '', showIcon = false }) => 
       <Button 
         onClick={handleSubscribe} 
         disabled={loading}
-        className={`bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white ${className}`} // Merged className
+        className={`bg-gradient-to-r from-[#77B8B8] to-[#3B82F6] hover:from-[#6AB0B0] hover:to-[#2F73E0] text-white ${className}`} // Merged className
       >
-        {showIcon && <Star className="mr-2 h-4 w-4" />} {/* Conditionally render icon */}
         {loading ? 'Processing...' : 'Subscribe to Pro'}
       </Button>
       {error && <p style={{ color: 'red', marginTop: '10px', fontSize: '0.8rem' }}>Error: {error}</p>} {/* Smaller error text */}
