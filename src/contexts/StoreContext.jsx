@@ -117,9 +117,72 @@ const prepareStoresForLocalStorage = (storesArray) => {
           }
           productForLs.image = { ...productForLs.image, src: newProductImageSrc };
         }
+        // Truncate product name and description
+        if (productForLs.name && productForLs.name.length > 1000) {
+          productForLs.name = `${productForLs.name.substring(0, 1000)}...[truncated]`;
+        }
+        if (productForLs.description && productForLs.description.length > 2000) {
+          productForLs.description = `${productForLs.description.substring(0, 2000)}...[truncated]`;
+        }
         return productForLs;
       });
     }
+
+    // Truncate store name and description
+    if (storeForLs.name && storeForLs.name.length > 1000) {
+      storeForLs.name = `${storeForLs.name.substring(0, 1000)}...[truncated]`;
+    }
+    if (storeForLs.description && storeForLs.description.length > 2000) {
+      storeForLs.description = `${storeForLs.description.substring(0, 2000)}...[truncated]`;
+    }
+    if (storeForLs.prompt && storeForLs.prompt.length > 2000) {
+      storeForLs.prompt = `${storeForLs.prompt.substring(0, 2000)}...[truncated]`;
+    }
+
+
+    // Simplify store.content fields
+    if (storeForLs.content) {
+      const contentFieldsToTruncate = [
+        'heroTitle', 'heroDescription', 
+        'featuresSectionTitle', 'featuresSectionSubtitle',
+        'testimonialsSectionTitle', 'newsletterTitle', 'newsletterSubtitle'
+      ];
+      for (const field of contentFieldsToTruncate) {
+        if (storeForLs.content[field] && storeForLs.content[field].length > 1000) {
+          storeForLs.content[field] = `${storeForLs.content[field].substring(0, 1000)}...[truncated]`;
+        }
+      }
+      if (Array.isArray(storeForLs.content.featureTitles)) {
+        storeForLs.content.featureTitles = storeForLs.content.featureTitles.map(title => 
+          title && title.length > 200 ? `${title.substring(0, 200)}...[truncated]` : title
+        );
+      }
+      if (Array.isArray(storeForLs.content.featureDescriptions)) {
+        storeForLs.content.featureDescriptions = storeForLs.content.featureDescriptions.map(desc => 
+          desc && desc.length > 500 ? `${desc.substring(0, 500)}...[truncated]` : desc
+        );
+      }
+      if (Array.isArray(storeForLs.content.navLinkLabels)) {
+        storeForLs.content.navLinkLabels = storeForLs.content.navLinkLabels.map(label =>
+          label && label.length > 100 ? `${label.substring(0,100)}...[truncated]` : label
+        );
+      }
+    }
+
+    // Simplify store.reviews
+    if (storeForLs.reviews && Array.isArray(storeForLs.reviews)) {
+      storeForLs.reviews = storeForLs.reviews.map(review => {
+        const reviewForLs = { ...review };
+        if (reviewForLs.userName && reviewForLs.userName.length > 200) {
+          reviewForLs.userName = `${reviewForLs.userName.substring(0, 200)}...[truncated]`;
+        }
+        if (reviewForLs.comment && reviewForLs.comment.length > 1000) {
+          reviewForLs.comment = `${reviewForLs.comment.substring(0, 1000)}...[truncated]`;
+        }
+        return reviewForLs;
+      });
+    }
+
     return storeForLs;
   });
 };
@@ -127,32 +190,109 @@ const prepareStoresForLocalStorage = (storesArray) => {
   const loadStores = useCallback(async (userId) => {
     if (!userId) {
       setIsLoadingStores(false);
-      setStores([]); // Clear stores if no user
+      setStores([]);
       return;
     }
     setIsLoadingStores(true);
-    const { data, error } = await supabase
+    let fetchedStores = [];
+
+    const { data: storesFromDb, error: storesError } = await supabase
       .from('stores')
       .select('*')
-      .eq('merchant_id', userId) // Changed user_id to merchant_id
+      .eq('merchant_id', userId)
       .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error loading stores:', error);
-      toast({ title: 'Error', description: 'Failed to load your stores from the cloud.', variant: 'destructive' });
-      // Load from localStorage as a fallback if cloud fails after initial load attempt
+    if (storesError) {
+      console.error('Error loading stores from Supabase:', storesError);
+      toast({ title: 'Cloud Sync Error', description: 'Failed to load your stores from the cloud. Checking local cache.', variant: 'warning' });
       const savedStores = localStorage.getItem('ecommerce-stores');
       if (savedStores) {
         try {
-          setStores(JSON.parse(savedStores));
-        } catch (e) { console.error('Failed to parse localStorage stores:', e); }
+          fetchedStores = JSON.parse(savedStores);
+          console.log('Loaded stores from localStorage as fallback.');
+        } catch (e) { 
+          console.error('Failed to parse localStorage stores:', e); 
+          fetchedStores = [];
+        }
       }
     } else {
-      setStores(data || []);
-      localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(data || []))); // Sync LS with cloud
+      if (storesFromDb && storesFromDb.length > 0) {
+        const storesWithDetails = await Promise.all(
+          storesFromDb.map(async (store) => {
+            // Fetch products
+            const { data: productsFromDb, error: productsError } = await supabase
+              .from('platform_products')
+              .select('*')
+              .eq('store_id', store.id);
+
+            if (productsError) {
+              console.error(`Error loading products for store ${store.id} (${store.name}):`, productsError.message);
+            }
+            const mappedProducts = productsFromDb ? productsFromDb.map(dbProduct => {
+              let imageStructure = { src: { large: '', medium: '' } };
+              if (dbProduct.images && Array.isArray(dbProduct.images) && dbProduct.images.length > 0) {
+                imageStructure.src.large = dbProduct.images[0];
+                imageStructure.src.medium = dbProduct.images[0];
+              }
+              return {
+                ...dbProduct, // This should include the dbProduct.id (UUID)
+                price: dbProduct.priceAmount, // Assuming priceAmount is a field
+                image: imageStructure,
+              };
+            }) : [];
+
+            // Fetch collections and their products
+            let mappedCollections = [];
+            const { data: rawCollectionsFromDb, error: collectionsError } = await supabase
+              .from('store_collections')
+              .select('*')
+              .eq('store_id', store.id);
+
+            if (collectionsError) {
+              console.error(`Error loading collections for store ${store.id} (${store.name}):`, collectionsError.message);
+            } else if (rawCollectionsFromDb && rawCollectionsFromDb.length > 0) {
+              mappedCollections = await Promise.all(rawCollectionsFromDb.map(async (collection) => {
+                const { data: productLinks, error: linksError } = await supabase
+                  .from('collection_products')
+                  .select('product_id')
+                  .eq('collection_id', collection.id);
+
+                let collectionProducts = [];
+                if (linksError) {
+                  console.error(`Error loading product links for collection ${collection.id}:`, linksError.message);
+                } else if (productLinks && productLinks.length > 0) {
+                  const productIdsForCollection = productLinks.map(link => link.product_id);
+                  collectionProducts = mappedProducts.filter(p => productIdsForCollection.includes(p.id));
+                }
+                return { ...collection, products: collectionProducts }; // Add products array to each collection
+              }));
+            }
+            return { ...store, products: mappedProducts, collections: mappedCollections };
+          })
+        );
+        fetchedStores = storesWithDetails;
+      } else {
+        fetchedStores = []; // No stores found in DB for the user
+      }
+      
+      try {
+        localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(fetchedStores)));
+      } catch (e) {
+        console.error('Failed to save stores to localStorage during cloud sync:', e);
+        toast({
+          title: 'Local Cache Update Failed',
+          description: 'Could not fully update the local cache of stores. Some data might be temporarily unavailable offline.',
+          variant: 'warning',
+          duration: 8000,
+        });
+        if (e.name === 'QuotaExceededError') {
+          console.warn('LocalStorage quota seems to be exceeded. The application might not store all data locally, relying more on cloud data.');
+        }
+      }
     }
+    setStores(fetchedStores);
     setIsLoadingStores(false);
-  }, [toast]);
+  }, [toast, supabase]); // Added supabase to dependencies as it's used directly
 
   useEffect(() => {
     // User state is now managed by AuthContext, so we listen to changes in `user` from `useAuth`
@@ -200,8 +340,8 @@ const prepareStoresForLocalStorage = (storesArray) => {
 
     if (user) {
       // Ensure merchant_id is set for DB insertion, using the user's ID from AuthContext
-      const { id: clientGeneratedId, settings, products, user_id, ...restOfStoreData } = storeToCreate; // Remove user_id if present
-      const dataToInsert = { ...restOfStoreData, merchant_id: user.id }; // Add merchant_id
+      const { id: clientGeneratedId, settings, products, collections, user_id, ...restOfStoreData } = storeToCreate; // Remove user_id, extract collections
+      const dataToInsert = { ...restOfStoreData, merchant_id: user.id }; 
       
       const { data, error } = await supabase
         .from('stores')
@@ -216,7 +356,10 @@ const prepareStoresForLocalStorage = (storesArray) => {
       }
       newStoreInDb = data;
 
-      // Now handle products, including Stripe creation if applicable
+      // Handle products
+      const productDbIdMap = new Map(); // Map original product identifier (from wizard) to DB UUID
+      const finalProductsForStoreObject = []; // Will hold product objects with their actual DB IDs
+
       if (newStoreInDb && products && products.length > 0) {
         console.log(`Store ${newStoreInDb.id} created. Processing ${products.length} products.`);
         const isStripeConnected = profile?.stripe_account_id && profile?.stripe_account_details_submitted;
@@ -225,71 +368,163 @@ const prepareStoresForLocalStorage = (storesArray) => {
           toast({ title: "Creating Products on Stripe...", description: "This may take a moment.", duration: 5000 });
         }
 
-        for (const product of products) {
+        for (const wizardProduct of products) { // 'products' here is from storeToCreate (wizardData)
+          const originalWizardProductId = wizardProduct.id || wizardProduct.name; // Use name as fallback original ID if .id is not set in wizard
           try {
             const productPayload = {
               store_id: newStoreInDb.id,
-              name: product.name || `Product ${generateId().substring(0, 8)}`, // Fallback for name
-              description: product.description || "No description available.", // Fallback for description
-              images: product.image?.src?.large ? [product.image.src.large] : (product.image?.src?.medium ? [product.image.src.medium] : []),
-              priceAmount: Number(product.price) >= 0 ? Number(product.price) : 0, // Use product.price directly, ensure it's a number, default 0
-              currency: 'usd', // Default to 'usd' as product objects from storeActions don't have specific currency
+              name: wizardProduct.name || `Product ${generateId().substring(0, 8)}`,
+              description: wizardProduct.description || "No description available.",
+              images: wizardProduct.image?.src?.large ? [wizardProduct.image.src.large] : (wizardProduct.image?.src?.medium ? [wizardProduct.image.src.medium] : []),
+              priceAmount: Number(wizardProduct.price) >= 0 ? Number(wizardProduct.price) : 0,
+              currency: 'usd', // Assuming USD, this could be dynamic
             };
-
-            // The create-stripe-product function handles both Stripe creation and DB insertion
-            // It will skip Stripe if not connected and just save to platform_products
-            const response = await supabase.functions.invoke('create-stripe-product', {
-              body: productPayload,
-            });
-
-            if (response.error) {
-              throw new Error(response.error.message);
-            }
+            const response = await supabase.functions.invoke('create-stripe-product', { body: productPayload });
+            if (response.error) throw new Error(response.error.message);
             
-            const responseData = response.data; // Edge functions return data in response.data
-            if (responseData.error) {
-                 throw new Error(responseData.error);
-            }
-
-            console.log(`Product processing response for "${product.name}":`, responseData);
-            if (responseData.stripe_skipped) {
-              console.log(`Stripe creation skipped for product "${product.name}". Saved locally with ID ${responseData.platform_product_id}`);
+            const edgeFunctionResponseData = response.data; 
+            // IMPORTANT: The Edge Function returns the actual database product ID in `platform_product_id`
+            if (edgeFunctionResponseData && edgeFunctionResponseData.platform_product_id) {
+              const actualDbProductId = edgeFunctionResponseData.platform_product_id;
+              productDbIdMap.set(originalWizardProductId, actualDbProductId);
+              console.log(`[StoreContext] commonStoreCreation: Mapped originalWizardProductId '${originalWizardProductId}' to actualDbProductId '${actualDbProductId}' (from platform_product_id)`);
+              // Ensure the product object in finalProductsForStoreObject uses the actual DB ID
+              finalProductsForStoreObject.push({ ...wizardProduct, id: actualDbProductId }); 
             } else {
-              console.log(`Product "${product.name}" created on Stripe: ${responseData.stripe_product_id}, Price: ${responseData.stripe_default_price_id}. DB ID: ${responseData.platform_product_id}`);
+              finalProductsForStoreObject.push(wizardProduct); // Keep original if DB ID not retrieved
+              console.warn(`[StoreContext] commonStoreCreation: Product "${wizardProduct.name}" (original ID: ${originalWizardProductId}) processed, but platform_product_id not found in Edge Function response. Response data:`, edgeFunctionResponseData);
             }
-            // No need to update platform_products here as the function does it.
           } catch (productError) {
-            console.error(`Failed to process product "${product.name}" for store ${newStoreInDb.id}:`, productError);
-            toast({
-              title: `Product Processing Error`,
-              description: `Failed to process product "${product.name}": ${productError.message}`,
-              variant: 'destructive',
-              duration: 7000,
-            });
-            // Continue with other products
+            console.error(`Failed to process product "${wizardProduct.name}" for store ${newStoreInDb.id}:`, productError);
+            toast({ title: `Product Processing Error`, description: `Failed to process product "${wizardProduct.name}": ${productError.message}`, variant: 'destructive', duration: 7000 });
+            finalProductsForStoreObject.push(wizardProduct); // Add original product even on error to maintain structure if needed
           }
         }
+        // Update the products array in storeToCreate to have the correct DB IDs for subsequent operations if needed
+        storeToCreate.products = finalProductsForStoreObject; 
       }
-    } else {
+
+      // Handle collections
+      if (newStoreInDb && collections && collections.length > 0) { // 'collections' is from storeToCreate (wizardData)
+        console.log(`Processing ${collections.length} collections for store ${newStoreInDb.id}.`);
+        
+        const collectionsToInsertInDb = collections.map(coll => ({
+          store_id: newStoreInDb.id,
+          name: coll.name,
+          description: coll.description,
+          image_url: coll.imageUrl,
+        }));
+
+        const { data: insertedDbCollections, error: collectionsError } = await supabase
+          .from('store_collections')
+          .insert(collectionsToInsertInDb)
+          .select(); // Important to get the IDs of inserted collections
+
+        if (collectionsError) {
+          console.error('Error saving collections to Supabase:', collectionsError);
+          toast({ title: 'Collections Save Failed', description: collectionsError.message, variant: 'warning' });
+        } else if (insertedDbCollections && insertedDbCollections.length > 0) {
+          console.log(`${insertedDbCollections.length} collections saved successfully for store ${newStoreInDb.id}.`);
+          
+          const productLinksToInsert = [];
+          insertedDbCollections.forEach((dbCollection, index) => {
+            // Assuming the order of insertedDbCollections matches the original 'collections' array from wizardData
+            const originalWizardCollection = collections[index]; 
+            if (originalWizardCollection && originalWizardCollection.product_ids && originalWizardCollection.product_ids.length > 0) {
+              originalWizardCollection.product_ids.forEach(wizardProductId => {
+                const dbProductId = productDbIdMap.get(wizardProductId); // Get DB UUID from our map for THIS product
+                if (dbProductId) { // Check if a valid DB ID was found for this wizardProductId
+                  productLinksToInsert.push({
+                    collection_id: dbCollection.id, // Use the ID from the newly inserted collection
+                    product_id: dbProductId // Use the correctly mapped dbProductId
+                  });
+                } else {
+                  // More detailed log for why mapping failed
+                  console.warn(`[StoreContext] commonStoreCreation (DB LINKING): Could not find DB ID for wizard product ID '${wizardProductId}' in collection '${dbCollection.name}'. Skipping link. Current productDbIdMap keys: ${JSON.stringify(Array.from(productDbIdMap.keys()))}`);
+                }
+              });
+            }
+          });
+
+          if (productLinksToInsert.length > 0) {
+            const { error: productLinksError } = await supabase
+              .from('collection_products')
+              .insert(productLinksToInsert);
+            
+            if (productLinksError) {
+              console.error('Error saving product-collection links to Supabase:', productLinksError);
+              toast({ title: 'Product Linking Failed', description: productLinksError.message, variant: 'warning' });
+            } else {
+              console.log(`${productLinksToInsert.length} product-collection links saved.`);
+            }
+          }
+        }
+      } // End of 'if (newStoreInDb && collections && collections.length > 0)'
+      
+      // Populate collections with full product objects for immediate UI, ONLY if user exists (DB operations happened)
+      // This block should be INSIDE the `if (user)` block, after products and collections are processed.
+      if (storeToCreate.collections && Array.isArray(storeToCreate.collections)) {
+        storeToCreate.collections = storeToCreate.collections.map(collection => {
+          const productsInCollection = [];
+          if (collection.product_ids && Array.isArray(collection.product_ids)) {
+            collection.product_ids.forEach(wizardProductId => {
+              const dbProductId = productDbIdMap.get(wizardProductId);
+              // Ensure finalProductsForStoreObject is available and populated
+              const productObject = (finalProductsForStoreObject || []).find(p => p.id === dbProductId);
+              if (productObject) {
+                productsInCollection.push(productObject);
+              } else {
+                // Log a warning if a product object isn't found for a given ID.
+                // This is a key indicator if products are missing from collections in the UI.
+                console.warn(`[StoreContext] commonStoreCreation: Product object not found for wizardProductId '${wizardProductId}' (which mapped to dbProductId: '${dbProductId}') in collection '${collection.name}'. This product will not appear in this collection's list in the UI immediately.`);
+              }
+            });
+          }
+          return { ...collection, products: productsInCollection };
+        });
+        // Log the structure of collections after attempting to populate their products array.
+        // This helps verify if the products array is being filled as expected.
+        if (user) { // Only log this detailed structure if DB operations were expected
+            console.log('[StoreContext] commonStoreCreation: Populated storeToCreate.collections structure (for user session):', 
+              JSON.stringify(storeToCreate.collections.map(c => ({ 
+                name: c.name, 
+                id: c.id, // DB ID of the collection
+                original_product_ids_count: c.product_ids?.length || 0,
+                populated_products_count: c.products?.length || 0,
+                populated_product_ids: c.products?.map(p => p.id).join(', ') || 'None'
+              })), null, 2)
+            );
+        }
+      }
+    } else { // This 'else' corresponds to 'if (user)'
       // No user, create store locally only
       newStoreInDb = { 
         ...storeToCreate, 
         id: storeToCreate.id || generateId(), 
         createdAt: new Date().toISOString() 
       }; 
+      // For local-only, collections will have product_ids (temp IDs), but not full product objects resolved from a DB.
+      // This is generally fine for preview as the structure is there.
       toast({ title: 'Store Created Locally', description: 'Store created locally. Log in to save to the cloud.' });
-    }
+    } // End of 'if (user)' / 'else'
     
-    // Update local state with the new store (newStoreInDb contains the DB representation)
-    // The products within newStoreInDb might not have Stripe IDs yet if fetched directly after store insert.
-    // For UI consistency, we might use storeToCreate which has the initial product structure.
-    // Or, better, fetch the store again with its products after all processing.
-    // For now, let's use storeToCreate for immediate UI, DB is source of truth.
-    const displayStore = { ...newStoreInDb, ...storeToCreate }; // Merge to keep products structure from wizard
+    // Merge to keep products and collections structure from wizard/prompt for immediate UI
+    // Prioritize newStoreInDb properties (like the actual DB UUID for 'id') over storeToCreate
+    const displayStore = { ...storeToCreate, ...newStoreInDb }; 
 
     setStores(prevStores => {
         const newStoresList = [displayStore, ...prevStores.filter(s => s.id !== displayStore.id)];
-        localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(newStoresList)));
+        try {
+          localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(newStoresList)));
+        } catch (e) {
+          console.error('Failed to save stores to localStorage during store creation:', e);
+          toast({
+            title: 'Local Cache Update Failed',
+            description: 'Could not update the local cache after creating the store.',
+            variant: 'warning',
+            duration: 7000,
+          });
+        }
         return newStoresList;
     });
     setCurrentStore(displayStore);
@@ -706,7 +941,17 @@ const finalizeBigCommerceImportFromWizard = async () => {
           }
           return store;
         });
-        localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(newStores)));
+        try {
+          localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(newStores)));
+        } catch (e) {
+          console.error('Failed to save stores to localStorage during local-only update:', e);
+          toast({
+            title: 'Local Cache Update Failed',
+            description: 'Could not update the local cache for the store (local-only).',
+            variant: 'warning',
+            duration: 7000,
+          });
+        }
         
         // Update currentStore if it's the one being modified
         if (currentStore && currentStore.id === storeId) {
@@ -740,7 +985,17 @@ const finalizeBigCommerceImportFromWizard = async () => {
           const newStores = prevStores.map(s => 
             s.id === storeId ? (updatedLocalStore || { ...s, ...updates }) : s
           );
-          localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(newStores)));
+          try {
+            localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(newStores)));
+          } catch (e) {
+            console.error('Failed to save stores to localStorage after Supabase update error:', e);
+            toast({
+              title: 'Local Cache Update Failed',
+              description: 'Could not update the local cache after a cloud update issue.',
+              variant: 'warning',
+              duration: 7000,
+            });
+          }
           return newStores;
         });
         if (currentStore && currentStore.id === storeId) {
@@ -750,24 +1005,65 @@ const finalizeBigCommerceImportFromWizard = async () => {
         return;
       }
 
-      // If Supabase update is successful for other fields, merge with local settings for UI consistency
-      const finalUpdatedStore = { ...updatedStoreFromSupabase, settings: updatedLocalStore?.settings || storeWithFullUpdates?.settings || {} };
+      // If Supabase update is successful.
+      // `updatedStoreFromSupabase` is the truth from the database.
+      // `updatedLocalStore` was the optimistic state (currentStore before this update + updates).
+      
+      // Construct the new state for currentStore:
+      // Start with the data returned from Supabase.
+      // Then, ensure any purely local fields (like 'settings' if it was part of the original 'updates' payload) are preserved.
+      let newCurrentStoreState = { ...updatedStoreFromSupabase };
+      if (updates && updates.settings) { // 'updates' is the payload passed to updateStore
+        newCurrentStoreState.settings = updates.settings;
+      }
+      // If 'updates' modified a nested field (e.g. content.heroTitle), 
+      // 'updatedStoreFromSupabase' should ideally contain the fully updated 'content' object.
+      // If not, we might need to merge 'updates.content' into 'newCurrentStoreState.content'.
+      // For simplicity, we assume Supabase returns the complete, updated top-level fields (like 'content').
+      // If `updates` contained a modification to a nested field (e.g. `content.heroTitle`),
+      // and `updatesForSupabase` correctly sent the whole `content` object,
+      // then `updatedStoreFromSupabase.content` should be the most up-to-date `content`.
+      // We just need to ensure that if `updates` had other top-level keys not returned by Supabase (e.g. purely local state), they are preserved.
+      // The `updatedLocalStore` (which was `currentStore` + `updates`) holds this optimistic view.
+      
+      // A safer merge:
+      const finalCurrentStore = { 
+        ...currentStore, // Start with the state before this specific update
+        ...updatedStoreFromSupabase, // Overlay with DB response
+        ...updates // Re-apply the specific `updates` to ensure UI reflects the exact intended change, especially for nested objects.
+                   // This also preserves local-only fields if they were part of `updates`.
+      };
+      // Ensure settings are correctly layered if they were part of the optimistic update
+      if (updatedLocalStore && updatedLocalStore.settings) {
+        finalCurrentStore.settings = updatedLocalStore.settings;
+      }
+
+
+      setCurrentStore(finalCurrentStore);
 
       setStores(prevStores => {
-        const newStores = prevStores.map(store =>
-          store.id === storeId ? finalUpdatedStore : store
+        const newStores = prevStores.map(s =>
+          s.id === storeId ? finalCurrentStore : s
         );
-        localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(newStores)));
+        try {
+          // Attempt to save to localStorage
+          localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(newStores)));
+        } catch (e) {
+          console.error('Failed to save stores to localStorage after successful Supabase update:', e);
+          toast({
+            title: 'Local Cache Warning',
+            description: `Store updated successfully, but failed to save to local browser storage. ${e.message}`,
+            variant: 'warning',
+            duration: 8000,
+          });
+        }
         return newStores;
       });
 
-      if (currentStore && currentStore.id === storeId) {
-        setCurrentStore(finalUpdatedStore);
-      }
-      toast({ title: 'Store Updated', description: 'Store details updated. Theme toggle setting is local until DB schema is updated.' });
+      toast({ title: 'Store Updated', description: 'Store details have been successfully updated.' });
     } catch (e) {
         console.error('Unexpected error in updateStore:', e);
-        toast({ title: 'Update Error', description: 'An unexpected error occurred.', variant: 'destructive' });
+        toast({ title: 'Update Error', description: `An unexpected error occurred during store update: ${e.message}`, variant: 'destructive' });
     } finally {
         setIsLoadingStores(false);
     }
@@ -805,7 +1101,17 @@ const finalizeBigCommerceImportFromWizard = async () => {
         const newStores = prevStores.map(store =>
           store.id === storeId ? { ...store, pass_key: data.pass_key } : store
         );
-        localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(newStores)));
+        try {
+          localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(newStores)));
+        } catch (e) {
+          console.error('Failed to save stores to localStorage after pass key update:', e);
+          toast({
+            title: 'Local Cache Update Failed',
+            description: 'Could not update the local cache after pass key update.',
+            variant: 'warning',
+            duration: 7000,
+          });
+        }
         return newStores;
       });
 
@@ -898,7 +1204,19 @@ const finalizeBigCommerceImportFromWizard = async () => {
     const storesBeforeDelete = [...stores];
     setStores(prevStores => {
         const newStores = prevStores.filter(store => store.id !== storeId);
-        localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(newStores)));
+        try {
+          localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(newStores)));
+        } catch (e) {
+          console.error('Failed to save stores to localStorage during optimistic delete:', e);
+          // Toast might be redundant if Supabase call succeeds/fails and shows its own.
+          // However, this indicates a local caching issue specifically.
+          toast({
+            title: 'Local Cache Update Issue',
+            description: 'Could not update the local cache during store deletion. Cloud operation will proceed.',
+            variant: 'warning',
+            duration: 7000,
+          });
+        }
         return newStores;
     });
     if (currentStore && currentStore.id === storeId) setCurrentStore(null);
@@ -914,7 +1232,17 @@ const finalizeBigCommerceImportFromWizard = async () => {
       toast({ title: 'Deletion Failed', description: error.message, variant: 'destructive' });
       // Revert optimistic update if Supabase fails
       setStores(storesBeforeDelete);
-      localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(storesBeforeDelete)));
+      try {
+        localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(storesBeforeDelete)));
+      } catch (e) {
+        console.error('Failed to save stores to localStorage during delete rollback:', e);
+        toast({
+          title: 'Local Cache Revert Failed',
+          description: 'Could not revert local cache changes after a failed deletion.',
+          variant: 'error', // More severe as it indicates desync
+          duration: 8000,
+        });
+      }
       // Potentially reset currentStore if it was the one being deleted
       if (storesBeforeDelete.find(s => s.id === storeId)) {
           setCurrentStore(storesBeforeDelete.find(s => s.id === storeId) || null);
@@ -968,21 +1296,115 @@ const finalizeBigCommerceImportFromWizard = async () => {
       toast({ title: 'Error', description: 'Store ID and new template version are required.', variant: 'destructive' });
       return;
     }
-    await updateStore(storeId, { template_version: newVersion });
-    // updateStore already handles toasts and state updates.
-    // A specific toast for template change can be added here if desired,
-    // but updateStore's generic "Store Updated" might be sufficient.
-    toast({ title: 'Template Switched', description: `Store template updated to ${newVersion === 'v1' ? 'Classic' : 'Modern'}.` });
+
+    let updates = { template_version: newVersion };
+    const storeToUpdate = stores.find(s => s.id === storeId);
+
+    if (storeToUpdate && newVersion === 'v2') {
+      const currentFont = storeToUpdate.theme?.fontFamily || 'Inter'; // Assuming 'Inter' is the global default
+      if (currentFont === 'Inter') {
+        updates = {
+          ...updates,
+          theme: {
+            ...storeToUpdate.theme,
+            fontFamily: 'Montserrat', // Change default font for v2 to Montserrat
+          },
+        };
+      }
+    }
+
+    await updateStore(storeId, updates);
+    
+    toast({ title: 'Template Switched', description: `Store template updated to ${newVersion === 'v1' ? 'Classic' : (newVersion === 'v2' ? 'Modern' : newVersion)}.` });
   };
 
   const value = { 
     stores, currentStore, isGenerating, isLoadingStores, cart, user,
-    generateStore, /* importShopifyStore, // Replaced by wizard functions */ 
+    generateStore,
+    // importShopifyStore, // Replaced by wizard functions
     getStoreById, updateStore, deleteStore, setCurrentStore, updateStorePassKey, assignStoreManager, updateStoreTemplateVersion,
     getProductById, updateProductImage, generateStoreFromWizard,
     addToCart, removeFromCart, updateQuantity, clearCart,
     generateAIProducts: generateAIProductsData,
     viewMode, setViewMode, // Expose viewMode and setter
+
+    // Function to update specific text content
+    updateStoreTextContent: async (identifier, newText) => {
+      if (!currentStore) {
+        toast({ title: 'Error', description: 'No current store selected.', variant: 'destructive' });
+        return;
+      }
+      
+      const keys = identifier.split('.');
+      const topLevelKey = keys[0];
+      let payloadForUpdateStore = {};
+
+      if (keys.length === 1) { // Direct property of currentStore, e.g., "name"
+        payloadForUpdateStore[topLevelKey] = newText;
+      } else { // Nested property, e.g., "content.heroTitle" or "products.0.name"
+        const originalTopLevelObject = currentStore[topLevelKey];
+        let newTopLevelObject;
+
+        // Deep clone the top-level object that contains the field to be updated.
+        // Use structuredClone if available, otherwise fallback to JSON.parse(JSON.stringify()).
+        const baseObject = originalTopLevelObject || (topLevelKey === 'products' ? [] : {});
+        if (typeof structuredClone === 'function') {
+          newTopLevelObject = structuredClone(baseObject);
+        } else {
+          newTopLevelObject = JSON.parse(JSON.stringify(baseObject));
+        }
+        
+        let currentLevelInNewObject = newTopLevelObject;
+        const pathWithinTopLevel = keys.slice(1); // e.g., ["heroTitle"] for "content.heroTitle", or ["0", "name"] for "products.0.name"
+        
+        for (let i = 0; i < pathWithinTopLevel.length - 1; i++) {
+          const pathPart = pathWithinTopLevel[i];
+          // Navigate into the cloned object.
+          // If a path segment doesn't exist (e.g. trying to set products[0].details.color but details is undefined),
+          // this could error or behave unexpectedly. For robust handling, ensure paths are valid or create them.
+          // For now, assuming the path is valid down to the second to last segment.
+          if (typeof currentLevelInNewObject[pathPart] !== 'object' || currentLevelInNewObject[pathPart] === null) {
+             // If trying to access a property of a non-object, or if a part of the path doesn't exist.
+             // This might indicate an issue with the identifier or the store structure.
+             // For product arrays, currentLevelInNewObject[pathPart] would be an object (product).
+             console.error(`Invalid path segment or structure at '${pathPart}' for identifier '${identifier}'. Current level:`, currentLevelInNewObject);
+             toast({ title: 'Update Error', description: `Cannot set property on non-object at path: ${keys.slice(0, i + 2).join('.')}`, variant: 'destructive' });
+             return;
+          }
+          currentLevelInNewObject = currentLevelInNewObject[pathPart];
+        }
+        
+        // Set the new text at the final part of the path within the cloned top-level object.
+        currentLevelInNewObject[pathWithinTopLevel[pathWithinTopLevel.length - 1]] = newText;
+        
+        payloadForUpdateStore[topLevelKey] = newTopLevelObject;
+      }
+
+      await updateStore(currentStore.id, payloadForUpdateStore);
+      // updateStore itself will call setCurrentStore and setStores, and show a toast.
+
+      // updateStore itself will call setCurrentStore and setStores, and show a toast.
+
+      // Force a refresh by quickly switching templates back and forth
+      // This is a workaround for UI not updating reliably after nested content changes.
+      if (user && currentStore) { // Ensure user and currentStore exist
+        const originalTemplateVersion = currentStore.template_version || 'v1';
+        const temporaryTemplateVersion = originalTemplateVersion === 'v1' ? 'v2' : 'v1';
+        
+        // Switch to the temporary template
+        // updateStoreTemplateVersion will update currentStore and stores list
+        await updateStoreTemplateVersion(currentStore.id, temporaryTemplateVersion); 
+        
+        // Switch back to the original template almost immediately
+        // Use a minimal timeout to allow React to process the first state update
+        setTimeout(async () => {
+          await updateStoreTemplateVersion(currentStore.id, originalTemplateVersion);
+        }, 50); // Small delay
+      } else {
+         console.warn("Cannot force template refresh: user or currentStore is not available.");
+         // If no user, the update was local only. The previous setCurrentStore in updateStore should suffice.
+      }
+    },
 
     // Shopify Wizard related state and functions
     shopifyWizardStep, setShopifyWizardStep,

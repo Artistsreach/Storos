@@ -24,12 +24,14 @@ const StorePreview = () => {
   const [store, setStore] = useState(null);
   const [StoreHeader, setStoreHeader] = useState(null);
   const [StoreHero, setStoreHero] = useState(null);
+  const [StoreCollections, setStoreCollections] = useState(null); // Added for new component
   const [ProductGrid, setProductGrid] = useState(null);
   const [StoreFeatures, setStoreFeatures] = useState(null);
+  const [StoreTestimonials, setStoreTestimonials] = useState(null); // Added for new component
   const [StoreNewsletter, setStoreNewsletter] = useState(null);
   const [StoreFooter, setStoreFooter] = useState(null);
-  const [AdvancedTemplateApp, setAdvancedTemplateApp] = useState(null); // For V3 HomePage
-  const [ProductDetailPageV3, setProductDetailPageV3] = useState(null); // For V3 PDP
+  // const [AdvancedTemplateApp, setAdvancedTemplateApp] = useState(null); // REMOVED for V3
+  // const [ProductDetailPageV3, setProductDetailPageV3] = useState(null); // REMOVED for V3
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [enteredPassKey, setEnteredPassKey] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -48,34 +50,35 @@ const StorePreview = () => {
       // Reset all template component states initially
       setStoreHeader(null);
       setStoreHero(null);
+      setStoreCollections(null); // Reset new component state
       setProductGrid(null);
       setStoreFeatures(null);
+      setStoreTestimonials(null); // Reset new component state
       setStoreNewsletter(null);
       setStoreFooter(null);
-      setAdvancedTemplateApp(null);
-      setProductDetailPageV3(null);
+      // setAdvancedTemplateApp(null); // REMOVED for V3
+      // setProductDetailPageV3(null); // REMOVED for V3
 
       if (templateVersion === 'v1') {
         setStoreHeader(() => lazy(() => import('@/components/store/StoreHeader.jsx')));
         setStoreHero(() => lazy(() => import('@/components/store/StoreHero.jsx')));
+        setStoreCollections(() => lazy(() => import('@/components/store/StoreCollections.jsx'))); // Lazy load new component
         setProductGrid(() => lazy(() => import('@/components/store/ProductGrid.jsx')));
         setStoreFeatures(() => lazy(() => import('@/components/store/StoreFeatures.jsx')));
+        setStoreTestimonials(() => lazy(() => import('@/components/store/StoreTestimonials.jsx'))); // Lazy load new component
         setStoreNewsletter(() => lazy(() => import('@/components/store/StoreNewsletter.jsx')));
         setStoreFooter(() => lazy(() => import('@/components/store/StoreFooter.jsx')));
       } else if (templateVersion === 'v2') {
         setStoreHeader(() => lazy(() => import('@/components/store/template_v2/StoreHeader.jsx')));
         setStoreHero(() => lazy(() => import('@/components/store/template_v2/StoreHero.jsx')));
+        setStoreCollections(() => lazy(() => import('@/components/store/template_v2/StoreCollections.jsx'))); // Use StoreCollectionsV2 for v2
         setProductGrid(() => lazy(() => import('@/components/store/template_v2/ProductGrid.jsx')));
         setStoreFeatures(() => lazy(() => import('@/components/store/template_v2/StoreFeatures.jsx')));
+        setStoreTestimonials(() => lazy(() => import('@/components/store/StoreTestimonials.jsx'))); // Also for v2
         setStoreNewsletter(() => lazy(() => import('@/components/store/template_v2/StoreNewsletter.jsx')));
         setStoreFooter(() => lazy(() => import('@/components/store/template_v2/StoreFooter.jsx')));
-      } else if (templateVersion === 'v3') {
-        if (productHandleFromParams) {
-          setProductDetailPageV3(() => lazy(() => import('../../new-ecommerce-template/src/pages/ProductDetailPage.tsx')));
-        } else {
-          setAdvancedTemplateApp(() => lazy(() => import('../../new-ecommerce-template/src/App.tsx')));
-        }
       }
+      // REMOVED V3 loading logic
       
       // If the store has no pass_key, or if the current user is the store owner,
       // then consider it authenticated.
@@ -190,30 +193,9 @@ const StorePreview = () => {
   const templateVersion = store?.template_version || 'v1';
 
   // Loading state for template components
-  if (templateVersion === 'v3') {
-    // For V3, check if we are on a product page or homepage, and if the respective component is loaded
-    if (productHandleFromParams && !ProductDetailPageV3) {
-      return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading Advanced Product Page...</p>
-          </div>
-        </div>
-      );
-    }
-    if (!productHandleFromParams && !AdvancedTemplateApp) {
-      return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading Advanced Template Home...</p>
-          </div>
-        </div>
-      );
-    }
-  } else { // For v1 and v2
-    if (!StoreHeader || !StoreHero || !ProductGrid || !StoreFeatures || !StoreNewsletter || !StoreFooter) {
+  // REMOVED V3 loading check
+  // For v1 and v2
+  if (!StoreHeader || !StoreHero || !StoreCollections || !ProductGrid || !StoreFeatures || !StoreTestimonials || !StoreNewsletter || !StoreFooter) { // Check new component
       return (
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
@@ -223,71 +205,33 @@ const StorePreview = () => {
         </div>
       );
     }
-  }
+  // REMOVED V3 render logic
 
-  // Render logic for V3 template (either HomePage or ProductDetailPage)
-  if (templateVersion === 'v3') {
-    if (productHandleFromParams && ProductDetailPageV3) {
-      return (
-        <div className="min-h-screen bg-background">
-          <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading Advanced Product Detail...</div>}>
-            <ProductDetailPageV3 storeData={store} />
-          </Suspense>
-          <PreviewControls 
-            store={store} 
-            onEdit={() => setIsEditOpen(true)} 
-          />
-          {!isPublished && ( 
-            <EditStoreForm 
-              store={store} 
-              open={isEditOpen} 
-              onOpenChange={setIsEditOpen} 
-            />
-          )}
-          <RealtimeChatbot />
-        </div>
-      );
-    }
-    if (!productHandleFromParams && AdvancedTemplateApp) {
-      return (
-        <div className="min-h-screen bg-background">
-          <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading Advanced Store Content...</div>}>
-            <AdvancedTemplateApp storeData={store} isPublishedView={isPublished} />
-          </Suspense>
-          <PreviewControls 
-            store={store} 
-            onEdit={() => setIsEditOpen(true)} 
-          />
-          {!isPublished && ( 
-            <EditStoreForm 
-              store={store} 
-              open={isEditOpen} 
-              onOpenChange={setIsEditOpen} 
-            />
-          )}
-          <RealtimeChatbot />
-        </div>
-      );
-    }
-    // If v3 but neither component is ready (should be caught by loading state above)
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Preparing Advanced Template...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Fallback to v1/v2 rendering
+  // Fallback to v1/v2 rendering (now default rendering)
   return (
     <div className="min-h-screen bg-background">
       <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading Store Content...</div>}>
         {StoreHeader && <StoreHeader store={store} isPublishedView={isPublished} />}
         {StoreHero && <StoreHero store={store} isPublishedView={isPublished} />}
-        {ProductGrid && <ProductGrid store={store} isPublishedView={isPublished} />}
-        {StoreFeatures && <StoreFeatures store={store} isPublishedView={isPublished} />}
+        
+        {templateVersion === 'v1' && (
+          <>
+            {ProductGrid && <ProductGrid store={store} isPublishedView={isPublished} />}
+            {StoreCollections && <StoreCollections store={store} isPublishedView={isPublished} />}
+            {StoreFeatures && <StoreFeatures store={store} isPublishedView={isPublished} />}
+          </>
+        )}
+
+        {templateVersion === 'v2' && (
+          <>
+            {StoreFeatures && <StoreFeatures store={store} isPublishedView={isPublished} />}
+            {ProductGrid && <ProductGrid store={store} isPublishedView={isPublished} />}
+            {StoreCollections && <StoreCollections store={store} isPublishedView={isPublished} />}
+          </>
+        )}
+        
+        {/* Common sections for both v1 and v2 */}
+        {StoreTestimonials && <StoreTestimonials store={store} isPublishedView={isPublished} />}
         {StoreNewsletter && <StoreNewsletter store={store} isPublishedView={isPublished} />}
         {StoreFooter && <StoreFooter store={store} isPublishedView={isPublished} />}
       </Suspense>

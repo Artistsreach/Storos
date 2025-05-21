@@ -13,8 +13,9 @@ import { useStore } from '@/contexts/StoreContext';
 import { generateLogoWithGemini } from '@/lib/geminiImageGeneration'; // New import for logo generation
 import { generateStoreNameSuggestions } from '@/lib/gemini'; // Import the new function
 import { generateProductWithGemini } from '@/lib/geminiProductGeneration';
-import { generateCollectionWithGemini } from '@/lib/geminiCollectionGeneration'; // New import for collection generation
+import { generateCollectionWithGemini } from '@/lib/geminiCollectionGeneration';
 import { productTypeOptions, renderWizardStepContent, isWizardNextDisabled } from '@/components/wizard/wizardStepComponents';
+import { generateId } from '@/lib/utils'; // Import generateId
  
 const StoreWizard = () => {
   const [step, setStep] = useState(1);
@@ -59,8 +60,7 @@ const StoreWizard = () => {
       ...prev,
       products: {
         ...prev.products,
-        // Add imageUrl to manual product structure for consistency, though it might not be used for manual
-        items: [...prev.products.items, { name: '', price: '', description: '', imageUrl: '' }],
+        items: [...prev.products.items, { id: `temp-product-${generateId()}`, name: '', price: '', description: '', imageUrl: '' }],
       },
     }));
   };
@@ -181,14 +181,13 @@ const StoreWizard = () => {
         );
         if (productData && productData.imageData) {
           generatedItems.push({
+            id: `temp-product-${generateId()}`, // Assign temporary ID
             name: productData.title,
             description: productData.description,
             price: productData.price,
-            // Assuming productData.imageData is base64. Mime type could be dynamic if API provides it.
             imageUrl: `data:image/png;base64,${productData.imageData}`, 
           });
         } else {
-          // Handle partial success or failure for one product
           console.warn(`Failed to generate full data for product ${i + 1}. Skipping.`);
         }
       }
@@ -214,27 +213,39 @@ const StoreWizard = () => {
     setIsProcessing(true);
     setSuggestionError(null);
     const generatedItems = [];
+    const existingCollectionNames = formData.collections.items.map(c => c.name); // Get names of already generated collections
     try {
       for (let i = 0; i < formData.collections.count; i++) {
         console.log(`Generating AI collection ${i + 1} of ${formData.collections.count}...`);
         const collectionData = await generateCollectionWithGemini(
           formData.productType,
           formData.storeName,
-          formData.products.items // Pass existing products for context
+          formData.products.items, // Pass existing products for context
+          existingCollectionNames // Pass existing names to avoid duplicates
         );
         if (collectionData && collectionData.name && collectionData.description && collectionData.imageUrl) {
           generatedItems.push({
+            id: `temp-collection-${generateId()}`, // Add a temporary ID for the collection itself
             name: collectionData.name,
             description: collectionData.description,
             imageUrl: collectionData.imageUrl,
+            product_ids: collectionData.product_ids || [], // Store the product_ids
           });
+          // Add the newly generated name to the list for subsequent calls in this loop
+          if (collectionData.name) {
+            existingCollectionNames.push(collectionData.name);
+          }
         } else {
           console.warn(`Failed to generate full data for collection ${i + 1}. Skipping.`);
         }
       }
+      // Update with all newly generated items. If some failed, they won't be in generatedItems.
+      // If you want to append to existing AI-generated collections instead of replacing:
+      // const newCollectionItems = [...formData.collections.items, ...generatedItems];
+      // For now, it replaces, which is fine if "Generate Collections" is a one-off action for the current count.
       setFormData(prev => ({
         ...prev,
-        collections: { ...prev.collections, items: generatedItems },
+        collections: { ...prev.collections, items: generatedItems }, // This replaces existing AI collections
       }));
       if (generatedItems.length === 0 && formData.collections.count > 0) {
         setSuggestionError("AI failed to generate any collections. Please try again or adjust settings.");
@@ -255,6 +266,7 @@ const StoreWizard = () => {
 
   const stepProps = {
     formData,
+    setFormData, // Ensure setFormData is passed down
     handleInputChange,
     handleProductTypeChange,
     handleProductSourceChange,

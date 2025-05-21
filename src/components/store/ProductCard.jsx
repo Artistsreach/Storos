@@ -129,7 +129,7 @@ const ProductCard = ({ product, theme, index, storeId, isPublishedView = false }
             <div className="flex justify-between items-start mb-1.5">
               <h3 className="font-semibold text-md lg:text-lg line-clamp-2 group-hover:text-primary transition-colors" style={{"--hover-color": theme.primaryColor}}>{name}</h3>
               <span className="font-bold text-md lg:text-lg whitespace-nowrap" style={{ color: theme.primaryColor }}>
-                {currencyCode} {price.toFixed(2)}
+                {currencyCode} {typeof price === 'number' ? price.toFixed(2) : 'Price unavailable'}
               </span>
             </div>
           </Link>

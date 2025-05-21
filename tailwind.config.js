@@ -77,7 +77,15 @@ module.exports = {
 			},
       backgroundSize: {
         '200%': '200% auto',
-      }
+      },
+      fontFamily: {
+        sans: ['Inter', 'sans-serif'], // Default sans-serif
+        inter: ['Inter', 'sans-serif'],
+        roboto: ['Roboto', 'sans-serif'],
+        poppins: ['Poppins', 'sans-serif'],
+        montserrat: ['Montserrat', 'sans-serif'],
+        'open-sans': ['Open Sans', 'sans-serif'],
+      },
 		},
 	},
 	plugins: [require('tailwindcss-animate')],

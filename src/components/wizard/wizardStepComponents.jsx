@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
 import { Loader2, Wand2, Sparkles, PlusCircle, Trash2 } from 'lucide-react';
+import ManageCollectionProductsModal from '@/components/store/ManageCollectionProductsModal'; // Import the modal
 
 export const productTypeOptions = [
   { value: "fashion", label: "Fashion & Apparel" },
@@ -24,12 +25,35 @@ export const productTypeOptions = [
 
 export const renderWizardStepContent = (step, props) => {
   const {
-    formData, handleInputChange, handleProductTypeChange, handleProductSourceChange,
+    formData, setFormData, handleInputChange, handleProductTypeChange, handleProductSourceChange, // Added setFormData
     handleProductCountChange, handleManualProductChange, addManualProduct, removeManualProduct,
-    suggestStoreName, generateLogo, generateAiProducts, generateAiCollections, // Added generateAiCollections
-    isProcessing, productTypeOptions: pto, // Renamed to avoid conflict
-    storeNameSuggestions, handleSuggestionClick, suggestionError, // New props for suggestions
+    suggestStoreName, generateLogo, generateAiProducts, generateAiCollections,
+    isProcessing, productTypeOptions: pto, 
+    storeNameSuggestions, handleSuggestionClick, suggestionError,
   } = props;
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentEditingCollection, setCurrentEditingCollection] = useState(null);
+
+  const openManageProductsModal = (collection) => {
+    setCurrentEditingCollection(collection);
+    setIsModalOpen(true);
+  };
+
+  const handleSaveCollectionProducts = (collectionIdOrName, productIds) => {
+    setFormData(prevFormData => {
+      const updatedCollections = prevFormData.collections.items.map(coll => {
+        if ((coll.id && coll.id === collectionIdOrName) || coll.name === collectionIdOrName) {
+          return { ...coll, product_ids: productIds };
+        }
+        return coll;
+      });
+      return { ...prevFormData, collections: { ...prevFormData.collections, items: updatedCollections } };
+    });
+    setIsModalOpen(false);
+    setCurrentEditingCollection(null);
+  };
+
 
   switch (step) {
     case 1: // Product Type
@@ -235,12 +259,32 @@ export const renderWizardStepContent = (step, props) => {
                       </div>
                       {/* Placeholder for image change/edit options */}
                       <div className="flex flex-col gap-1">
-                        <Button variant="outline" size="sm" className="text-xs h-auto py-1">Change Image</Button>
-                        <Button variant="outline" size="sm" className="text-xs h-auto py-1">Edit Image</Button>
+                        {/* <Button variant="outline" size="sm" className="text-xs h-auto py-1">Change Image</Button>
+                        <Button variant="outline" size="sm" className="text-xs h-auto py-1">Edit Image</Button> */}
+                        <Button 
+                          variant="outline"
+                          size="sm"
+                          className="text-xs h-auto py-1 mt-2"
+                          onClick={() => openManageProductsModal(item)}
+                        >
+                          Manage Products
+                        </Button>
                       </div>
                     </Card>
                   ))}
                 </div>
+              )}
+              {currentEditingCollection && (
+                <ManageCollectionProductsModal
+                  isOpen={isModalOpen}
+                  onClose={() => {
+                    setIsModalOpen(false);
+                    setCurrentEditingCollection(null);
+                  }}
+                  collection={currentEditingCollection}
+                  allProducts={formData.products.items}
+                  onSave={handleSaveCollectionProducts}
+                />
               )}
             </div>
           )}

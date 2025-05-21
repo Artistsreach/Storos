@@ -102,7 +102,7 @@ const ProductCard = ({ product, theme, index, storeId, isPublishedView = false }
       whileHover={{ y: -8, boxShadow: "0px 10px 20px rgba(0,0,0,0.1)" }}
       className="product-card h-full"
     >
-      <Card className="h-full overflow-hidden border hover:border-primary/50 transition-all duration-300 flex flex-col group bg-card shadow-sm hover:shadow-lg">
+      <Card className="h-full overflow-hidden border hover:border-primary/50 transition-all duration-300 flex flex-col group bg-card shadow-sm hover:shadow-lg rounded-md"> {/* Added rounded-md */}
         {/* Removed isPublishedView from state, ProductDetail will get it from context */}
         <Link to={`/store/${storeId}/product/${productId}`} className="block">
           <div className="aspect-square relative overflow-hidden bg-muted">
@@ -112,7 +112,7 @@ const ProductCard = ({ product, theme, index, storeId, isPublishedView = false }
               src={imageUrl} />
             
             <div 
-              className="absolute top-3 right-3 px-2.5 py-1 text-xs font-semibold text-white rounded-full shadow-md"
+              className="absolute top-3 right-3 px-2.5 py-1 text-xs font-semibold text-white rounded shadow-md" /* Changed rounded-full to rounded */
               style={{ backgroundColor: theme.primaryColor }}
             >
               NEW

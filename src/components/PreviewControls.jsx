@@ -118,7 +118,6 @@ const PreviewControls = ({ store, onEdit }) => {
                 <SelectContent>
                   <SelectItem value="v1">Classic Template</SelectItem>
                   <SelectItem value="v2">Modern Template</SelectItem>
-                  <SelectItem value="v3">Advanced Template</SelectItem>
                 </SelectContent>
               </Select>
 
