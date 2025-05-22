@@ -432,15 +432,15 @@ const prepareStoresForLocalStorage = (storesArray) => {
             const originalWizardCollection = collections[index]; 
             if (originalWizardCollection && originalWizardCollection.product_ids && originalWizardCollection.product_ids.length > 0) {
               originalWizardCollection.product_ids.forEach(wizardProductId => {
-                const dbProductId = productDbIdMap.get(wizardProductId); // Get DB UUID from our map for THIS product
-                if (dbProductId) { // Check if a valid DB ID was found for this wizardProductId
+                const actualDbProductId = productDbIdMap.get(wizardProductId); // Get DB UUID from our map
+                if (actualDbProductId) {
                   productLinksToInsert.push({
                     collection_id: dbCollection.id, // Use the ID from the newly inserted collection
-                    product_id: dbProductId // Use the correctly mapped dbProductId
+                    product_id: actualDbProductId 
                   });
                 } else {
                   // More detailed log for why mapping failed
-                  console.warn(`[StoreContext] commonStoreCreation (DB LINKING): Could not find DB ID for wizard product ID '${wizardProductId}' in collection '${dbCollection.name}'. Skipping link. Current productDbIdMap keys: ${JSON.stringify(Array.from(productDbIdMap.keys()))}`);
+                  console.warn(`[StoreContext] commonStoreCreation: Could not find DB ID for wizard product ID '${wizardProductId}' in collection '${dbCollection.name}'. Skipping link. Current productDbIdMap keys: ${JSON.stringify(Array.from(productDbIdMap.keys()))}`);
                 }
               });
             }
@@ -1006,44 +1006,58 @@ const finalizeBigCommerceImportFromWizard = async () => {
       }
 
       // If Supabase update is successful.
-      // `updatedStoreFromSupabase` is the truth from the database.
-      // `updatedLocalStore` was the optimistic state (currentStore before this update + updates).
-      
-      // Construct the new state for currentStore:
-      // Start with the data returned from Supabase.
-      // Then, ensure any purely local fields (like 'settings' if it was part of the original 'updates' payload) are preserved.
-      let newCurrentStoreState = { ...updatedStoreFromSupabase };
-      if (updates && updates.settings) { // 'updates' is the payload passed to updateStore
-        newCurrentStoreState.settings = updates.settings;
-      }
-      // If 'updates' modified a nested field (e.g. content.heroTitle), 
-      // 'updatedStoreFromSupabase' should ideally contain the fully updated 'content' object.
-      // If not, we might need to merge 'updates.content' into 'newCurrentStoreState.content'.
-      // For simplicity, we assume Supabase returns the complete, updated top-level fields (like 'content').
-      // If `updates` contained a modification to a nested field (e.g. `content.heroTitle`),
-      // and `updatesForSupabase` correctly sent the whole `content` object,
-      // then `updatedStoreFromSupabase.content` should be the most up-to-date `content`.
-      // We just need to ensure that if `updates` had other top-level keys not returned by Supabase (e.g. purely local state), they are preserved.
-      // The `updatedLocalStore` (which was `currentStore` + `updates`) holds this optimistic view.
-      
-      // A safer merge:
-      const finalCurrentStore = { 
-        ...currentStore, // Start with the state before this specific update
-        ...updatedStoreFromSupabase, // Overlay with DB response
-        ...updates // Re-apply the specific `updates` to ensure UI reflects the exact intended change, especially for nested objects.
-                   // This also preserves local-only fields if they were part of `updates`.
+      // `updatedStoreFromSupabase` is the truth from the database for the fields it returns.
+      // `currentStore` holds the state before this update.
+      // `updates` is the specific payload for this update call.
+
+      // Start by merging currentStore, then the response from Supabase, then the specific updates.
+      // This order ensures that `updates` (the intended changes for this call) take precedence,
+      // and `updatedStoreFromSupabase` (actual DB state for modified/returned fields) comes next,
+      // all overlaying the `currentStore` baseline.
+      let mergedStoreData = {
+        ...currentStore,
+        ...updatedStoreFromSupabase,
+        ...updates
       };
-      // Ensure settings are correctly layered if they were part of the optimistic update
-      if (updatedLocalStore && updatedLocalStore.settings) {
-        finalCurrentStore.settings = updatedLocalStore.settings;
+
+      // Fields that are complex (JSONB in DB) and might not be returned by Supabase's .select()
+      // after a minimal update (e.g., updating only template_version).
+      // We need to ensure these are preserved from `currentStore` if `updatedStoreFromSupabase`
+      // omits them or returns them as null/undefined unexpectedly.
+      const complexFieldsToPreserve = ['reviews', 'products', 'collections', 'content'];
+
+      complexFieldsToPreserve.forEach(field => {
+        if (currentStore && currentStore[field] !== undefined) { // If the field existed in the pre-update currentStore
+          if (updatedStoreFromSupabase && updatedStoreFromSupabase[field] === undefined && (!updates || updates[field] === undefined)) {
+            // Case 1: DB response omitted the field, and it wasn't in the direct 'updates' payload.
+            // This means the field's value should be preserved from 'currentStore'.
+            mergedStoreData[field] = currentStore[field];
+          }
+          // Case 2: If updatedStoreFromSupabase *did* return the field (even as null),
+          // and it wasn't in 'updates', mergedStoreData[field] would already have the value from updatedStoreFromSupabase.
+          // If it *was* in 'updates', mergedStoreData[field] would have the value from 'updates'.
+          // This logic primarily handles omission from updatedStoreFromSupabase.
+        }
+      });
+      
+      // Ensure 'settings' (which is local-only) is correctly preserved or updated.
+      if (updates && updates.settings) {
+        mergedStoreData.settings = updates.settings;
+      } else if (currentStore && currentStore.settings) {
+        mergedStoreData.settings = currentStore.settings;
+      }
+      // Ensure 'theme' is handled. If it's part of 'updates', it's already set.
+      // If 'theme' is a top-level field and might be missing from updatedStoreFromSupabase:
+      if (currentStore && currentStore.theme && updatedStoreFromSupabase && updatedStoreFromSupabase.theme === undefined && (!updates || updates.theme === undefined)) {
+        mergedStoreData.theme = currentStore.theme;
       }
 
 
-      setCurrentStore(finalCurrentStore);
+      setCurrentStore(mergedStoreData);
 
       setStores(prevStores => {
         const newStores = prevStores.map(s =>
-          s.id === storeId ? finalCurrentStore : s
+          s.id === storeId ? mergedStoreData : s
         );
         try {
           // Attempt to save to localStorage

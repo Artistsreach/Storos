@@ -498,6 +498,7 @@ export const mapShopifyDataToInternalStore = async (shopifyStore, shopifyProduct
           brandSlogan: shopifyStore.brand?.slogan,
           brandShortDescription: shopifyStore.brand?.shortDescription,
       },
+      reviews: [], // Initialize reviews for Shopify imported stores
       data_source: 'shopify',
       card_background_url: cardBackgroundUrlShopify
       // The 'shopify_data' field containing domain, raw_metadata, and collections
@@ -603,6 +604,7 @@ export const mapBigCommerceDataToInternalStore = async (bcStoreSettings, bcProdu
         heroTitle: `Welcome to ${bcStoreSettings.storeName || "Our Store"}`,
         heroDescription: bcStoreSettings.description || aiContent.heroDescription,
     },
+    reviews: [], // Initialize reviews for BigCommerce imported stores
     data_source: 'bigcommerce',
     card_background_url: cardBackgroundUrlBC,
     // bigcommerce_data: { // Optional: store raw data if needed

@@ -225,11 +225,9 @@ const StoreWizard = () => {
         );
         if (collectionData && collectionData.name && collectionData.description && collectionData.imageUrl) {
           generatedItems.push({
-            id: `temp-collection-${generateId()}`, // Add a temporary ID for the collection itself
             name: collectionData.name,
             description: collectionData.description,
             imageUrl: collectionData.imageUrl,
-            product_ids: collectionData.product_ids || [], // Store the product_ids
           });
           // Add the newly generated name to the list for subsequent calls in this loop
           if (collectionData.name) {
