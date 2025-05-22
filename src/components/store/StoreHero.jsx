@@ -1,23 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState } from 'react'; // Added useState
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Edit2Icon } from 'lucide-react';
+import { ArrowRight, Edit2Icon } from 'lucide-react'; // Added Edit2Icon
 import { motion } from 'framer-motion';
-import ReplaceVideoModal from './ReplaceVideoModal';
-import { useStore } from '@/contexts/StoreContext';
-import InlineTextEdit from '@/components/ui/InlineTextEdit'; // Import InlineTextEdit
+import ReplaceVideoModal from './ReplaceVideoModal'; // Added import
+import { useStore } from '@/contexts/StoreContext'; // Added import
 
 // Props from advanced theme's HeroSection.tsx
 // We'll use default values for now, or adapt them if 'store' prop from modern theme is available
 const StoreHero = ({ store, isPublishedView = false }) => {
-  const { updateStore, updateStoreTextContent, viewMode } = useStore(); // Added updateStoreTextContent and viewMode
-  const [isReplaceModalOpen, setIsReplaceModalOpen] = useState(false);
+  const { updateStore } = useStore(); // Added
+  const [isReplaceModalOpen, setIsReplaceModalOpen] = useState(false); // Added
 
   // Extract values from 'store' prop if available, otherwise use defaults
-  const storeId = store?.id;
+  // This is a placeholder for adapting props. For now, defaults from HeroSection.tsx are used.
+  const storeId = store?.id; // Added for modal
   const title = store?.content?.heroTitle || store?.name || "Elevate Your Everyday";
   const subtitle = store?.content?.heroDescription || "Discover premium collections designed for modern living. Quality craftsmanship, timeless style.";
-  const videoUrl = store?.hero_video_url;
+  const videoUrl = store?.hero_video_url; // From modern theme's store prop
   const imageUrl = store?.heroImage?.src?.large || store?.heroImage?.url || store?.hero_video_poster_url || "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1074&q=80";
   const primaryCtaText = "Shop New Arrivals";
   const primaryCtaLink = `#products-${store?.id || 'featured-products'}`; // Link to products section in modern theme
@@ -58,27 +58,16 @@ const StoreHero = ({ store, isPublishedView = false }) => {
             transition={{ duration: 0.8, ease: "easeOut" }}
             className="text-center lg:text-left space-y-6 lg:space-y-8"
           >
-            <InlineTextEdit
-              initialText={title}
-              onSave={updateStoreTextContent}
-              identifier="content.heroTitle"
-              as="h1"
+            <h1 
               className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-extrabold leading-tight tracking-tight"
               style={primaryColor ? { color: primaryColor } : {}}
             >
-              {title} 
-            </InlineTextEdit>
-            <InlineTextEdit
-              initialText={subtitle}
-              onSave={updateStoreTextContent}
-              identifier="content.heroDescription"
-              as="p"
-              className="text-lg md:text-xl text-muted-foreground max-w-xl mx-auto lg:mx-0"
-            >
+              {title}
+            </h1>
+            <p className="text-lg md:text-xl text-muted-foreground max-w-xl mx-auto lg:mx-0">
               {subtitle}
-            </InlineTextEdit>
+            </p>
             <div className="flex flex-col sm:flex-row justify-center lg:justify-start gap-4 pt-4">
-              {/* CTA buttons might also need to be editable if their text is dynamic */}
               <Button asChild size="lg" className="rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 transform hover:scale-105">
                 <Link to={primaryCtaLink} onClick={(e) => handleScrollTo(e, primaryCtaLink.substring(1))}>
                   {primaryCtaText}

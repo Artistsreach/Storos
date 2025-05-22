@@ -5,7 +5,6 @@ import { ShoppingCart, Search, Menu, X, Trash2, Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch'; // Added Switch
 import { useStore } from '@/contexts/StoreContext';
-import InlineTextEdit from '@/components/ui/InlineTextEdit'; // Added for inline editing
 import { Link, useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -55,17 +54,12 @@ const StoreHeader = ({ store, isPublishedView = false }) => {
 
   // Simplified base path, as there's only one main store URL structure now
   const basePath = `/store/${storeId}`; 
-  const defaultLabels = ['Home', 'Products', 'Features', 'Contact'];
-  const currentNavLinkLabels = store.content?.navLinkLabels || defaultLabels;
-
   const navLinks = [
-    { href: basePath, label: currentNavLinkLabels[0] || defaultLabels[0], identifier: 'content.navLinkLabels.0' },
-    { href: `#products-${storeId}`, label: currentNavLinkLabels[1] || defaultLabels[1], identifier: 'content.navLinkLabels.1' },
-    { href: `#features-${storeId}`, label: currentNavLinkLabels[2] || defaultLabels[2], identifier: 'content.navLinkLabels.2' },
-    { href: `#contact-${storeId}`, label: currentNavLinkLabels[3] || defaultLabels[3], identifier: 'content.navLinkLabels.3' },
+    { href: basePath, label: 'Home' },
+    { href: `#products-${storeId}`, label: 'Products' },
+    { href: `#features-${storeId}`, label: 'Features' },
+    { href: `#contact-${storeId}`, label: 'Contact' },
   ];
-
-  const { updateStoreTextContent } = useStore();
 
   const handleNavLinkClick = (e, href) => {
     e.preventDefault();
@@ -102,27 +96,13 @@ const StoreHeader = ({ store, isPublishedView = false }) => {
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <Link to={basePath} className="flex items-center gap-2 group">
             {logoUrl && <img src={logoUrl} alt={`${name} logo`} className="h-12 w-12 object-contain group-hover:scale-110 transition-transform duration-200" />}
-            <InlineTextEdit
-              initialText={name}
-              onSave={updateStoreTextContent}
-              identifier="name"
-              isPublishedView={isPublishedView}
-              as="span"
-              className="font-bold text-xl tracking-tight group-hover:text-primary transition-colors"
-              style={{color: theme.primaryColor}}
-            />
+            <span className="font-bold text-xl tracking-tight group-hover:text-primary transition-colors" style={{color: theme.primaryColor}}>{name}</span>
           </Link>
           
           <nav className="hidden md:flex items-center gap-x-6">
-            {navLinks.map((link, index) => (
-              <a key={link.identifier || index} href={link.href} onClick={(e) => handleNavLinkClick(e, link.href)} className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors" style={{ '--hover-color': theme.primaryColor }}>
-                <InlineTextEdit
-                  initialText={link.label}
-                  onSave={updateStoreTextContent}
-                  identifier={link.identifier}
-                  isPublishedView={isPublishedView}
-                  as="span" // Render as span inside <a>
-                />
+            {navLinks.map(link => (
+              <a key={link.label} href={link.href} onClick={(e) => handleNavLinkClick(e, link.href)} className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors" style={{ '--hover-color': theme.primaryColor }}>
+                {link.label}
               </a>
             ))}
           </nav>
@@ -186,15 +166,9 @@ const StoreHeader = ({ store, isPublishedView = false }) => {
               </Button>
             </div>
             <nav className="flex flex-col gap-y-4">
-              {navLinks.map((link, index) => (
-                <a key={link.identifier || index} href={link.href} onClick={(e) => handleNavLinkClick(e, link.href)} className="text-lg font-medium text-foreground hover:text-primary transition-colors" style={{ '--hover-color': theme.primaryColor }}>
-                   <InlineTextEdit
-                    initialText={link.label}
-                    onSave={updateStoreTextContent}
-                    identifier={link.identifier}
-                    isPublishedView={isPublishedView}
-                    as="span"
-                  />
+              {navLinks.map(link => (
+                <a key={link.label} href={link.href} onClick={(e) => handleNavLinkClick(e, link.href)} className="text-lg font-medium text-foreground hover:text-primary transition-colors" style={{ '--hover-color': theme.primaryColor }}>
+                  {link.label}
                 </a>
               ))}
                {/* Theme toggle for mobile menu */}

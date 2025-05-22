@@ -2,12 +2,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Facebook, Instagram, Twitter, Youtube, Linkedin } from 'lucide-react';
-import { useStore } from '@/contexts/StoreContext'; // Added useStore
-import InlineTextEdit from '@/components/ui/InlineTextEdit'; // Added InlineTextEdit
 
 const StoreFooter = ({ store, isPublishedView = false }) => {
-  const { name, theme, id: storeId, content } = store; // Added content
-  const { updateStoreTextContent } = useStore(); // Added updateStoreTextContent
+  const { name, theme, id: storeId } = store;
   const currentYear = new Date().getFullYear();
 
   const socialLinks = [
@@ -17,33 +14,16 @@ const StoreFooter = ({ store, isPublishedView = false }) => {
     { icon: Linkedin, href: "#", label: "LinkedIn" },
   ];
 
-  const basePath = `/store/${storeId}`; 
-  
-  const defaultFooterQuickLinkLabels = ["Home", "Products", "About Us", "Contact"];
-  const defaultFooterServiceLinkLabels = ["FAQ", "Privacy Policy", "Terms of Service"];
-
-  const footerQuickLinkLabels = content?.footerQuickLinkLabels || defaultFooterQuickLinkLabels;
-  const footerServiceLinkLabels = content?.footerServiceLinkLabels || defaultFooterServiceLinkLabels;
-
+  const basePath = `/store/${storeId}`; // Simplified base path
   const footerNavLinks = [
-    { href: basePath, label: footerQuickLinkLabels[0], identifier: 'content.footerQuickLinkLabels.0' },
-    { href: `#products-${storeId}`, label: footerQuickLinkLabels[1], identifier: 'content.footerQuickLinkLabels.1' },
-    { href: "#", label: footerQuickLinkLabels[2], identifier: 'content.footerQuickLinkLabels.2' }, // Assuming About Us
-    { href: "#", label: footerQuickLinkLabels[3], identifier: 'content.footerQuickLinkLabels.3' }, // Assuming Contact
+    { href: basePath, label: "Home" },
+    { href: `#products-${storeId}`, label: "Products" },
+    { href: "#", label: "About Us" },
+    { href: "#", label: "Contact" },
+    { href: "#", label: "FAQ" },
+    { href: "#", label: "Privacy Policy" },
+    { href: "#", label: "Terms of Service" },
   ];
-  
-  const customerServiceLinks = [
-    { href: "#", label: footerServiceLinkLabels[0], identifier: 'content.footerServiceLinkLabels.0' }, // Assuming FAQ
-    { href: "#", label: footerServiceLinkLabels[1], identifier: 'content.footerServiceLinkLabels.1' }, // Assuming Privacy
-    { href: "#", label: footerServiceLinkLabels[2], identifier: 'content.footerServiceLinkLabels.2' }, // Assuming ToS
-  ];
-
-  const footerTagline = content?.footerTagline || `Your favorite destination for ${store.type || 'quality products'}. We are committed to bringing you the best.`;
-  const contactAddress = content?.contactAddress || "123 Store Street, Cityville, ST 12345";
-  const contactEmail = content?.contactEmail || `info@${name.toLowerCase().replace(/\s+/g, '')}.com`;
-  const contactPhone = content?.contactPhone || "(123) 456-7890";
-  const copyrightSuffix = content?.copyrightSuffix || "All Rights Reserved. Powered by StoreGen AI.";
-
 
   return (
     <motion.footer
@@ -57,23 +37,10 @@ const StoreFooter = ({ store, isPublishedView = false }) => {
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-8 mb-8">
           {/* Store Info */}
           <div className="space-y-3">
-            <InlineTextEdit
-              initialText={name}
-              onSave={updateStoreTextContent}
-              identifier="name"
-              isPublishedView={isPublishedView}
-              as="h3"
-              className="text-xl font-semibold text-foreground"
-              style={{color: theme.primaryColor}}
-            />
-            <InlineTextEdit
-              initialText={footerTagline}
-              onSave={updateStoreTextContent}
-              identifier="content.footerTagline"
-              isPublishedView={isPublishedView}
-              as="p"
-              className="text-sm"
-            />
+            <h3 className="text-xl font-semibold text-foreground" style={{color: theme.primaryColor}}>{name}</h3>
+            <p className="text-sm">
+              Your favorite destination for {store.type || 'quality products'}. We are committed to bringing you the best.
+            </p>
             <div className="flex space-x-3 pt-2">
               {socialLinks.map(link => (
                 <a 
@@ -93,17 +60,9 @@ const StoreFooter = ({ store, isPublishedView = false }) => {
           <div>
             <h4 className="font-semibold text-foreground mb-3">Quick Links</h4>
             <ul className="space-y-2">
-              {footerNavLinks.map(link => (
-                <li key={link.identifier}>
-                  <a href={link.href} className="text-sm hover:text-primary transition-colors" style={{"--hover-color": theme.primaryColor}}>
-                    <InlineTextEdit
-                      initialText={link.label}
-                      onSave={updateStoreTextContent}
-                      identifier={link.identifier}
-                      isPublishedView={isPublishedView}
-                      as="span"
-                    />
-                  </a>
+              {footerNavLinks.slice(0,4).map(link => (
+                <li key={link.label}>
+                  <a href={link.href} className="text-sm hover:text-primary transition-colors" style={{"--hover-color": theme.primaryColor}}>{link.label}</a>
                 </li>
               ))}
             </ul>
@@ -113,17 +72,9 @@ const StoreFooter = ({ store, isPublishedView = false }) => {
           <div>
             <h4 className="font-semibold text-foreground mb-3">Customer Service</h4>
             <ul className="space-y-2">
-               {customerServiceLinks.map(link => (
-                <li key={link.identifier}>
-                  <a href={link.href} className="text-sm hover:text-primary transition-colors" style={{"--hover-color": theme.primaryColor}}>
-                    <InlineTextEdit
-                      initialText={link.label}
-                      onSave={updateStoreTextContent}
-                      identifier={link.identifier}
-                      isPublishedView={isPublishedView}
-                      as="span"
-                    />
-                  </a>
+               {footerNavLinks.slice(4).map(link => (
+                <li key={link.label}>
+                  <a href={link.href} className="text-sm hover:text-primary transition-colors" style={{"--hover-color": theme.primaryColor}}>{link.label}</a>
                 </li>
               ))}
             </ul>
@@ -132,18 +83,14 @@ const StoreFooter = ({ store, isPublishedView = false }) => {
           {/* Contact Info */}
           <div className="space-y-2 text-sm">
             <h4 className="font-semibold text-foreground mb-3">Contact Us</h4>
-            <InlineTextEdit initialText={contactAddress} onSave={updateStoreTextContent} identifier="content.contactAddress" isPublishedView={isPublishedView} as="p" />
-            <p>Email: 
-              <InlineTextEdit initialText={contactEmail} onSave={updateStoreTextContent} identifier="content.contactEmail" isPublishedView={isPublishedView} as="a" href={`mailto:${contactEmail}`} className="hover:text-primary" style={{"--hover-color": theme.primaryColor}} />
-            </p>
-            <p>Phone: 
-              <InlineTextEdit initialText={contactPhone} onSave={updateStoreTextContent} identifier="content.contactPhone" isPublishedView={isPublishedView} as="a" href={`tel:${contactPhone.replace(/\D/g,'')}`} className="hover:text-primary" style={{"--hover-color": theme.primaryColor}} />
-            </p>
+            <p>123 Store Street, Cityville, ST 12345</p>
+            <p>Email: <a href={`mailto:info@${name.toLowerCase().replace(/\s+/g, '')}.com`} className="hover:text-primary" style={{"--hover-color": theme.primaryColor}}>info@{name.toLowerCase().replace(/\s+/g, '')}.com</a></p>
+            <p>Phone: <a href="tel:+1234567890" className="hover:text-primary" style={{"--hover-color": theme.primaryColor}}>(123) 456-7890</a></p>
           </div>
         </div>
         
         <div className="border-t pt-6 text-center text-xs">
-          <p>&copy; {currentYear} <InlineTextEdit initialText={name} onSave={updateStoreTextContent} identifier="name" isPublishedView={isPublishedView} as="span" />. <InlineTextEdit initialText={copyrightSuffix} onSave={updateStoreTextContent} identifier="content.copyrightSuffix" isPublishedView={isPublishedView} as="span" /></p>
+          <p>&copy; {currentYear} {name}. All Rights Reserved. Powered by StoreGen AI.</p>
         </div>
       </div>
     </motion.footer>

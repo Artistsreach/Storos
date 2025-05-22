@@ -13,9 +13,8 @@ import { useStore } from '@/contexts/StoreContext';
 import { generateLogoWithGemini } from '@/lib/geminiImageGeneration'; // New import for logo generation
 import { generateStoreNameSuggestions } from '@/lib/gemini'; // Import the new function
 import { generateProductWithGemini } from '@/lib/geminiProductGeneration';
-import { generateCollectionWithGemini } from '@/lib/geminiCollectionGeneration';
+import { generateCollectionWithGemini } from '@/lib/geminiCollectionGeneration'; // New import for collection generation
 import { productTypeOptions, renderWizardStepContent, isWizardNextDisabled } from '@/components/wizard/wizardStepComponents';
-import { generateId } from '@/lib/utils'; // Import generateId
  
 const StoreWizard = () => {
   const [step, setStep] = useState(1);
@@ -60,7 +59,8 @@ const StoreWizard = () => {
       ...prev,
       products: {
         ...prev.products,
-        items: [...prev.products.items, { id: `temp-product-${generateId()}`, name: '', price: '', description: '', imageUrl: '' }],
+        // Add imageUrl to manual product structure for consistency, though it might not be used for manual
+        items: [...prev.products.items, { name: '', price: '', description: '', imageUrl: '' }],
       },
     }));
   };
@@ -181,13 +181,14 @@ const StoreWizard = () => {
         );
         if (productData && productData.imageData) {
           generatedItems.push({
-            id: `temp-product-${generateId()}`, // Assign temporary ID
             name: productData.title,
             description: productData.description,
             price: productData.price,
+            // Assuming productData.imageData is base64. Mime type could be dynamic if API provides it.
             imageUrl: `data:image/png;base64,${productData.imageData}`, 
           });
         } else {
+          // Handle partial success or failure for one product
           console.warn(`Failed to generate full data for product ${i + 1}. Skipping.`);
         }
       }

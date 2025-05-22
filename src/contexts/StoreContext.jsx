@@ -117,72 +117,9 @@ const prepareStoresForLocalStorage = (storesArray) => {
           }
           productForLs.image = { ...productForLs.image, src: newProductImageSrc };
         }
-        // Truncate product name and description
-        if (productForLs.name && productForLs.name.length > 1000) {
-          productForLs.name = `${productForLs.name.substring(0, 1000)}...[truncated]`;
-        }
-        if (productForLs.description && productForLs.description.length > 2000) {
-          productForLs.description = `${productForLs.description.substring(0, 2000)}...[truncated]`;
-        }
         return productForLs;
       });
     }
-
-    // Truncate store name and description
-    if (storeForLs.name && storeForLs.name.length > 1000) {
-      storeForLs.name = `${storeForLs.name.substring(0, 1000)}...[truncated]`;
-    }
-    if (storeForLs.description && storeForLs.description.length > 2000) {
-      storeForLs.description = `${storeForLs.description.substring(0, 2000)}...[truncated]`;
-    }
-    if (storeForLs.prompt && storeForLs.prompt.length > 2000) {
-      storeForLs.prompt = `${storeForLs.prompt.substring(0, 2000)}...[truncated]`;
-    }
-
-
-    // Simplify store.content fields
-    if (storeForLs.content) {
-      const contentFieldsToTruncate = [
-        'heroTitle', 'heroDescription', 
-        'featuresSectionTitle', 'featuresSectionSubtitle',
-        'testimonialsSectionTitle', 'newsletterTitle', 'newsletterSubtitle'
-      ];
-      for (const field of contentFieldsToTruncate) {
-        if (storeForLs.content[field] && storeForLs.content[field].length > 1000) {
-          storeForLs.content[field] = `${storeForLs.content[field].substring(0, 1000)}...[truncated]`;
-        }
-      }
-      if (Array.isArray(storeForLs.content.featureTitles)) {
-        storeForLs.content.featureTitles = storeForLs.content.featureTitles.map(title => 
-          title && title.length > 200 ? `${title.substring(0, 200)}...[truncated]` : title
-        );
-      }
-      if (Array.isArray(storeForLs.content.featureDescriptions)) {
-        storeForLs.content.featureDescriptions = storeForLs.content.featureDescriptions.map(desc => 
-          desc && desc.length > 500 ? `${desc.substring(0, 500)}...[truncated]` : desc
-        );
-      }
-      if (Array.isArray(storeForLs.content.navLinkLabels)) {
-        storeForLs.content.navLinkLabels = storeForLs.content.navLinkLabels.map(label =>
-          label && label.length > 100 ? `${label.substring(0,100)}...[truncated]` : label
-        );
-      }
-    }
-
-    // Simplify store.reviews
-    if (storeForLs.reviews && Array.isArray(storeForLs.reviews)) {
-      storeForLs.reviews = storeForLs.reviews.map(review => {
-        const reviewForLs = { ...review };
-        if (reviewForLs.userName && reviewForLs.userName.length > 200) {
-          reviewForLs.userName = `${reviewForLs.userName.substring(0, 200)}...[truncated]`;
-        }
-        if (reviewForLs.comment && reviewForLs.comment.length > 1000) {
-          reviewForLs.comment = `${reviewForLs.comment.substring(0, 1000)}...[truncated]`;
-        }
-        return reviewForLs;
-      });
-    }
-
     return storeForLs;
   });
 };
@@ -382,17 +319,13 @@ const prepareStoresForLocalStorage = (storesArray) => {
             const response = await supabase.functions.invoke('create-stripe-product', { body: productPayload });
             if (response.error) throw new Error(response.error.message);
             
-            const edgeFunctionResponseData = response.data; 
-            // IMPORTANT: The Edge Function returns the actual database product ID in `platform_product_id`
-            if (edgeFunctionResponseData && edgeFunctionResponseData.platform_product_id) {
-              const actualDbProductId = edgeFunctionResponseData.platform_product_id;
-              productDbIdMap.set(originalWizardProductId, actualDbProductId);
-              console.log(`[StoreContext] commonStoreCreation: Mapped originalWizardProductId '${originalWizardProductId}' to actualDbProductId '${actualDbProductId}' (from platform_product_id)`);
-              // Ensure the product object in finalProductsForStoreObject uses the actual DB ID
-              finalProductsForStoreObject.push({ ...wizardProduct, id: actualDbProductId }); 
+            const dbProductData = response.data; // Assume response.data is the product object from DB or includes its ID
+            if (dbProductData && dbProductData.id) { // CRUCIAL: Edge Function must return the product ID from platform_products
+              productDbIdMap.set(originalWizardProductId, dbProductData.id);
+              finalProductsForStoreObject.push({ ...wizardProduct, id: dbProductData.id }); // Update product with real DB ID
             } else {
-              finalProductsForStoreObject.push(wizardProduct); // Keep original if DB ID not retrieved
-              console.warn(`[StoreContext] commonStoreCreation: Product "${wizardProduct.name}" (original ID: ${originalWizardProductId}) processed, but platform_product_id not found in Edge Function response. Response data:`, edgeFunctionResponseData);
+              finalProductsForStoreObject.push(wizardProduct); // Keep original if DB ID not returned
+              console.warn(`Product "${wizardProduct.name}" processed, but DB ID not retrieved/mapped from Edge Function response.`);
             }
           } catch (productError) {
             console.error(`Failed to process product "${wizardProduct.name}" for store ${newStoreInDb.id}:`, productError);
@@ -439,8 +372,7 @@ const prepareStoresForLocalStorage = (storesArray) => {
                     product_id: actualDbProductId 
                   });
                 } else {
-                  // More detailed log for why mapping failed
-                  console.warn(`[StoreContext] commonStoreCreation: Could not find DB ID for wizard product ID '${wizardProductId}' in collection '${dbCollection.name}'. Skipping link. Current productDbIdMap keys: ${JSON.stringify(Array.from(productDbIdMap.keys()))}`);
+                  console.warn(`Could not find DB ID for wizard product ID: ${wizardProductId} in collection ${dbCollection.name}. Skipping link.`);
                 }
               });
             }
@@ -459,58 +391,19 @@ const prepareStoresForLocalStorage = (storesArray) => {
             }
           }
         }
-      } // End of 'if (newStoreInDb && collections && collections.length > 0)'
-      
-      // Populate collections with full product objects for immediate UI, ONLY if user exists (DB operations happened)
-      // This block should be INSIDE the `if (user)` block, after products and collections are processed.
-      if (storeToCreate.collections && Array.isArray(storeToCreate.collections)) {
-        storeToCreate.collections = storeToCreate.collections.map(collection => {
-          const productsInCollection = [];
-          if (collection.product_ids && Array.isArray(collection.product_ids)) {
-            collection.product_ids.forEach(wizardProductId => {
-              const dbProductId = productDbIdMap.get(wizardProductId);
-              // Ensure finalProductsForStoreObject is available and populated
-              const productObject = (finalProductsForStoreObject || []).find(p => p.id === dbProductId);
-              if (productObject) {
-                productsInCollection.push(productObject);
-              } else {
-                // Log a warning if a product object isn't found for a given ID.
-                // This is a key indicator if products are missing from collections in the UI.
-                console.warn(`[StoreContext] commonStoreCreation: Product object not found for wizardProductId '${wizardProductId}' (which mapped to dbProductId: '${dbProductId}') in collection '${collection.name}'. This product will not appear in this collection's list in the UI immediately.`);
-              }
-            });
-          }
-          return { ...collection, products: productsInCollection };
-        });
-        // Log the structure of collections after attempting to populate their products array.
-        // This helps verify if the products array is being filled as expected.
-        if (user) { // Only log this detailed structure if DB operations were expected
-            console.log('[StoreContext] commonStoreCreation: Populated storeToCreate.collections structure (for user session):', 
-              JSON.stringify(storeToCreate.collections.map(c => ({ 
-                name: c.name, 
-                id: c.id, // DB ID of the collection
-                original_product_ids_count: c.product_ids?.length || 0,
-                populated_products_count: c.products?.length || 0,
-                populated_product_ids: c.products?.map(p => p.id).join(', ') || 'None'
-              })), null, 2)
-            );
-        }
       }
-    } else { // This 'else' corresponds to 'if (user)'
+    } else {
       // No user, create store locally only
       newStoreInDb = { 
         ...storeToCreate, 
         id: storeToCreate.id || generateId(), 
         createdAt: new Date().toISOString() 
       }; 
-      // For local-only, collections will have product_ids (temp IDs), but not full product objects resolved from a DB.
-      // This is generally fine for preview as the structure is there.
       toast({ title: 'Store Created Locally', description: 'Store created locally. Log in to save to the cloud.' });
-    } // End of 'if (user)' / 'else'
+    }
     
     // Merge to keep products and collections structure from wizard/prompt for immediate UI
-    // Prioritize newStoreInDb properties (like the actual DB UUID for 'id') over storeToCreate
-    const displayStore = { ...storeToCreate, ...newStoreInDb }; 
+    const displayStore = { ...newStoreInDb, ...storeToCreate }; 
 
     setStores(prevStores => {
         const newStoresList = [displayStore, ...prevStores.filter(s => s.id !== displayStore.id)];
@@ -1005,79 +898,34 @@ const finalizeBigCommerceImportFromWizard = async () => {
         return;
       }
 
-      // If Supabase update is successful.
-      // `updatedStoreFromSupabase` is the truth from the database for the fields it returns.
-      // `currentStore` holds the state before this update.
-      // `updates` is the specific payload for this update call.
-
-      // Start by merging currentStore, then the response from Supabase, then the specific updates.
-      // This order ensures that `updates` (the intended changes for this call) take precedence,
-      // and `updatedStoreFromSupabase` (actual DB state for modified/returned fields) comes next,
-      // all overlaying the `currentStore` baseline.
-      let mergedStoreData = {
-        ...currentStore,
-        ...updatedStoreFromSupabase,
-        ...updates
-      };
-
-      // Fields that are complex (JSONB in DB) and might not be returned by Supabase's .select()
-      // after a minimal update (e.g., updating only template_version).
-      // We need to ensure these are preserved from `currentStore` if `updatedStoreFromSupabase`
-      // omits them or returns them as null/undefined unexpectedly.
-      const complexFieldsToPreserve = ['reviews', 'products', 'collections', 'content'];
-
-      complexFieldsToPreserve.forEach(field => {
-        if (currentStore && currentStore[field] !== undefined) { // If the field existed in the pre-update currentStore
-          if (updatedStoreFromSupabase && updatedStoreFromSupabase[field] === undefined && (!updates || updates[field] === undefined)) {
-            // Case 1: DB response omitted the field, and it wasn't in the direct 'updates' payload.
-            // This means the field's value should be preserved from 'currentStore'.
-            mergedStoreData[field] = currentStore[field];
-          }
-          // Case 2: If updatedStoreFromSupabase *did* return the field (even as null),
-          // and it wasn't in 'updates', mergedStoreData[field] would already have the value from updatedStoreFromSupabase.
-          // If it *was* in 'updates', mergedStoreData[field] would have the value from 'updates'.
-          // This logic primarily handles omission from updatedStoreFromSupabase.
-        }
-      });
-      
-      // Ensure 'settings' (which is local-only) is correctly preserved or updated.
-      if (updates && updates.settings) {
-        mergedStoreData.settings = updates.settings;
-      } else if (currentStore && currentStore.settings) {
-        mergedStoreData.settings = currentStore.settings;
-      }
-      // Ensure 'theme' is handled. If it's part of 'updates', it's already set.
-      // If 'theme' is a top-level field and might be missing from updatedStoreFromSupabase:
-      if (currentStore && currentStore.theme && updatedStoreFromSupabase && updatedStoreFromSupabase.theme === undefined && (!updates || updates.theme === undefined)) {
-        mergedStoreData.theme = currentStore.theme;
-      }
-
-
-      setCurrentStore(mergedStoreData);
+      // If Supabase update is successful for other fields, merge with local settings for UI consistency
+      const finalUpdatedStore = { ...updatedStoreFromSupabase, settings: updatedLocalStore?.settings || storeWithFullUpdates?.settings || {} };
 
       setStores(prevStores => {
-        const newStores = prevStores.map(s =>
-          s.id === storeId ? mergedStoreData : s
+        const newStores = prevStores.map(store =>
+          store.id === storeId ? finalUpdatedStore : store
         );
         try {
-          // Attempt to save to localStorage
           localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(newStores)));
         } catch (e) {
           console.error('Failed to save stores to localStorage after successful Supabase update:', e);
           toast({
-            title: 'Local Cache Warning',
-            description: `Store updated successfully, but failed to save to local browser storage. ${e.message}`,
+            title: 'Local Cache Update Failed',
+            description: 'Could not fully update the local cache after saving to cloud.',
             variant: 'warning',
-            duration: 8000,
+            duration: 7000,
           });
         }
         return newStores;
       });
 
-      toast({ title: 'Store Updated', description: 'Store details have been successfully updated.' });
+      if (currentStore && currentStore.id === storeId) {
+        setCurrentStore(finalUpdatedStore);
+      }
+      toast({ title: 'Store Updated', description: 'Store details updated. Theme toggle setting is local until DB schema is updated.' });
     } catch (e) {
         console.error('Unexpected error in updateStore:', e);
-        toast({ title: 'Update Error', description: `An unexpected error occurred during store update: ${e.message}`, variant: 'destructive' });
+        toast({ title: 'Update Error', description: 'An unexpected error occurred.', variant: 'destructive' });
     } finally {
         setIsLoadingStores(false);
     }
@@ -1341,84 +1189,6 @@ const finalizeBigCommerceImportFromWizard = async () => {
     addToCart, removeFromCart, updateQuantity, clearCart,
     generateAIProducts: generateAIProductsData,
     viewMode, setViewMode, // Expose viewMode and setter
-
-    // Function to update specific text content
-    updateStoreTextContent: async (identifier, newText) => {
-      if (!currentStore) {
-        toast({ title: 'Error', description: 'No current store selected.', variant: 'destructive' });
-        return;
-      }
-      
-      const keys = identifier.split('.');
-      const topLevelKey = keys[0];
-      let payloadForUpdateStore = {};
-
-      if (keys.length === 1) { // Direct property of currentStore, e.g., "name"
-        payloadForUpdateStore[topLevelKey] = newText;
-      } else { // Nested property, e.g., "content.heroTitle" or "products.0.name"
-        const originalTopLevelObject = currentStore[topLevelKey];
-        let newTopLevelObject;
-
-        // Deep clone the top-level object that contains the field to be updated.
-        // Use structuredClone if available, otherwise fallback to JSON.parse(JSON.stringify()).
-        const baseObject = originalTopLevelObject || (topLevelKey === 'products' ? [] : {});
-        if (typeof structuredClone === 'function') {
-          newTopLevelObject = structuredClone(baseObject);
-        } else {
-          newTopLevelObject = JSON.parse(JSON.stringify(baseObject));
-        }
-        
-        let currentLevelInNewObject = newTopLevelObject;
-        const pathWithinTopLevel = keys.slice(1); // e.g., ["heroTitle"] for "content.heroTitle", or ["0", "name"] for "products.0.name"
-        
-        for (let i = 0; i < pathWithinTopLevel.length - 1; i++) {
-          const pathPart = pathWithinTopLevel[i];
-          // Navigate into the cloned object.
-          // If a path segment doesn't exist (e.g. trying to set products[0].details.color but details is undefined),
-          // this could error or behave unexpectedly. For robust handling, ensure paths are valid or create them.
-          // For now, assuming the path is valid down to the second to last segment.
-          if (typeof currentLevelInNewObject[pathPart] !== 'object' || currentLevelInNewObject[pathPart] === null) {
-             // If trying to access a property of a non-object, or if a part of the path doesn't exist.
-             // This might indicate an issue with the identifier or the store structure.
-             // For product arrays, currentLevelInNewObject[pathPart] would be an object (product).
-             console.error(`Invalid path segment or structure at '${pathPart}' for identifier '${identifier}'. Current level:`, currentLevelInNewObject);
-             toast({ title: 'Update Error', description: `Cannot set property on non-object at path: ${keys.slice(0, i + 2).join('.')}`, variant: 'destructive' });
-             return;
-          }
-          currentLevelInNewObject = currentLevelInNewObject[pathPart];
-        }
-        
-        // Set the new text at the final part of the path within the cloned top-level object.
-        currentLevelInNewObject[pathWithinTopLevel[pathWithinTopLevel.length - 1]] = newText;
-        
-        payloadForUpdateStore[topLevelKey] = newTopLevelObject;
-      }
-
-      await updateStore(currentStore.id, payloadForUpdateStore);
-      // updateStore itself will call setCurrentStore and setStores, and show a toast.
-
-      // updateStore itself will call setCurrentStore and setStores, and show a toast.
-
-      // Force a refresh by quickly switching templates back and forth
-      // This is a workaround for UI not updating reliably after nested content changes.
-      if (user && currentStore) { // Ensure user and currentStore exist
-        const originalTemplateVersion = currentStore.template_version || 'v1';
-        const temporaryTemplateVersion = originalTemplateVersion === 'v1' ? 'v2' : 'v1';
-        
-        // Switch to the temporary template
-        // updateStoreTemplateVersion will update currentStore and stores list
-        await updateStoreTemplateVersion(currentStore.id, temporaryTemplateVersion); 
-        
-        // Switch back to the original template almost immediately
-        // Use a minimal timeout to allow React to process the first state update
-        setTimeout(async () => {
-          await updateStoreTemplateVersion(currentStore.id, originalTemplateVersion);
-        }, 50); // Small delay
-      } else {
-         console.warn("Cannot force template refresh: user or currentStore is not available.");
-         // If no user, the update was local only. The previous setCurrentStore in updateStore should suffice.
-      }
-    },
 
     // Shopify Wizard related state and functions
     shopifyWizardStep, setShopifyWizardStep,

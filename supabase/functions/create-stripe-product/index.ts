@@ -1,4 +1,3 @@
-/// <reference lib="deno.ns" />
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import Stripe from 'https://esm.sh/stripe@10.17.0?target=deno'
@@ -91,8 +90,6 @@ serve(async (req: Request) => {
           name: name,
           description: description,
           images: images,
-          price_amount: priceAmount, // Add priceAmount
-          currency: currency,       // Add currency
           // Not setting stripe_product_id or stripe_default_price_id
         })
         .select()
@@ -150,17 +147,15 @@ serve(async (req: Request) => {
     // 3. Store Stripe Product ID and Price ID in your Supabase 'platform_products' table
     const { data: dbProduct, error: dbError } = await supabaseAdmin
       .from('platform_products')
-        .insert({
-          store_id: store_id,
-          name: stripeProduct.name,
-          description: stripeProduct.description,
-          images: stripeProduct.images,
-          price_amount: priceAmount, // Add priceAmount
-          currency: currency,       // Add currency
-          stripe_product_id: stripeProduct.id,
-          stripe_default_price_id: stripeDefaultPriceId,
-        })
-        .select()
+      .insert({
+        store_id: store_id,
+        name: stripeProduct.name,
+        description: stripeProduct.description,
+        images: stripeProduct.images,
+        stripe_product_id: stripeProduct.id,
+        stripe_default_price_id: stripeDefaultPriceId,
+      })
+      .select()
       .single()
 
     if (dbError) {

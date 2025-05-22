@@ -5,13 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Mail } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { useStore } from '@/contexts/StoreContext'; // Added useStore
-import InlineTextEdit from '@/components/ui/InlineTextEdit'; // Added InlineTextEdit
 
 const StoreNewsletter = ({ store, isPublishedView = false }) => {
   const { theme, content, name: storeName } = store;
   const { toast } = useToast();
-  const { updateStoreTextContent } = useStore(); // Added updateStoreTextContent
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -43,22 +40,10 @@ const StoreNewsletter = ({ store, isPublishedView = false }) => {
           style={{ borderColor: `${theme.primaryColor}30`, borderWidth: '1px' }}
         >
           <Mail className="w-12 h-12 mx-auto mb-4" style={{ color: theme.primaryColor }} />
-          <InlineTextEdit
-            initialText={heading}
-            onSave={updateStoreTextContent}
-            identifier="content.newsletterHeading" 
-            isPublishedView={isPublishedView}
-            as="h2"
-            className="text-2xl md:text-3xl font-bold mb-3 tracking-tight text-foreground"
-          />
-          <InlineTextEdit
-            initialText={text}
-            onSave={updateStoreTextContent}
-            identifier="content.newsletterText"
-            isPublishedView={isPublishedView}
-            as="p"
-            className="text-muted-foreground mb-6"
-          />
+          <h2 className="text-2xl md:text-3xl font-bold mb-3 tracking-tight text-foreground">{heading}</h2>
+          <p className="text-muted-foreground mb-6">
+            {text}
+          </p>
           <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
             <Input
               type="email"
