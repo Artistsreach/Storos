@@ -114,8 +114,8 @@ const convertImageSrcToBasics = (imageSrc) => {
 
 import { 
     renderVoiceoverVideoWithCreatomate, 
-    renderProductShowcaseVideoWithCreatomate,
-    pollCreatomateRenderStatus 
+    renderProductShowcaseVideoWithCreatomate
+    // pollCreatomateRenderStatus was removed as SDK's client.render handles waiting
 } from "@/lib/creatomate.js";
 import { 
     generateImageWithOpenAI, 
@@ -457,9 +457,9 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
         }
         renderResponse = await renderVoiceoverVideoWithCreatomate(timelineItems);
       } else if (selectedCreatomateTemplate === "product_showcase") {
-        const productItem = timelineItems.find(item => !item.isVideo) || timelineItems[0]; // Use first image or first item
+        const productItem = timelineItems.find(item => item.type === 'image'); // Strictly find an image item
         if (!productItem) {
-            toast({ title: "Error", description: "Please add at least one image to the timeline for the product showcase.", variant: "destructive" });
+            toast({ title: "Error", description: "Please add at least one image to the timeline for the product showcase template.", variant: "destructive" });
             setIsGeneratingCreatomateVideo(false);
             return;
         }
@@ -470,27 +470,21 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
         throw new Error("Invalid Creatomate template selected.");
       }
 
-      if (renderResponse && renderResponse.id) {
-        setCreatomateRenderStatus(`Render initiated (ID: ${renderResponse.id}). Waiting for completion...`);
-        
-        const finalRender = await pollCreatomateRenderStatus(renderResponse.id, (progress) => {
-          setCreatomateRenderStatus(`Processing: ${progress.status} ${progress.progress ? '(' + Math.round(progress.progress * 100) + '%)' : ''}`);
-        });
-
-        if (finalRender.status === 'succeeded' && finalRender.url) {
-          toast({ title: "Creatomate Video Generated!", description: `Video successfully created: ${finalRender.url}`, duration: 9000 });
-          setCreatomateRenderStatus(`Video ready: ${finalRender.url}`);
-          if (onContentCreated) {
-            onContentCreated({ type: "video", url: finalRender.url, source: "creatomate", renderDetails: finalRender });
-          }
-          // Optionally, add the final video to the timeline or display it
-          // addToTimeline(finalRender.url, `Final Video (${selectedCreatomateTemplate})`, "video");
-
-        } else {
-          throw new Error(finalRender.error_message || "Creatomate video generation failed after polling.");
+      // With Creatomate SDK, renderResponse from renderXVideoWithCreatomate is the final render object
+      // as client.render() waits for completion. Polling is no longer needed here.
+      if (renderResponse && renderResponse.status === 'succeeded' && renderResponse.url) {
+        toast({ title: "Creatomate Video Generated!", description: `Video successfully created: ${renderResponse.url}`, duration: 9000 });
+        setCreatomateRenderStatus(`Video ready: ${renderResponse.url}`);
+        if (onContentCreated) {
+          onContentCreated({ type: "video", url: renderResponse.url, source: "creatomate", renderDetails: renderResponse });
         }
+        // Optionally, add the final video to the timeline or display it
+        // addToTimeline(renderResponse.url, `Final Video (${selectedCreatomateTemplate})`, "video");
+      } else if (renderResponse && renderResponse.status === 'failed') {
+        throw new Error(renderResponse.error_message || "Creatomate video generation failed.");
       } else {
-        throw new Error("Creatomate API did not return a valid render ID.");
+        // This case should ideally not be reached if client.render() behaves as expected (resolves with success or rejects with error)
+        throw new Error("Creatomate video generation did not complete successfully or returned unexpected data.");
       }
     } catch (error) {
       console.error("Error generating Creatomate video:", error);
@@ -783,10 +777,13 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
                             {isConvertingToVeo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                           </Button>
                         )}
-                         <Button
+                          <Button
                             size="icon" variant="outline"
                             className="absolute bottom-1 right-1 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() => setSelectedImageForEditing(item)}
+                            onClick={() => {
+                              setSelectedImageForEditing(item);
+                              setActiveTab("image-edit");
+                            }}
                             disabled={item.isVideo}
                             title="Edit this image"
                           >

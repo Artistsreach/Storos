@@ -32,7 +32,7 @@ export async function generateLogoWithGemini(storeName) {
   // Instantiate the AI client using GoogleGenAI from @google/genai
   const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
-  const prompt = `Create a modern, clean, and professional logo for an e-commerce store named "${storeName}". The logo should be suitable for a website header. Avoid text in the logo itself, or if text is present, ensure it is "${storeName}" and highly legible. Focus on an iconic and memorable design. Generate a square image.`;
+  const prompt = `Create a modern, clean, and professional logo for an e-commerce store named "${storeName}". The logo should be suitable for a website header. Avoid text in the logo itself, or if text is present, ensure it is "${storeName}" and highly legible. Focus on an iconic and memorable design. Generate a square image. The main subject of the logo should be prominent and take up most of the frame.`;
 
   try {
     console.log("[geminiImageGeneration Function] Attempting to generate logo using @google/genai SDK with ai.models.generateContent method.");
@@ -273,35 +273,28 @@ async function removeBackgroundFromLogo(base64ImageData, mimeType) {
 }
 
 export async function editImageWithGemini(
-  referenceImageBase64, 
-  referenceImageMimeType, 
-  productImageBase64, 
-  productImageMimeType, 
+  imageBase64, // Changed from referenceImageBase64 & productImageBase64
+  imageMimeType, // Changed from referenceImageMimeType & productImageMimeType
   editPrompt
 ) {
   if (!GEMINI_API_KEY) {
     console.error("[editImageWithGemini] VITE_GEMINI_API_KEY is not available.");
     throw new Error("Gemini API key is not configured.");
   }
-  if (!referenceImageBase64 || !referenceImageMimeType || !productImageBase64 || !productImageMimeType || !editPrompt) {
-    throw new Error("Reference image data/type, product image data/type, and edit prompt are required for image editing.");
+  // Updated check for single image editing
+  if (!imageBase64 || !imageMimeType || !editPrompt) {
+    throw new Error("Image data, image MIME type, and edit prompt are required for image editing.");
   }
 
   const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
-  // Order: Prompt, then Product Image (first image for prompt context), then Reference Image (second image for prompt context)
+  // Contents for single image editing, matching user's example
   const contents = [
     { text: editPrompt },
     {
       inlineData: {
-        mimeType: productImageMimeType,
-        data: productImageBase64,
-      },
-    },
-    {
-      inlineData: {
-        mimeType: referenceImageMimeType,
-        data: referenceImageBase64,
+        mimeType: imageMimeType,
+        data: imageBase64,
       },
     },
   ];
@@ -317,7 +310,7 @@ export async function editImageWithGemini(
   try {
     console.log(`[editImageWithGemini] Calling Gemini for image editing with prompt: "${editPrompt}"`);
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash", // Changed to gemini-2.0-flash
+      model: "gemini-2.0-flash-preview-image-generation", // Reverted to match image generation model
       contents: contents,
       safetySettings: editSafetySettings,
       config: {

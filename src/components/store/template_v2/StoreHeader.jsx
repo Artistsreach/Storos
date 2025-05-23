@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Search, Menu, X, Trash2, Sun, Moon } from 'lucide-react'; // Added Sun, Moon
+import { ShoppingCart, Search, Menu, X, Trash2, Sun, Moon, Edit } from 'lucide-react'; // Added Sun, Moon, Edit
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch'; // Added Switch
 import { useStore } from '@/contexts/StoreContext';
@@ -11,12 +11,14 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import InlineTextEdit from '@/components/ui/InlineTextEdit';
+import ChangeLogoModal from '@/components/store/ChangeLogoModal'; // Import the new modal
 
 const StoreHeader = ({ store, isPublishedView = false }) => {
-  const { name, theme, logo_url: logoUrl, id: storeId, settings, content } = store;
-  const { cart, removeFromCart, updateQuantity, updateStore } = useStore();
+  const { name, theme, logo_url: logoUrl, id: storeId, settings, content, template_version: storeTemplateVersion } = store; // Renamed template_version for clarity
+  const { cart, removeFromCart, updateQuantity, updateStore, updateStoreTemplateVersion } = useStore(); // Added updateStoreTemplateVersion
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isChangeImageDialogOpen, setIsChangeImageDialogOpen] = useState(false); // State for image dialog
   const isAdmin = !isPublishedView;
   const [isDarkMode, setIsDarkMode] = useState(false);
   const navigate = useNavigate();
@@ -54,11 +56,46 @@ const handleSaveHeaderText = async (field, value, index = null) => {
         );
         await updateStore(storeId, { content: { ...content, navLinks: updatedNavLinks } });
       }
+      await performTemplateRefresh(); // Refresh after successful text update
     } catch (error) {
-      console.error(`Failed to update store ${field}:`, error);
+      console.error(`Failed to update store ${field} or refresh template:`, error);
     }
   }
 };
+
+  const performTemplateRefresh = async () => {
+    const currentVersion = storeTemplateVersion || 'v1'; // Use destructured and potentially renamed prop
+    console.log(`Performing template refresh. Current version: ${currentVersion}`);
+    if (currentVersion === 'v1') {
+      await updateStoreTemplateVersion(storeId, 'v2');
+      await updateStoreTemplateVersion(storeId, 'v1');
+      console.log("Template refreshed: v1 -> v2 -> v1");
+    } else if (currentVersion === 'v2') {
+      await updateStoreTemplateVersion(storeId, 'v1');
+      await updateStoreTemplateVersion(storeId, 'v2');
+      console.log("Template refreshed: v2 -> v1 -> v2");
+    }
+  };
+
+  const openChangeImageDialog = () => {
+    // TODO: Implement the actual dialog opening logic.
+    setIsChangeImageDialogOpen(true);
+    console.log("Open change image dialog (placeholder)");
+  };
+
+  const handleLogoReplaced = async (newLogoUrl) => {
+    if (storeId && newLogoUrl) {
+      try {
+        await updateStore(storeId, { logo_url: newLogoUrl });
+        console.log("Store logo updated successfully. Setting template to modern (v2).");
+        await updateStoreTemplateVersion(storeId, 'v2');
+        console.log("Store template set to modern (v2).");
+      } catch (error) {
+        console.error("Failed to update store logo or set template to modern:", error);
+        // Optionally, show a toast notification to the user about the failure
+      }
+    }
+  };
 
 const toggleTheme = () => {
     const newIsDarkMode = !isDarkMode;
@@ -117,17 +154,30 @@ const toggleTheme = () => {
         style={{ borderColor: `${theme.primaryColor}30` }}
       >
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to={basePath} className="flex items-center gap-2 group">
-            {logoUrl && <img src={logoUrl} alt={`${name} logo`} className="h-12 w-12 object-contain group-hover:scale-110 transition-transform duration-200" />}
-            <span className="font-bold text-xl tracking-tight group-hover:text-primary transition-colors" style={{color: theme.primaryColor}}>
-              <InlineTextEdit
-                initialText={name}
+          <div className="flex items-center gap-2"> {/* Main container for logo area + name */}
+            {/* Logo and Edit Button Area */}
+            <div className="relative flex items-center">
+              <Link to={basePath} className="group">
+                {logoUrl && <img src={logoUrl} alt={`${name} logo`} className="h-16 w-16 object-contain group-hover:scale-105 transition-transform duration-200" />}
+              </Link>
+              {isAdmin && logoUrl && (
+                <Button variant="outline" size="icon" onClick={openChangeImageDialog} className="absolute top-0 right-0 h-7 w-7 p-1 bg-background/75 hover:bg-muted rounded-full -mr-2 -mt-2 z-10 shadow-md">
+                  <Edit className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            {/* Store Name */}
+            <Link to={basePath} className="group ml-2">
+              <span className="font-bold text-xl tracking-tight group-hover:text-primary transition-colors" style={{color: theme.primaryColor}}>
+                <InlineTextEdit
+                  initialText={name}
                 onSave={(newText) => handleSaveHeaderText('storeName', newText)}
                 isAdmin={isAdmin}
                 placeholder="Store Name"
               />
             </span>
-          </Link>
+            </Link>
+          </div> {/* Closes the "flex items-center gap-2" for logo and name */}
           
           <nav className="hidden md:flex items-center gap-x-6">
             {navLinks.map((link, index) => (
@@ -192,17 +242,30 @@ const toggleTheme = () => {
             className="fixed inset-0 z-50 bg-background p-6 md:hidden"
           >
             <div className="flex justify-between items-center mb-8">
-              <Link to={basePath} className="flex items-center gap-2" onClick={() => setIsMobileMenuOpen(false)}>
-                {logoUrl && <img src={logoUrl} alt={`${name} logo`} className="h-12 w-12 object-contain" />}
-                <span className="font-bold text-xl" style={{color: theme.primaryColor}}>
-                  <InlineTextEdit
-                    initialText={name}
+              <div className="flex items-center gap-2"> {/* Main container for logo area + name */}
+                {/* Logo and Edit Button Area */}
+                <div className="relative flex items-center">
+                  <Link to={basePath} className="group" onClick={() => setIsMobileMenuOpen(false)}>
+                    {logoUrl && <img src={logoUrl} alt={`${name} logo`} className="h-16 w-16 object-contain" />}
+                  </Link>
+                  {isAdmin && logoUrl && (
+                    <Button variant="outline" size="icon" onClick={() => { openChangeImageDialog(); setIsMobileMenuOpen(false); }} className="absolute top-0 right-0 h-7 w-7 p-1 bg-background/75 hover:bg-muted rounded-full -mr-2 -mt-2 z-10 shadow-md">
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                {/* Store Name */}
+                <Link to={basePath} className="group ml-2" onClick={() => setIsMobileMenuOpen(false)}>
+                  <span className="font-bold text-xl" style={{color: theme.primaryColor}}>
+                    <InlineTextEdit
+                      initialText={name}
                     onSave={(newText) => handleSaveHeaderText('storeName', newText)}
                     isAdmin={isAdmin}
                     placeholder="Store Name"
                   />
                 </span>
-              </Link>
+                </Link>
+              </div> {/* Closes the main flex container for logo area + name */}
               <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(false)}>
                 <X className="h-6 w-6" />
               </Button>
@@ -312,6 +375,17 @@ const toggleTheme = () => {
           </DialogPrimitive.Root>
         )}
       </AnimatePresence>
+
+      {isAdmin && (
+        <ChangeLogoModal
+          open={isChangeImageDialogOpen}
+          onOpenChange={setIsChangeImageDialogOpen}
+          storeId={storeId}
+          storeName={name}
+          currentLogoUrl={logoUrl}
+          onLogoReplaced={handleLogoReplaced}
+        />
+      )}
     </>
   );
 };
