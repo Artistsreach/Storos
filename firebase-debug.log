@@ -116,3 +116,4 @@
 [info] 3. Paste or enter the authorization code below once you have it:
 [info] 
 [debug] [2025-05-23T02:11:16.993Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-05-23T02:11:37.548Z] Running auto auth
