@@ -3,24 +3,45 @@ import React, { useState } from 'react'; // Keep this one as it includes useStat
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ShoppingCart, Star, Eye, Zap as BuyNowIcon } from 'lucide-react'; // Added BuyNowIcon
+import { ShoppingCart, Star, Eye, Zap as BuyNowIcon } from 'lucide-react';
 import { useStore } from '@/contexts/StoreContext';
 import { Link } from 'react-router-dom';
-import { stripePromise } from '@/lib/stripe'; // Added stripePromise
+import { stripePromise } from '@/lib/stripe';
+import InlineTextEdit from '@/components/ui/InlineTextEdit'; // Added import
 
 const ProductCard = ({ product, theme, index, storeId, isPublishedView = false }) => {
-  const { name, price, rating, description, image, currencyCode = 'USD', id: rawProductId, stripe_price_id } = product; // Added stripe_price_id
-  const { addToCart } = useStore();
+  const { name, price, rating, description, image, currencyCode = 'USD', id: rawProductId, stripe_price_id } = product;
+  const { addToCart, updateStore } = useStore(); // Assuming updateStore can handle product updates
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState(null);
+  const isAdmin = !isPublishedView;
 
   // Encode Shopify GIDs for URL safety
   const isShopifyGid = (id) => typeof id === 'string' && id.startsWith('gid://shopify/');
   const productId = isShopifyGid(rawProductId) ? btoa(rawProductId) : rawProductId;
 
   const imageUrl = image?.src?.medium || image?.url || `https://via.placeholder.com/400x400.png?text=${encodeURIComponent(name)}`;
-  const imageAlt = image?.alt || `${name} product image`; // Simplified alt text logic
+  const imageAlt = image?.alt || `${name} product image`;
   
+  const handleSaveProductText = async (field, value) => {
+    if (storeId && rawProductId) {
+      try {
+        // Placeholder for actual product update logic, similar to the classic ProductCard
+        console.log(`Attempting to save V2 product ${rawProductId}: ${field} = ${value}`);
+        await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-product`, {
+          method: 'PUT', // Or PATCH
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('supabase.auth.token')}`, // Assuming auth is needed
+          },
+          body: JSON.stringify({ store_id: storeId, product_id: rawProductId, [field]: value })
+        });
+      } catch (error) {
+        console.error(`Failed to update V2 product ${field}:`, error);
+      }
+    }
+  };
+
   const handleAddToCart = (e) => {
     e.preventDefault(); // Prevent link navigation if button inside Link
     e.stopPropagation();
@@ -124,18 +145,29 @@ const ProductCard = ({ product, theme, index, storeId, isPublishedView = false }
         </Link>
         
         <CardContent className="p-4 flex-grow">
-          {/* Removed isPublishedView from state */}
           <Link to={`/store/${storeId}/product/${productId}`} className="block">
             <div className="flex justify-between items-start mb-1.5">
-              <h3 className="font-semibold text-md lg:text-lg line-clamp-2 group-hover:text-primary transition-colors" style={{"--hover-color": theme.primaryColor}}>{name}</h3>
+              <h3 className="font-semibold text-md lg:text-lg line-clamp-2 group-hover:text-primary transition-colors" style={{"--hover-color": theme.primaryColor}}>
+                <InlineTextEdit
+                  initialText={name}
+                  onSave={(newText) => handleSaveProductText('name', newText)}
+                  isAdmin={isAdmin}
+                  placeholder="Product Name"
+                />
+              </h3>
               <span className="font-bold text-md lg:text-lg whitespace-nowrap" style={{ color: theme.primaryColor }}>
-                {currencyCode} {price.toFixed(2)}
+                {currencyCode} {typeof price === 'number' ? price.toFixed(2) : 'Price unavailable'}
               </span>
             </div>
           </Link>
           
           <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
-            {description}
+            <InlineTextEdit
+              initialText={description}
+              onSave={(newText) => handleSaveProductText('description', newText)}
+              isAdmin={isAdmin}
+              placeholder="Product Description"
+            />
           </p>
           
           <div className="flex items-center gap-1">

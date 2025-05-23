@@ -9,6 +9,7 @@ import {
 // import { overlayLogoOnProductImage } from '@/lib/imageUtils'; // Will be replaced by generateProductWithGemini
 import { generateLogoWithGemini } from '@/lib/geminiImageGeneration';
 import { generateProductWithGemini } from '@/lib/geminiProductGeneration';
+import { generateCollectionWithGemini } from '@/lib/geminiCollectionGeneration'; // Import for AI collection generation
 import { generateStoreNameSuggestions } from '@/lib/gemini'; // Import for AI store name generation
 import { 
     fetchShopifyStorefrontAPI, 
@@ -297,6 +298,49 @@ export const generateStoreFromPromptData = async (
   const cardBackgroundUrlPrompt = cardBgImagesPrompt[0]?.src?.large || cardBgImagesPrompt[0]?.src?.original || '';
   const templateVersion = 'v1'; // Default to classic template
 
+  // 3. Generate Collections
+  const generatedCollections = [];
+  const numCollectionsToGenerate = 3; // Or make this dynamic
+  const existingCollectionNamesForPrompt = [];
+
+  if (generatedProducts.length > 0) { // Only generate collections if there are products
+    console.log(`[generateStoreFromPromptData] Attempting to generate ${numCollectionsToGenerate} collections for ${brandName}.`);
+    for (let i = 0; i < numCollectionsToGenerate; i++) {
+      try {
+        console.log(`[generateStoreFromPromptData] Generating collection ${i + 1}/${numCollectionsToGenerate}...`);
+        const collectionData = await generateCollectionWithGemini(
+          storeType,
+          brandName,
+          generatedProducts, // Pass the full product objects (which include .id and .name)
+          existingCollectionNamesForPrompt
+        );
+
+        if (collectionData && !collectionData.error && collectionData.name) {
+          let finalCollectionImageUrl = `https://via.placeholder.com/400x200.png?text=${encodeURIComponent(collectionData.name || "Collection")}`;
+          if (collectionData.imageData) {
+            finalCollectionImageUrl = `data:image/png;base64,${collectionData.imageData}`;
+          }
+          generatedCollections.push({
+            id: `collection-gemini-${generateId()}`, // Temporary ID for the collection itself
+            name: collectionData.name,
+            description: collectionData.description,
+            imageUrl: finalCollectionImageUrl, // Use the data URL or placeholder
+            product_ids: collectionData.product_ids || [], // Ensure product_ids is an array
+          });
+          existingCollectionNamesForPrompt.push(collectionData.name);
+          console.log(`[generateStoreFromPromptData] Collection "${collectionData.name}" generated with ${collectionData.product_ids?.length || 0} products.`);
+        } else {
+          console.warn(`[generateStoreFromPromptData] Failed to generate complete data for collection ${i + 1}. Error: ${collectionData?.error}`);
+        }
+      } catch (error) {
+        console.error(`[generateStoreFromPromptData] Error during collection generation attempt ${i + 1}:`, error);
+      }
+    }
+  } else {
+    console.warn(`[generateStoreFromPromptData] Skipping collection generation as no products were generated for ${brandName}.`);
+  }
+
+
   return {
     id: storeId,
     name: brandName,
@@ -305,6 +349,7 @@ export const generateStoreFromPromptData = async (
     description: aiContent.heroDescription,
     prompt,
     products: generatedProducts,
+    collections: generatedCollections, // Add generated collections here
     hero_image: heroImages[0] || { src: { large: 'https://via.placeholder.com/1200x800.png?text=Hero+Image' }, alt: 'Placeholder Hero Image' },
     hero_video_url: heroVideos[0]?.url || null,
     hero_video_poster_url: heroVideos[0]?.image || null,

@@ -37,7 +37,7 @@ import { useStore } from '@/contexts/StoreContext';
 
 const StoreCard = ({ store }) => {
   const navigate = useNavigate();
-  const { deleteStore, updateStorePassKey, assignStoreManager } = useStore(); 
+  const { deleteStore, updateStorePassKey, assignStoreManager, updateStoreTemplateVersion } = useStore(); 
   const [passKey, setPassKey] = React.useState('');
   const [managerEmail, setManagerEmail] = React.useState('');
   const [isAssigningManager, setIsAssigningManager] = React.useState(false); // New state for toggling manager input
@@ -163,7 +163,13 @@ const StoreCard = ({ store }) => {
               variant="outline" 
               size="sm"
               className="bg-white/90 hover:bg-white text-slate-800 border-slate-300 hover:border-slate-400"
-              onClick={() => navigate(`/store/${store.id}`)}
+              onClick={async () => {
+                if (store && store.id) {
+                  // Ensure the store is set to 'v1' (Classic) before navigating
+                  await updateStoreTemplateVersion(store.id, 'v1');
+                }
+                navigate(`/store/${store.id}`);
+              }}
             >
               Preview
             </Button>

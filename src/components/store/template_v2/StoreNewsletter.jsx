@@ -5,15 +5,35 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Mail } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import InlineTextEdit from '@/components/ui/InlineTextEdit';
+import { useStore } from '@/contexts/StoreContext';
 
 const StoreNewsletter = ({ store, isPublishedView = false }) => {
-  const { theme, content, name: storeName } = store;
+  const { updateStore } = useStore();
+  const { theme, content, name: storeName, id: storeId } = store;
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isAdmin = !isPublishedView;
 
   const heading = content?.newsletterHeading || `Stay Updated with ${storeName}`;
   const text = content?.newsletterText || `Subscribe to our newsletter for the latest products, offers, and news.`;
+
+  const handleSaveText = async (field, value) => {
+    if (storeId) {
+      try {
+        let newContent = { ...content };
+        if (field === 'newsletterHeading') {
+          newContent.newsletterHeading = value;
+        } else if (field === 'newsletterText') {
+          newContent.newsletterText = value;
+        }
+        await updateStore(storeId, { content: newContent });
+      } catch (error) {
+        console.error(`Failed to update store ${field}:`, error);
+      }
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -40,9 +60,21 @@ const StoreNewsletter = ({ store, isPublishedView = false }) => {
           style={{ borderColor: `${theme.primaryColor}30`, borderWidth: '1px' }}
         >
           <Mail className="w-12 h-12 mx-auto mb-4" style={{ color: theme.primaryColor }} />
-          <h2 className="text-2xl md:text-3xl font-bold mb-3 tracking-tight text-foreground">{heading}</h2>
+          <h2 className="text-2xl md:text-3xl font-bold mb-3 tracking-tight text-foreground">
+            <InlineTextEdit
+              initialText={heading}
+              onSave={(newText) => handleSaveText('newsletterHeading', newText)}
+              isAdmin={isAdmin}
+              placeholder="Newsletter Heading"
+            />
+          </h2>
           <p className="text-muted-foreground mb-6">
-            {text}
+            <InlineTextEdit
+              initialText={text}
+              onSave={(newText) => handleSaveText('newsletterText', newText)}
+              isAdmin={isAdmin}
+              placeholder="Newsletter Text"
+            />
           </p>
           <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
             <Input

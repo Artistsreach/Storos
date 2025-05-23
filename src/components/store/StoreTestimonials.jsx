@@ -1,25 +1,15 @@
 import React from 'react';
 import { Star, UserCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
-// import { Review } from '@/lib/types'; // Assuming Review type is available or adaptable
-import { cn } from '@/lib/utils'; // Assuming cn utility is available
+import { cn } from '@/lib/utils';
+import InlineTextEdit from '@/components/ui/InlineTextEdit';
+import { useStore } from '@/contexts/StoreContext';
 
-// Assuming Review type is similar or can be adapted from store.reviews
-// interface Review {
-//   id: string;
-//   userName: string;
-//   rating: number;
-//   comment: string;
-//   createdAt: string; // Or Date object
-//   photoUrl?: string; // Added for sample data
-// }
-
-const TestimonialCard = ({ testimonial, className }) => {
-  // Adapt testimonial properties
+const TestimonialCard = ({ testimonial, className, isAdmin, onSave, index }) => {
   const userName = testimonial?.userName || testimonial?.user_name || testimonial?.author || "Anonymous";
   const rating = testimonial?.rating || 0;
   const comment = testimonial?.comment || testimonial?.text || "No comment provided.";
-  const photoUrl = testimonial?.photoUrl; // Get photoUrl
+  const photoUrl = testimonial?.photoUrl;
   const createdAtDate = testimonial?.createdAt || testimonial?.created_at;
   let displayDate = 'Date not available';
 
@@ -31,10 +21,16 @@ const TestimonialCard = ({ testimonial, className }) => {
     }
   }
 
+  const handleSaveCardText = (field, value) => {
+    if (onSave) {
+      onSave(index, field, value);
+    }
+  };
+
   return (
     <motion.div
       className={cn(
-        "bg-card text-card-foreground p-6 rounded-md shadow-lg flex flex-col", // Changed rounded-xl to rounded-md
+        "bg-card text-card-foreground p-6 rounded-md shadow-lg flex flex-col",
         className
       )}
       initial={{ opacity: 0, y: 20 }}
@@ -48,7 +44,14 @@ const TestimonialCard = ({ testimonial, className }) => {
           <UserCircle className="h-10 w-10 text-muted-foreground mr-3" />
         )}
         <div>
-          <p className="font-semibold text-foreground">{userName}</p>
+          <p className="font-semibold text-foreground">
+            <InlineTextEdit
+              initialText={userName}
+              onSave={(newText) => handleSaveCardText('userName', newText)}
+              isAdmin={isAdmin}
+              placeholder="User Name"
+            />
+          </p>
           <div className="flex items-center">
             {[...Array(5)].map((_, i) => (
               <Star
@@ -63,7 +66,14 @@ const TestimonialCard = ({ testimonial, className }) => {
         </div>
       </div>
       <blockquote className="text-sm text-muted-foreground italic leading-relaxed">
-        "{comment}"
+        "
+        <InlineTextEdit
+          initialText={comment}
+          onSave={(newText) => handleSaveCardText('comment', newText)}
+          isAdmin={isAdmin}
+          placeholder="Testimonial comment"
+        />
+        "
       </blockquote>
       <p className="text-xs text-muted-foreground/70 mt-4 text-right">
         {displayDate}
@@ -100,25 +110,65 @@ const sampleTestimonials = [
 ];
 
 const StoreTestimonials = ({ store, isPublishedView = false }) => {
-  const actualReviews = store?.reviews;
+  const { updateStore } = useStore();
+  const { content, id: storeId, reviews } = store;
+  const isAdmin = !isPublishedView;
+
+  const actualReviews = reviews;
   const testimonialsToDisplay = (!actualReviews || actualReviews.length === 0) ? sampleTestimonials : actualReviews;
 
-  // If even sample data is empty (which it shouldn't be here), then return null.
   if (!testimonialsToDisplay || testimonialsToDisplay.length === 0) {
     return null;
   }
 
+  const handleSaveText = async (field, value, index = null) => {
+    if (storeId) {
+      try {
+        if (field === 'testimonialsSectionTitle') {
+          await updateStore(storeId, { content: { ...content, testimonialsSectionTitle: value } });
+        } else if (index !== null && (field === 'userName' || field === 'comment')) {
+          // Only update actual reviews, not sample data
+          if (actualReviews && actualReviews.length > 0) {
+            const updatedReviews = actualReviews.map((review, i) => {
+              if (i === index) {
+                // Adapt field names if necessary for your review structure
+                const keyToUpdate = field === 'userName' ? (review.hasOwnProperty('userName') ? 'userName' : 'user_name') : (review.hasOwnProperty('comment') ? 'comment' : 'text');
+                return { ...review, [keyToUpdate]: value };
+              }
+              return review;
+            });
+            await updateStore(storeId, { reviews: updatedReviews });
+          } else {
+            console.warn("Attempted to edit sample testimonial. This action is not saved.");
+          }
+        }
+      } catch (error) {
+        console.error(`Failed to update store ${field}:`, error);
+      }
+    }
+  };
+  
+  const sectionTitle = content?.testimonialsSectionTitle || "What Our Customers Say";
+
   return (
-    <section id={`testimonials-${store?.id || 'store-testimonials'}`} className="py-16 md:py-24 bg-background">
+    <section id={`testimonials-${storeId || 'store-testimonials'}`} className="py-16 md:py-24 bg-background">
       <div className="container mx-auto px-4">
         <h2 className="text-3xl font-bold tracking-tight text-center mb-12 md:mb-16 text-foreground">
-          What Our Customers Say
+          <InlineTextEdit
+            initialText={sectionTitle}
+            onSave={(newText) => handleSaveText('testimonialsSectionTitle', newText)}
+            isAdmin={isAdmin}
+            placeholder="Testimonials Section Title"
+          />
         </h2>
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-          {testimonialsToDisplay.map((testimonial) => (
-            <TestimonialCard 
-              key={testimonial.id || testimonial.userName + String(testimonial.createdAt)} 
-              testimonial={testimonial} 
+          {testimonialsToDisplay.map((testimonial, index) => (
+            <TestimonialCard
+              key={testimonial.id || testimonial.userName + String(testimonial.createdAt) + index}
+              testimonial={testimonial}
+              isAdmin={isAdmin}
+              onSave={handleSaveText}
+              index={index}
             />
           ))}
         </div>

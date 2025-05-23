@@ -273,6 +273,12 @@ const prepareStoresForLocalStorage = (storesArray) => {
 
   const commonStoreCreation = async (storeData) => {
     let storeToCreate = { ...storeData }; // storeData comes from generateStoreFromWizardData or similar
+    
+    // Ensure template_version defaults to 'v1' (Classic) if not already set
+    if (!storeToCreate.template_version) {
+      storeToCreate.template_version = 'v1';
+    }
+
     let newStoreInDb;
 
     if (user) {
@@ -922,7 +928,7 @@ const finalizeBigCommerceImportFromWizard = async () => {
       if (currentStore && currentStore.id === storeId) {
         setCurrentStore(finalUpdatedStore);
       }
-      toast({ title: 'Store Updated', description: 'Store details updated. Theme toggle setting is local until DB schema is updated.' });
+      toast({ title: 'Store Updated', description: 'Store details updated successfully.' });
     } catch (e) {
         console.error('Unexpected error in updateStore:', e);
         toast({ title: 'Update Error', description: 'An unexpected error occurred.', variant: 'destructive' });
@@ -1153,31 +1159,49 @@ const finalizeBigCommerceImportFromWizard = async () => {
     toast({ title: 'Cart Cleared', description: 'Your shopping cart is now empty.' });
   };
 
+  // Helper function to get updates object for a specific template version
+  const getUpdatesForVersion = useCallback((storeId, targetVersion) => {
+    const currentStoreState = stores.find(s => s.id === storeId);
+    if (!currentStoreState) {
+      console.warn(`[getUpdatesForVersion] Store with ID ${storeId} not found.`);
+      return { template_version: targetVersion }; 
+    }
+
+    let updates = { template_version: targetVersion };
+    const themeFromCurrent = currentStoreState.theme || {};
+    const currentActualVersion = currentStoreState.template_version;
+
+    if (targetVersion === 'v2') {
+      if (themeFromCurrent.fontFamily === 'Inter' || currentActualVersion !== 'v2') {
+        updates.theme = { ...themeFromCurrent, fontFamily: 'Montserrat' };
+      } else {
+        updates.theme = { ...themeFromCurrent }; 
+      }
+    } else if (targetVersion === 'v1') {
+      if (themeFromCurrent.fontFamily === 'Montserrat' && currentActualVersion === 'v2') {
+        updates.theme = { ...themeFromCurrent, fontFamily: 'Inter' };
+      } else {
+        updates.theme = { ...themeFromCurrent };
+      }
+    }
+    return updates;
+  }, [stores]);
+
+
   const updateStoreTemplateVersion = async (storeId, newVersion) => {
-    if (!storeId || !newVersion) {
+    if (!storeId || !newVersion) { // Validate newVersion as well
       toast({ title: 'Error', description: 'Store ID and new template version are required.', variant: 'destructive' });
       return;
     }
 
-    let updates = { template_version: newVersion };
-    const storeToUpdate = stores.find(s => s.id === storeId);
-
-    if (storeToUpdate && newVersion === 'v2') {
-      const currentFont = storeToUpdate.theme?.fontFamily || 'Inter'; // Assuming 'Inter' is the global default
-      if (currentFont === 'Inter') {
-        updates = {
-          ...updates,
-          theme: {
-            ...storeToUpdate.theme,
-            fontFamily: 'Montserrat', // Change default font for v2 to Montserrat
-          },
-        };
-      }
-    }
-
-    await updateStore(storeId, updates);
+    // Get the updates needed for the newVersion, including theme adjustments
+    const updatesForNewVersion = getUpdatesForVersion(storeId, newVersion);
     
-    toast({ title: 'Template Switched', description: `Store template updated to ${newVersion === 'v1' ? 'Classic' : (newVersion === 'v2' ? 'Modern' : newVersion)}.` });
+    // Apply the updates to switch to the newVersion directly
+    await updateStore(storeId, updatesForNewVersion);
+    
+    // Toast the final state, reflecting the actual newVersion
+    toast({ title: 'Template Updated', description: `Store template is now ${newVersion === 'v1' ? 'Classic' : (newVersion === 'v2' ? 'Modern' : newVersion)}.` });
   };
 
   const value = { 

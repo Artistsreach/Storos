@@ -10,13 +10,15 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import InlineTextEdit from '@/components/ui/InlineTextEdit';
 
 const StoreHeader = ({ store, isPublishedView = false }) => {
-  const { name, theme, logo_url: logoUrl, id: storeId, settings } = store; // Destructure settings
-  const { cart, removeFromCart, updateQuantity } = useStore();
+  const { name, theme, logo_url: logoUrl, id: storeId, settings, content } = store;
+  const { cart, removeFromCart, updateQuantity, updateStore } = useStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false); // Added dark mode state
+  const isAdmin = !isPublishedView;
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const navigate = useNavigate();
 
   const storeCartItems = cart.filter(item => item.storeId === storeId);
@@ -25,22 +27,40 @@ const StoreHeader = ({ store, isPublishedView = false }) => {
 
   useEffect(() => {
     // This component might be used on pages that don't control the global HTML class.
-    // For now, we'll manage a local state and assume the global class is handled elsewhere (e.g., by the main Header or a theme provider).
-    // If this StoreHeader is meant to *also* control the global theme, this logic would need to be more robust
-    // or ideally, theme state would be managed globally (e.g. in a context).
-    const savedTheme = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
-      setIsDarkMode(true);
-      // Optionally, if this header *should* control the theme:
-      // document.documentElement.classList.add('dark');
-    } else {
-      setIsDarkMode(false);
-      // document.documentElement.classList.remove('dark');
-    }
-  }, []);
+  // For now, we'll manage a local state and assume the global class is handled elsewhere (e.g., by the main Header or a theme provider).
+  // If this StoreHeader is meant to *also* control the global theme, this logic would need to be more robust
+  // or ideally, theme state would be managed globally (e.g. in a context).
+  const savedTheme = localStorage.getItem('theme');
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+    setIsDarkMode(true);
+    // Optionally, if this header *should* control the theme:
+    // document.documentElement.classList.add('dark');
+  } else {
+    setIsDarkMode(false);
+    // document.documentElement.classList.remove('dark');
+  }
+}, []);
 
-  const toggleTheme = () => {
+const handleSaveHeaderText = async (field, value, index = null) => {
+  if (storeId) {
+    try {
+      if (field === 'storeName') {
+        await updateStore(storeId, { name: value });
+      } else if (field === 'navLink' && index !== null) {
+        const currentNavLinks = content?.navLinks || navLinks.map(l => ({ label: l.label, href: l.href }));
+        const updatedNavLinks = currentNavLinks.map((link, i) =>
+          i === index ? { ...link, label: value } : link
+        );
+        await updateStore(storeId, { content: { ...content, navLinks: updatedNavLinks } });
+      }
+    } catch (error) {
+      console.error(`Failed to update store ${field}:`, error);
+    }
+  }
+};
+
+const toggleTheme = () => {
     const newIsDarkMode = !isDarkMode;
     setIsDarkMode(newIsDarkMode);
     if (newIsDarkMode) {
@@ -53,13 +73,16 @@ const StoreHeader = ({ store, isPublishedView = false }) => {
   };
 
   // Simplified base path, as there's only one main store URL structure now
-  const basePath = `/store/${storeId}`; 
-  const navLinks = [
+  const basePath = `/store/${storeId}`;
+  const defaultNavLinks = [
     { href: basePath, label: 'Home' },
     { href: `#products-${storeId}`, label: 'Products' },
     { href: `#features-${storeId}`, label: 'Features' },
     { href: `#contact-${storeId}`, label: 'Contact' },
   ];
+  const navLinks = (content?.navLinks && content.navLinks.length === defaultNavLinks.length)
+    ? content.navLinks.map((cl, i) => ({ ...defaultNavLinks[i], label: cl.label || defaultNavLinks[i].label }))
+    : defaultNavLinks;
 
   const handleNavLinkClick = (e, href) => {
     e.preventDefault();
@@ -96,13 +119,25 @@ const StoreHeader = ({ store, isPublishedView = false }) => {
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <Link to={basePath} className="flex items-center gap-2 group">
             {logoUrl && <img src={logoUrl} alt={`${name} logo`} className="h-12 w-12 object-contain group-hover:scale-110 transition-transform duration-200" />}
-            <span className="font-bold text-xl tracking-tight group-hover:text-primary transition-colors" style={{color: theme.primaryColor}}>{name}</span>
+            <span className="font-bold text-xl tracking-tight group-hover:text-primary transition-colors" style={{color: theme.primaryColor}}>
+              <InlineTextEdit
+                initialText={name}
+                onSave={(newText) => handleSaveHeaderText('storeName', newText)}
+                isAdmin={isAdmin}
+                placeholder="Store Name"
+              />
+            </span>
           </Link>
           
           <nav className="hidden md:flex items-center gap-x-6">
-            {navLinks.map(link => (
-              <a key={link.label} href={link.href} onClick={(e) => handleNavLinkClick(e, link.href)} className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors" style={{ '--hover-color': theme.primaryColor }}>
-                {link.label}
+            {navLinks.map((link, index) => (
+              <a key={link.label + index} href={link.href} onClick={(e) => handleNavLinkClick(e, link.href)} className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors" style={{ '--hover-color': theme.primaryColor }}>
+                <InlineTextEdit
+                  initialText={link.label}
+                  onSave={(newText) => handleSaveHeaderText('navLink', newText, index)}
+                  isAdmin={isAdmin}
+                  placeholder={`Link ${index + 1}`}
+                />
               </a>
             ))}
           </nav>
@@ -159,16 +194,28 @@ const StoreHeader = ({ store, isPublishedView = false }) => {
             <div className="flex justify-between items-center mb-8">
               <Link to={basePath} className="flex items-center gap-2" onClick={() => setIsMobileMenuOpen(false)}>
                 {logoUrl && <img src={logoUrl} alt={`${name} logo`} className="h-12 w-12 object-contain" />}
-                <span className="font-bold text-xl" style={{color: theme.primaryColor}}>{name}</span>
+                <span className="font-bold text-xl" style={{color: theme.primaryColor}}>
+                  <InlineTextEdit
+                    initialText={name}
+                    onSave={(newText) => handleSaveHeaderText('storeName', newText)}
+                    isAdmin={isAdmin}
+                    placeholder="Store Name"
+                  />
+                </span>
               </Link>
               <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(false)}>
                 <X className="h-6 w-6" />
               </Button>
             </div>
             <nav className="flex flex-col gap-y-4">
-              {navLinks.map(link => (
-                <a key={link.label} href={link.href} onClick={(e) => handleNavLinkClick(e, link.href)} className="text-lg font-medium text-foreground hover:text-primary transition-colors" style={{ '--hover-color': theme.primaryColor }}>
-                  {link.label}
+              {navLinks.map((link, index) => (
+                <a key={link.label + index} href={link.href} onClick={(e) => handleNavLinkClick(e, link.href)} className="text-lg font-medium text-foreground hover:text-primary transition-colors" style={{ '--hover-color': theme.primaryColor }}>
+                  <InlineTextEdit
+                    initialText={link.label}
+                    onSave={(newText) => handleSaveHeaderText('navLink', newText, index)}
+                    isAdmin={isAdmin}
+                    placeholder={`Link ${index + 1}`}
+                  />
                 </a>
               ))}
                {/* Theme toggle for mobile menu */}

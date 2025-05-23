@@ -60,3 +60,59 @@
 [info] 
 [info] 3. Paste or enter the authorization code below once you have it:
 [info] 
+[debug] [2025-05-22T20:17:18.796Z] ----------------------------------------------------------------------
+[debug] [2025-05-22T20:17:18.799Z] Command:       /nix/store/ixbb20farqh1f4fqbmsn6b1ixn8mc8ij-nodejs-20.18.1/bin/node /home/.npm/_npx/ba4f1959e38407b5/node_modules/.bin/firebase login --reauth
+[debug] [2025-05-22T20:17:18.799Z] CLI Version:   14.4.0
+[debug] [2025-05-22T20:17:18.799Z] Platform:      linux
+[debug] [2025-05-22T20:17:18.800Z] Node Version:  v20.18.1
+[debug] [2025-05-22T20:17:18.800Z] Time:          Thu May 22 2025 20:17:18 GMT+0000 (Coordinated Universal Time)
+[debug] [2025-05-22T20:17:18.800Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-05-22T20:17:18.810Z] >>> [apiv2][query] POST https://auth.firebase.tools/attest [none]
+[debug] [2025-05-22T20:17:18.810Z] >>> [apiv2][body] POST https://auth.firebase.tools/attest {"session_id":"6c297617-7c63-4c67-bc94-a0695aaccd65"}
+[debug] [2025-05-22T20:17:19.165Z] <<< [apiv2][status] POST https://auth.firebase.tools/attest 200
+[debug] [2025-05-22T20:17:19.166Z] <<< [apiv2][body] POST https://auth.firebase.tools/attest {"token":"NCv1WnqKbqWnS_OLdZezWrPyE9DQ14rbmYDcXfVIm4s"}
+[info] 
+[info] To sign in to the Firebase CLI:
+[info] 
+[info] 1. Take note of your session ID:
+[info] 
+[info]    6C297
+[info] 
+[info] 2. Visit the URL below on any device and follow the instructions to get your code:
+[info] 
+[info]    https://auth.firebase.tools/login?code_challenge=HlM45dn3JbrQeaaCMzqolYnDUV7EAF0Yg_kfS_niFuo&session=6c297617-7c63-4c67-bc94-a0695aaccd65&attest=NCv1WnqKbqWnS_OLdZezWrPyE9DQ14rbmYDcXfVIm4s
+[info] 
+[info] 3. Paste or enter the authorization code below once you have it:
+[info] 
+[debug] [2025-05-22T20:55:34.878Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-05-22T20:56:17.332Z] Running auto auth
+[debug] [2025-05-22T20:56:45.935Z] ----------------------------------------------------------------------
+[debug] [2025-05-22T20:56:45.939Z] Command:       /nix/store/rbdrkcs5kkwpalxcd7c6bnm33lk2955n-nodejs-20.19.0/bin/node /nix/store/x1y0l2xj62jgmz6csprhhqzibvdggdpk-firebase-tools-14.3.1/lib/node_modules/firebase-tools/lib/bin/firebase.js login --no-localhost
+[debug] [2025-05-22T20:56:45.939Z] CLI Version:   14.3.1
+[debug] [2025-05-22T20:56:45.940Z] Platform:      linux
+[debug] [2025-05-22T20:56:45.940Z] Node Version:  v20.19.0
+[debug] [2025-05-22T20:56:45.940Z] Time:          Thu May 22 2025 20:56:45 GMT+0000 (Coordinated Universal Time)
+[debug] [2025-05-22T20:56:45.940Z] ----------------------------------------------------------------------
+[debug] 
+[info] i  Firebase optionally collects CLI and Emulator Suite usage and error reporting information to help improve our products. Data is collected in accordance with Google's privacy policy (https://policies.google.com/privacy) and is not used to identify you.
+ 
+[info] i  To change your data collection preference at any time, run `firebase logout` and log in again. 
+[debug] [2025-05-22T20:56:51.480Z] >>> [apiv2][query] POST https://auth.firebase.tools/attest [none]
+[debug] [2025-05-22T20:56:51.488Z] >>> [apiv2][body] POST https://auth.firebase.tools/attest {"session_id":"ad3dc13f-57eb-403f-a1ee-73763b5b3a0e"}
+[debug] [2025-05-22T20:56:51.822Z] <<< [apiv2][status] POST https://auth.firebase.tools/attest 200
+[debug] [2025-05-22T20:56:51.822Z] <<< [apiv2][body] POST https://auth.firebase.tools/attest {"token":"9S8p5fWEwy4nD0dw3WnoumFgFPRH0LOz14BYdV4AwFI"}
+[info] 
+[info] To sign in to the Firebase CLI:
+[info] 
+[info] 1. Take note of your session ID:
+[info] 
+[info]    AD3DC
+[info] 
+[info] 2. Visit the URL below on any device and follow the instructions to get your code:
+[info] 
+[info]    https://auth.firebase.tools/login?code_challenge=MGtBcPbTQYkSaqB9mFV8_FYzHKpOW4COm6XAG4mmVEk&session=ad3dc13f-57eb-403f-a1ee-73763b5b3a0e&attest=9S8p5fWEwy4nD0dw3WnoumFgFPRH0LOz14BYdV4AwFI
+[info] 
+[info] 3. Paste or enter the authorization code below once you have it:
+[info] 
+[debug] [2025-05-23T02:11:16.993Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]

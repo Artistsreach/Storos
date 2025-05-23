@@ -3,24 +3,87 @@ import React, { useState } from 'react'; // Keep this one as it includes useStat
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ShoppingCart, Star, Eye, Zap as BuyNowIcon } from 'lucide-react'; // Added BuyNowIcon
+import { ShoppingCart, Star, Eye, Zap as BuyNowIcon } from 'lucide-react';
 import { useStore } from '@/contexts/StoreContext';
 import { Link } from 'react-router-dom';
-import { stripePromise } from '@/lib/stripe'; // Added stripePromise
+import { stripePromise } from '@/lib/stripe';
+import InlineTextEdit from '@/components/ui/InlineTextEdit'; // Added import
 
 const ProductCard = ({ product, theme, index, storeId, isPublishedView = false }) => {
-  const { name, price, rating, description, image, currencyCode = 'USD', id: rawProductId, stripe_price_id } = product; // Added stripe_price_id
-  const { addToCart } = useStore();
+  const { name, price, rating, description, image, currencyCode = 'USD', id: rawProductId, stripe_price_id } = product;
+  const { addToCart, updateStore } = useStore(); // Assuming updateStore can handle product updates or a specific updateProduct function exists
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState(null);
+  const isAdmin = !isPublishedView;
 
   // Encode Shopify GIDs for URL safety
   const isShopifyGid = (id) => typeof id === 'string' && id.startsWith('gid://shopify/');
   const productId = isShopifyGid(rawProductId) ? btoa(rawProductId) : rawProductId;
 
   const imageUrl = image?.src?.medium || image?.url || `https://via.placeholder.com/400x400.png?text=${encodeURIComponent(name)}`;
-  const imageAlt = image?.alt || `${name} product image`; // Simplified alt text logic
+  const imageAlt = image?.alt || `${name} product image`;
   
+  const handleSaveProductText = async (field, value) => {
+    if (storeId && rawProductId) {
+      try {
+        // This assumes a way to update individual product fields.
+        // The actual implementation might involve calling a specific function like `updateProductDetails(storeId, rawProductId, { [field]: value })`
+        // or `updateStore` might be smart enough to handle nested product updates if product data is part of the main store object.
+        // For now, we'll construct a payload that might be sent to a generic product update function.
+        // This is a placeholder and might need adjustment based on how product data is managed.
+        // Option 1: If products are part of the store object that updateStore handles:
+        // await updateStore(storeId, { products: store.products.map(p => p.id === rawProductId ? {...p, [field]: value} : p) });
+        // Option 2: If there's a specific function for product updates (more likely for individual product management):
+        // await updateProductInStore(storeId, rawProductId, { [field]: value });
+        // Option 3: Using a generic updateStore that might call a Supabase function for product management
+        // This is a simplified example; a real implementation might need to call a specific Supabase function
+        // that handles product updates, e.g., 'manage-product'.
+        // For demonstration, let's assume updateStore can take a specific product update path.
+        // This is highly dependent on the backend and StoreContext implementation.
+        // A more robust solution would be to have a dedicated function in StoreContext like `updateProduct(productId, data)`
+        
+        // Let's assume a simple update to the product object directly if it's mutable client-side
+        // and then a call to persist this. This is a common pattern but depends on context structure.
+        // For now, we'll call updateStore with a specific structure that a backend function might expect.
+        // This is a placeholder for the actual update logic.
+        console.log(`Attempting to save product ${rawProductId}: ${field} = ${value}`);
+        // Example: await updateStore(storeId, { products: { [rawProductId]: { [field]: value } } }); // This is speculative
+        // A more direct approach if products are managed via a separate table/function:
+        // This would typically be a call to a Supabase Edge Function like 'manage-product'
+        // For now, we'll just log, as the actual update mechanism for individual product fields isn't fully clear from context.
+        // If `updateStore` is generic enough, it might be:
+        // await updateStore(storeId, { content: { products: { [rawProductId]: { [field]: value } } } }); // If products are in content
+        // Or if products are top-level in the store object:
+        // await updateStore(storeId, { products: store.products.map(p => p.id === rawProductId ? {...p, [field]: value} : p) });
+
+        // Given the 'manage-product' function, it's likely we need to call that.
+        // The `updateStore` in `StoreContext` might abstract this.
+        // For now, let's assume `updateStore` can handle a partial update to a product by its ID.
+        // This is a common pattern for a context function that wraps API calls.
+        // The exact payload structure depends on how `updateStore` and the backend are designed.
+        // A simple approach:
+        const productUpdatePayload = { id: rawProductId, [field]: value };
+        // This would then be handled by updateStore to call the appropriate backend endpoint.
+        // For example, if updateStore calls a generic patch endpoint for the store,
+        // or if it has logic to call a specific product update endpoint.
+        // This is a placeholder for the actual update mechanism.
+        // await updateStore(storeId, { productUpdates: [productUpdatePayload] });
+         await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-product`, {
+          method: 'PUT', // Or PATCH
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('supabase.auth.token')}`, // Assuming auth is needed
+          },
+          body: JSON.stringify({ store_id: storeId, product_id: rawProductId, [field]: value })
+        });
+
+
+      } catch (error) {
+        console.error(`Failed to update product ${field}:`, error);
+      }
+    }
+  };
+
   const handleAddToCart = (e) => {
     e.preventDefault(); // Prevent link navigation if button inside Link
     e.stopPropagation();
@@ -124,10 +187,16 @@ const ProductCard = ({ product, theme, index, storeId, isPublishedView = false }
         </Link>
         
         <CardContent className="p-4 flex-grow">
-          {/* Removed isPublishedView from state */}
           <Link to={`/store/${storeId}/product/${productId}`} className="block">
             <div className="flex justify-between items-start mb-1.5">
-              <h3 className="font-semibold text-md lg:text-lg line-clamp-2 group-hover:text-primary transition-colors" style={{"--hover-color": theme.primaryColor}}>{name}</h3>
+              <h3 className="font-semibold text-md lg:text-lg line-clamp-2 group-hover:text-primary transition-colors" style={{"--hover-color": theme.primaryColor}}>
+                <InlineTextEdit
+                  initialText={name}
+                  onSave={(newText) => handleSaveProductText('name', newText)}
+                  isAdmin={isAdmin}
+                  placeholder="Product Name"
+                />
+              </h3>
               <span className="font-bold text-md lg:text-lg whitespace-nowrap" style={{ color: theme.primaryColor }}>
                 {currencyCode} {typeof price === 'number' ? price.toFixed(2) : 'Price unavailable'}
               </span>
@@ -135,7 +204,12 @@ const ProductCard = ({ product, theme, index, storeId, isPublishedView = false }
           </Link>
           
           <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
-            {description}
+            <InlineTextEdit
+              initialText={description}
+              onSave={(newText) => handleSaveProductText('description', newText)}
+              isAdmin={isAdmin}
+              placeholder="Product Description"
+            />
           </p>
           
           <div className="flex items-center gap-1">

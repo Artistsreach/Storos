@@ -37,65 +37,71 @@ const StorePreview = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isCheckingPassKey, setIsCheckingPassKey] = useState(false); // To show loading during check
 
+  // Effect for loading store data and setting current store, and handling passkey auth
   useEffect(() => {
     if (isLoadingStores) return;
 
     const storeData = getStoreById(storeId);
     if (storeData) {
-      setStore(storeData);
-      setCurrentStore(storeData);
+      setStore(storeData); // Local state for this page
+      setCurrentStore(storeData); // Update global currentStore
 
-      const templateVersion = storeData.template_version || 'v1';
+      // Pass key authentication logic
+      if (!storeData.pass_key || (user && storeData.merchant_id === user.id)) {
+        setIsAuthenticated(true);
+      } else {
+        setIsAuthenticated(false); // Requires pass key entry if pass_key exists and user is not owner
+      }
+    } else {
+      // Only toast if not loading. If still loading, wait. If done loading and no store, then toast.
+      if (!isLoadingStores) { 
+        toast({
+          title: 'Store Not Found',
+          description: `Could not find store with ID: ${storeId}`,
+          variant: 'destructive',
+        });
+      }
+    }
+  }, [storeId, getStoreById, setCurrentStore, toast, isLoadingStores, user]);
 
-      // Reset all template component states initially
+  // Effect for dynamically loading template components based on template_version
+  useEffect(() => {
+    if (store) { // Only run if store data is available
+      const templateVersion = store.template_version || 'v1';
+
+      // Reset all template component states initially before loading new ones
+      // This ensures that if templateVersion changes, old components are cleared.
       setStoreHeader(null);
       setStoreHero(null);
-      setStoreCollections(null); // Reset new component state
+      setStoreCollections(null);
       setProductGrid(null);
       setStoreFeatures(null);
-      setStoreTestimonials(null); // Reset new component state
+      setStoreTestimonials(null);
       setStoreNewsletter(null);
       setStoreFooter(null);
-      // setAdvancedTemplateApp(null); // REMOVED for V3
-      // setProductDetailPageV3(null); // REMOVED for V3
 
       if (templateVersion === 'v1') {
         setStoreHeader(() => lazy(() => import('@/components/store/StoreHeader.jsx')));
         setStoreHero(() => lazy(() => import('@/components/store/StoreHero.jsx')));
-        setStoreCollections(() => lazy(() => import('@/components/store/StoreCollections.jsx'))); // Lazy load new component
+        setStoreCollections(() => lazy(() => import('@/components/store/StoreCollections.jsx')));
         setProductGrid(() => lazy(() => import('@/components/store/ProductGrid.jsx')));
         setStoreFeatures(() => lazy(() => import('@/components/store/StoreFeatures.jsx')));
-        setStoreTestimonials(() => lazy(() => import('@/components/store/StoreTestimonials.jsx'))); // Lazy load new component
+        setStoreTestimonials(() => lazy(() => import('@/components/store/StoreTestimonials.jsx')));
         setStoreNewsletter(() => lazy(() => import('@/components/store/StoreNewsletter.jsx')));
         setStoreFooter(() => lazy(() => import('@/components/store/StoreFooter.jsx')));
       } else if (templateVersion === 'v2') {
         setStoreHeader(() => lazy(() => import('@/components/store/template_v2/StoreHeader.jsx')));
         setStoreHero(() => lazy(() => import('@/components/store/template_v2/StoreHero.jsx')));
-        setStoreCollections(() => lazy(() => import('@/components/store/template_v2/StoreCollections.jsx'))); // Use StoreCollectionsV2 for v2
+        setStoreCollections(() => lazy(() => import('@/components/store/template_v2/StoreCollections.jsx')));
         setProductGrid(() => lazy(() => import('@/components/store/template_v2/ProductGrid.jsx')));
         setStoreFeatures(() => lazy(() => import('@/components/store/template_v2/StoreFeatures.jsx')));
-        setStoreTestimonials(() => lazy(() => import('@/components/store/StoreTestimonials.jsx'))); // Also for v2
+        setStoreTestimonials(() => lazy(() => import('@/components/store/StoreTestimonials.jsx')));
         setStoreNewsletter(() => lazy(() => import('@/components/store/template_v2/StoreNewsletter.jsx')));
         setStoreFooter(() => lazy(() => import('@/components/store/template_v2/StoreFooter.jsx')));
       }
-      // REMOVED V3 loading logic
-      
-      // If the store has no pass_key, or if the current user is the store owner,
-      // then consider it authenticated.
-      // Assuming storeData.merchant_id holds the owner's user ID.
-      if (!storeData.pass_key || (user && storeData.merchant_id === user.id)) {
-        setIsAuthenticated(true);
-      } else {
-        setIsAuthenticated(false); // Requires pass key entry
-      }
-    } else {
-      toast({
-        title: 'Store Not Found',
-        description: `Could not find store with ID: ${storeId}`,
-        variant: 'destructive',
-      });
+      // productHandleFromParams is not directly used for template loading, so removed from this specific effect's deps
     }
-  }, [storeId, getStoreById, setCurrentStore, toast, isLoadingStores, user, productHandleFromParams]); // Added productHandleFromParams
+  }, [store?.template_version, storeId, store]); // Depend on store object itself to get template_version, and storeId
 
   const handlePassKeySubmit = () => {
     if (!store || !store.pass_key) {

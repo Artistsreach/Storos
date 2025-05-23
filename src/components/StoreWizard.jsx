@@ -224,11 +224,16 @@ const StoreWizard = () => {
           formData.products.items, // Pass existing products for context
           existingCollectionNames // Pass existing names to avoid duplicates
         );
-        if (collectionData && collectionData.name && collectionData.description && collectionData.imageUrl) {
+        if (collectionData && !collectionData.error && collectionData.name && collectionData.description && collectionData.product_ids) {
+          let finalCollectionImageUrl = `https://via.placeholder.com/400x200.png?text=${encodeURIComponent(collectionData.name || "Collection")}`;
+          if (collectionData.imageData) {
+            finalCollectionImageUrl = `data:image/png;base64,${collectionData.imageData}`;
+          }
           generatedItems.push({
             name: collectionData.name,
             description: collectionData.description,
-            imageUrl: collectionData.imageUrl,
+            imageUrl: finalCollectionImageUrl, // Use the data URL or placeholder
+            product_ids: collectionData.product_ids, 
           });
           // Add the newly generated name to the list for subsequent calls in this loop
           if (collectionData.name) {
