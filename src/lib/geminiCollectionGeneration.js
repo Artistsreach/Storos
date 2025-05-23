@@ -125,7 +125,7 @@ export async function generateCollectionWithGemini(productType, storeName, produ
         model: "gemini-2.0-flash-preview-image-generation",
         contents: imageContents,
         config: {
-          responseModalities: [Modality.IMAGE], 
+          responseModalities: [Modality.TEXT, Modality.IMAGE], 
         },
       });
 

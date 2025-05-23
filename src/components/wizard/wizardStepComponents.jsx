@@ -7,8 +7,18 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
-import { Loader2, Wand2, Sparkles, PlusCircle, Trash2 } from 'lucide-react';
+import { Loader2, Wand2, Sparkles, PlusCircle, Trash2, UploadCloud } from 'lucide-react'; // Added UploadCloud
 import ManageCollectionProductsModal from '@/components/store/ManageCollectionProductsModal'; // Import the modal
+
+// Helper function to convert file to data URL
+const fileToBase64 = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = error => reject(error);
+  });
+};
 
 export const productTypeOptions = [
   { value: "fashion", label: "Fashion & Apparel" },
@@ -34,6 +44,31 @@ export const renderWizardStepContent = (step, props) => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentEditingCollection, setCurrentEditingCollection] = useState(null);
+
+  const handleManualCollectionChange = (index, field, value) => {
+    setFormData(prev => {
+      const newItems = [...prev.collections.items];
+      newItems[index][field] = value;
+      return { ...prev, collections: { ...prev.collections, items: newItems } };
+    });
+  };
+
+  const addManualCollection = () => {
+    setFormData(prev => ({
+      ...prev,
+      collections: {
+        ...prev.collections,
+        items: [...prev.collections.items, { name: '', description: '', imageUrl: '' }],
+      },
+    }));
+  };
+
+  const removeManualCollection = (index) => {
+    setFormData(prev => {
+      const newItems = prev.collections.items.filter((_, i) => i !== index);
+      return { ...prev, collections: { ...prev.collections, items: newItems } };
+    });
+  };
 
   const openManageProductsModal = (collection) => {
     setCurrentEditingCollection(collection);
@@ -131,8 +166,51 @@ export const renderWizardStepContent = (step, props) => {
             </Button>
             <p className="text-xs text-muted-foreground text-center">AI will generate a logo based on your store name and product type. (Uses Gemini API - Placeholder)</p>
           </div>
-           <Label htmlFor="logoUrl" className="text-sm">Or paste an image URL:</Label>
-           <Input id="logoUrl" name="logoUrl" value={formData.logoUrl} onChange={handleInputChange} placeholder="https://example.com/logo.png" />
+          <div className="flex items-center justify-center w-full gap-2">
+            <div className="flex-grow">
+              <Label htmlFor="logoUrl" className="text-sm">Or paste an image URL:</Label>
+              <Input id="logoUrl" name="logoUrl" value={formData.logoUrl} onChange={handleInputChange} placeholder="https://example.com/logo.png" />
+            </div>
+            <div className="flex-shrink-0">
+              <Label htmlFor="logoUpload" className="text-sm sr-only">Upload Logo</Label>
+              <Input 
+                id="logoUpload" 
+                type="file" 
+                accept="image/*" 
+                className="hidden" 
+                onChange={async (e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    const file = e.target.files[0];
+                    try {
+                      const base64 = await fileToBase64(file);
+                      setFormData(prev => ({ ...prev, logoUrl: base64 }));
+                    } catch (error) {
+                      console.error("Error converting file to base64:", error);
+                      // Optionally set a suggestionError here
+                    }
+                  }
+                }}
+              />
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="mt-6" // Adjust margin to align with input
+                onClick={() => document.getElementById('logoUpload').click()}
+              >
+                <UploadCloud className="mr-2 h-4 w-4" /> Upload
+              </Button>
+            </div>
+          </div>
+          {formData.logoUrl && (
+            <Button 
+              variant="destructive" 
+              size="sm" 
+              onClick={() => setFormData(prev => ({ ...prev, logoUrl: '' }))}
+              className="mt-2"
+            >
+              <Trash2 className="mr-2 h-4 w-4" /> Remove Logo
+            </Button>
+          )}
         </motion.div>
       );
     case 4: // Products
@@ -207,6 +285,51 @@ export const renderWizardStepContent = (step, props) => {
                       <Label htmlFor={`productDescription-${index}`}>Short Description (Optional)</Label>
                       <Textarea id={`productDescription-${index}`} value={item.description} onChange={(e) => handleManualProductChange(index, 'description', e.target.value)} placeholder="e.g., 'Beautifully crafted ceramic mug, perfect for your morning coffee.'" rows={2}/>
                   </div>
+                  <div className="flex flex-col items-center gap-2 p-2 border rounded-md">
+                    {item.imageUrl ? (
+                      <img src={item.imageUrl} alt={item.name || "Product image"} className="w-24 h-24 object-contain rounded-md border" />
+                    ) : (
+                      <div className="w-24 h-24 bg-muted rounded-md flex items-center justify-center text-xs text-muted-foreground">No Image</div>
+                    )}
+                    <Label htmlFor={`productImageUpload-${index}`} className="text-sm sr-only">Upload Product Image</Label>
+                    <Input 
+                      id={`productImageUpload-${index}`} 
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={async (e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          const file = e.target.files[0];
+                          try {
+                            const base64 = await fileToBase64(file);
+                            handleManualProductChange(index, 'imageUrl', base64);
+                          } catch (error) {
+                            console.error("Error converting file to base64:", error);
+                            // Optionally set a suggestionError here
+                          }
+                        }
+                      }}
+                    />
+                    <div className="flex gap-2">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => document.getElementById(`productImageUpload-${index}`).click()}
+                      >
+                        <UploadCloud className="mr-2 h-4 w-4" /> Upload Image
+                      </Button>
+                      {item.imageUrl && (
+                        <Button 
+                          variant="destructive" 
+                          size="sm" 
+                          onClick={() => handleManualProductChange(index, 'imageUrl', '')}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" /> Remove
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                 </Card>
               ))}
               <Button type="button" variant="outline" onClick={addManualProduct} className="w-full">
@@ -226,7 +349,7 @@ export const renderWizardStepContent = (step, props) => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ai">Generate with AI</SelectItem>
-              {/* <SelectItem value="manual">Add Manually</SelectItem> */}
+              <SelectItem value="manual">Add Manually</SelectItem>
             </SelectContent>
           </Select>
 
@@ -288,6 +411,76 @@ export const renderWizardStepContent = (step, props) => {
               )}
             </div>
           )}
+
+          {formData.collections.source === 'manual' && (
+            <div className="space-y-4 max-h-60 overflow-y-auto pr-2">
+              {formData.collections.items.map((item, index) => (
+                <Card key={index} className="p-4 space-y-3 relative">
+                   <Button variant="ghost" size="icon" className="absolute top-1 right-1 h-7 w-7" onClick={() => removeManualCollection(index)} disabled={formData.collections.items.length <= 1}>
+                      <Trash2 className="h-4 w-4 text-destructive"/>
+                  </Button>
+                  <div className="grid grid-cols-2 gap-3">
+                      <div>
+                          <Label htmlFor={`collectionName-${index}`}>Collection Name</Label>
+                          <Input id={`collectionName-${index}`} value={item.name} onChange={(e) => handleManualCollectionChange(index, 'name', e.target.value)} placeholder="e.g., 'Summer Collection'" />
+                      </div>
+                  </div>
+                  <div>
+                      <Label htmlFor={`collectionDescription-${index}`}>Short Description (Optional)</Label>
+                      <Textarea id={`collectionDescription-${index}`} value={item.description} onChange={(e) => handleManualCollectionChange(index, 'description', e.target.value)} placeholder="e.g., 'A curated selection of products perfect for the summer season.'" rows={2}/>
+                  </div>
+                  <div className="flex flex-col items-center gap-2 p-2 border rounded-md">
+                    {item.imageUrl ? (
+                      <img src={item.imageUrl} alt={item.name || "Collection image"} className="w-24 h-24 object-contain rounded-md border" />
+                    ) : (
+                      <div className="w-24 h-24 bg-muted rounded-md flex items-center justify-center text-xs text-muted-foreground">No Image</div>
+                    )}
+                    <Label htmlFor={`collectionImageUpload-${index}`} className="text-sm sr-only">Upload Collection Image</Label>
+                    <Input 
+                      id={`collectionImageUpload-${index}`} 
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={async (e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          const file = e.target.files[0];
+                          try {
+                            const base64 = await fileToBase64(file);
+                            handleManualCollectionChange(index, 'imageUrl', base64);
+                          } catch (error) {
+                            console.error("Error converting file to base64:", error);
+                            // Optionally set a suggestionError here
+                          }
+                        }
+                      }}
+                    />
+                    <div className="flex gap-2">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => document.getElementById(`collectionImageUpload-${index}`).click()}
+                      >
+                        <UploadCloud className="mr-2 h-4 w-4" /> Upload Image
+                      </Button>
+                      {item.imageUrl && (
+                        <Button 
+                          variant="destructive" 
+                          size="sm" 
+                          onClick={() => handleManualCollectionChange(index, 'imageUrl', '')}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" /> Remove
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              ))}
+              <Button type="button" variant="outline" onClick={addManualCollection} className="w-full">
+                <PlusCircle className="mr-2 h-4 w-4" /> Add Another Collection
+              </Button>
+            </div>
+          )}
         </motion.div>
       );
     case 6: // Final Prompt (shifted from step 5)
@@ -320,6 +513,7 @@ export const isWizardNextDisabled = (step, formData) => {
   }
   if (step === 5) { // Collections step
     if (formData.collections.source === 'ai' && formData.collections.items.length === 0 && formData.collections.count > 0) return true;
+    if (formData.collections.source === 'manual' && formData.collections.items.some(c => !c.name)) return true;
   }
   if (step === 6 && !formData.prompt) return true; // Final Prompt step
   return false;
