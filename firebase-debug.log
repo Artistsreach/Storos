@@ -125,3 +125,4 @@
 [debug] [2025-05-23T06:29:08.219Z] Running auto auth
 [debug] [2025-05-23T06:40:40.750Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
 [debug] [2025-05-23T06:40:55.292Z] Running auto auth
+[debug] [2025-05-23T13:14:58.388Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
