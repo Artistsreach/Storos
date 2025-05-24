@@ -4,8 +4,10 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
 import CollectionProductsDialog from './CollectionProductsDialog'; // Import the new dialog
+import InlineTextEdit from '@/components/ui/InlineTextEdit'; // Added import
+import { useStore } from '@/contexts/StoreContext'; // Added import
 
-const CollectionCard = ({ collection, onCollectionClick }) => {
+const CollectionCard = ({ collection, onCollectionClick, isAdmin, onSaveCollectionText, collectionIndex }) => { // Added isAdmin, onSaveCollectionText, collectionIndex
   const placeholderImage = `https://images.unsplash.com/photo-1588099768531-a72d4a198538?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTB8fGNsb3RoaW5nfGVufDB8fDB8fHww&auto=format&fit=crop&w=600&q=60`;
 
   const collectionTitle = collection?.name || "Unnamed Collection"; // Use name as primary
@@ -35,15 +37,30 @@ const CollectionCard = ({ collection, onCollectionClick }) => {
       <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
         <h3 
           className="text-2xl font-bold group-hover:underline group-hover:decoration-primary"
-          style={{ textShadow: '0px 1px 4px rgba(0,0,0,0.7)' }}
+          // style={{ textShadow: '0px 1px 4px rgba(0,0,0,0.7)' }} // Text shadow might interfere with editing
         >
-          {collectionTitle}
+          <InlineTextEdit
+            initialText={collectionTitle}
+            onSave={(newText) => onSaveCollectionText(collectionIndex, 'name', newText)}
+            isAdmin={isAdmin}
+            placeholder="Collection Title"
+            textClassName="text-2xl font-bold" // Ensure styles apply to text
+            // className="w-full" // Container class if needed
+          />
         </h3>
         <p 
           className="mt-1 text-sm opacity-90 line-clamp-2"
-          style={{ textShadow: '0px 1px 3px rgba(0,0,0,0.6)' }}
+          // style={{ textShadow: '0px 1px 3px rgba(0,0,0,0.6)' }}
         >
-          {collectionDescription}
+          <InlineTextEdit
+            initialText={collectionDescription}
+            onSave={(newText) => onSaveCollectionText(collectionIndex, 'description', newText)}
+            isAdmin={isAdmin}
+            placeholder="Collection Description"
+            useTextarea={true}
+            textClassName="text-sm opacity-90" // Ensure styles apply to text
+            // className="w-full"
+          />
         </p>
         <div className="mt-4 inline-flex items-center text-sm font-medium text-primary group-hover:text-yellow-300 transition-colors">
           View Products <ArrowRight className="ml-1.5 h-4 w-4" />
@@ -54,11 +71,14 @@ const CollectionCard = ({ collection, onCollectionClick }) => {
 };
 
 const StoreCollections = ({ store, isPublishedView = false }) => {
+  const { updateStore } = useStore(); // Get updateStore from context
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedCollection, setSelectedCollection] = useState(null);
 
   const collections = store?.collections;
   const storeId = store?.id;
+  const isAdmin = !isPublishedView; // Define isAdmin
+  const content = store?.content || {}; // Ensure content object exists
 
   const handleCollectionClick = (collection) => {
     // Ensure the collection has products; this check might be redundant if StoreContext always provides them
@@ -82,11 +102,48 @@ const StoreCollections = ({ store, isPublishedView = false }) => {
     setSelectedCollection(null);
   };
 
+  const handleSaveText = async (field, value) => {
+    if (storeId) {
+      try {
+        if (field === 'collectionsSectionTitle') {
+          await updateStore(storeId, { content: { ...content, collectionsSectionTitle: value } });
+        }
+      } catch (error) {
+        console.error(`Failed to update store ${field}:`, error);
+      }
+    }
+  };
+
+  const handleSaveCollectionText = async (index, field, value) => {
+    if (storeId && collections && collections[index]) {
+      const updatedCollections = collections.map((col, i) => {
+        if (i === index) {
+          return { ...col, [field]: value };
+        }
+        return col;
+      });
+      try {
+        await updateStore(storeId, { collections: updatedCollections });
+      } catch (error) {
+        console.error(`Failed to update collection ${field} at index ${index}:`, error);
+      }
+    }
+  };
+  
+  const sectionTitle = content?.collectionsSectionTitle || "Shop by Collection";
+
   return (
     <>
       <section id={`collections-${store?.id || 'featured-collections'}`} className="container mx-auto px-4 pt-6 pb-12"> 
         <h2 className="text-3xl font-bold tracking-tight text-center mb-10 md:mb-12">
-          Shop by Collection
+          <InlineTextEdit
+            initialText={sectionTitle}
+            onSave={(newText) => handleSaveText('collectionsSectionTitle', newText)}
+            isAdmin={isAdmin}
+            placeholder="Section Title"
+            textClassName="text-3xl font-bold tracking-tight text-center"
+            // className="w-full text-center" // Container class
+          />
         </h2>
         {!collections || collections.length === 0 ? (
           <div className="text-center py-10">
@@ -99,11 +156,14 @@ const StoreCollections = ({ store, isPublishedView = false }) => {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"> 
-            {collections.map((collection) => (
+            {collections.map((collection, index) => ( // Added index
               <CollectionCard 
                 key={collection.id || collection.name} // Use name as fallback key
                 collection={collection} 
                 onCollectionClick={handleCollectionClick}
+                isAdmin={isAdmin} // Pass isAdmin
+                onSaveCollectionText={handleSaveCollectionText} // Pass save handler
+                collectionIndex={index} // Pass index
               />
             ))}
           </div>

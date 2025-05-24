@@ -43,7 +43,7 @@ const ManageCollectionProductsModal = ({
   };
 
   const handleSaveChanges = () => {
-    onSave(collection.id || collection.name, selectedProductIds); // Use name as fallback ID if real ID not present
+    onSave(collection.id ?? collection.name, selectedProductIds); // Use name as fallback ID if real ID not present
     onClose();
   };
 
@@ -77,16 +77,16 @@ const ManageCollectionProductsModal = ({
                   )
                   .map((product) => (
                     <div
-                      key={product.id || product.name} // Use name as fallback ID
+                      key={product.id ?? product.name} // Use name as fallback ID
                       className="flex items-center space-x-3 p-3 border rounded-md hover:bg-muted/50 transition-colors"
                     >
                       <Checkbox
-                        id={`product-${collection.id || collection.name}-${product.id || product.name}`}
-                        checked={selectedProductIds.includes(product.id || product.name)}
-                        onCheckedChange={() => handleProductToggle(product.id || product.name)}
+                        id={`product-${collection.id ?? collection.name}-${product.id ?? product.name}`}
+                        checked={selectedProductIds.includes(product.id ?? product.name)}
+                        onCheckedChange={() => handleProductToggle(product.id ?? product.name)}
                       />
                       <Label
-                        htmlFor={`product-${collection.id || collection.name}-${product.id || product.name}`}
+                        htmlFor={`product-${collection.id ?? collection.name}-${product.id ?? product.name}`}
                         className="flex-1 cursor-pointer"
                       >
                         <div className="flex items-center gap-3">

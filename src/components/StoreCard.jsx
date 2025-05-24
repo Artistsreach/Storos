@@ -163,12 +163,13 @@ const StoreCard = ({ store }) => {
               variant="outline" 
               size="sm"
               className="bg-white/90 hover:bg-white text-slate-800 border-slate-300 hover:border-slate-400"
-              onClick={async () => {
+              onClick={() => {
                 if (store && store.id) {
-                  // Ensure the store is set to 'v1' (Classic) before navigating
-                  await updateStoreTemplateVersion(store.id, 'v1');
+                  navigate(`/store/${store.id}`);
+                } else {
+                  console.error("Store ID is missing, cannot navigate to preview.");
+                  // Consider adding a toast message for the user here if store.id is missing
                 }
-                navigate(`/store/${store.id}`);
               }}
             >
               Preview

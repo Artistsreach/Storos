@@ -131,105 +131,136 @@ const prepareStoresForLocalStorage = (storesArray) => {
       return;
     }
     setIsLoadingStores(true);
+    console.log(`[StoreContext] loadStores called for userId: ${userId}`);
     let fetchedStores = [];
 
-    const { data: storesFromDb, error: storesError } = await supabase
-      .from('stores')
-      .select('*')
-      .eq('merchant_id', userId)
-      .order('created_at', { ascending: false });
+    try {
+      const { data: storesFromDb, error: storesError } = await supabase
+        .from('stores')
+        .select('*')
+        .eq('merchant_id', userId)
+        .order('created_at', { ascending: false });
 
-    if (storesError) {
-      console.error('Error loading stores from Supabase:', storesError);
-      toast({ title: 'Cloud Sync Error', description: 'Failed to load your stores from the cloud. Checking local cache.', variant: 'warning' });
+      if (storesError) {
+        console.error('[StoreContext] Error loading stores from Supabase:', storesError);
+        toast({ title: 'Cloud Sync Error', description: `Failed to load stores: ${storesError.message}. Checking local cache.`, variant: 'warning' });
+        // Fallback to localStorage continues below
+      }
+      
+      if (storesFromDb && !storesError) {
+        console.log(`[StoreContext] Fetched ${storesFromDb.length} stores from DB. Processing details...`);
+        const storesWithDetails = await Promise.all(
+          storesFromDb.map(async (store) => {
+            try {
+              const { data: productsFromDb, error: productsError } = await supabase
+                .from('platform_products')
+                .select('*')
+                .eq('store_id', store.id);
+
+              if (productsError) {
+                console.error(`[StoreContext] Error loading products for store ${store.id} (${store.name}):`, productsError.message);
+                // Continue with empty products for this store or handle as critical error
+              }
+              const mappedProducts = productsFromDb ? productsFromDb.map(dbProduct => {
+                let imageStructure = { src: { large: '', medium: '' } };
+                if (dbProduct.images && Array.isArray(dbProduct.images) && dbProduct.images.length > 0) {
+                  imageStructure.src.large = dbProduct.images[0];
+                  imageStructure.src.medium = dbProduct.images[0];
+                }
+                return {
+                  ...dbProduct,
+                  price: dbProduct.priceAmount,
+                  image: imageStructure,
+                };
+              }) : [];
+
+              let mappedCollections = [];
+              const { data: rawCollectionsFromDb, error: collectionsError } = await supabase
+                .from('store_collections')
+                .select('*')
+                .eq('store_id', store.id);
+
+              if (collectionsError) {
+                console.error(`[StoreContext] Error loading collections for store ${store.id} (${store.name}):`, collectionsError.message);
+              } else if (rawCollectionsFromDb && rawCollectionsFromDb.length > 0) {
+                mappedCollections = await Promise.all(rawCollectionsFromDb.map(async (collection) => {
+                  try {
+                    const { data: productLinks, error: linksError } = await supabase
+                      .from('collection_products')
+                      .select('product_id')
+                      .eq('collection_id', collection.id);
+
+                    let collectionProducts = [];
+                    if (linksError) {
+                      console.error(`[StoreContext] Error loading product links for collection ${collection.id}:`, linksError.message);
+                    } else if (productLinks && productLinks.length > 0) {
+                      const productIdsForCollection = productLinks.map(link => link.product_id);
+                      collectionProducts = mappedProducts.filter(p => productIdsForCollection.includes(p.id));
+                    }
+                    return { ...collection, products: collectionProducts };
+                  } catch (collectionLinkError) {
+                    console.error(`[StoreContext] Critical error processing product links for collection ${collection.id}:`, collectionLinkError);
+                    return { ...collection, products: [] }; // Return collection with empty products on error
+                  }
+                }));
+              }
+              return { ...store, products: mappedProducts, collections: mappedCollections };
+            } catch (storeDetailError) {
+              console.error(`[StoreContext] Critical error processing details for store ${store.id}:`, storeDetailError);
+              return { ...store, products: [], collections: [] }; // Return store with empty products/collections on error
+            }
+          })
+        );
+        fetchedStores = storesWithDetails;
+        console.log(`[StoreContext] Finished processing details for ${fetchedStores.length} stores.`);
+      } else if (storesError) { // If there was an error fetching initial stores list
+        const savedStores = localStorage.getItem('ecommerce-stores');
+        if (savedStores) {
+          try {
+            fetchedStores = JSON.parse(savedStores);
+            console.log('[StoreContext] Loaded stores from localStorage as fallback due to DB error.');
+          } catch (e) { 
+            console.error('[StoreContext] Failed to parse localStorage stores after DB error:', e); 
+            fetchedStores = [];
+          }
+        }
+      } else { // No storesFromDb and no error (user has no stores)
+        fetchedStores = [];
+        console.log('[StoreContext] No stores found in DB for this user.');
+      }
+      
+      // Save to localStorage regardless of source (DB or fallback) if fetchedStores has content
+      if (fetchedStores.length > 0 || (storesFromDb && storesFromDb.length === 0)) { // Save even if DB returned empty (to clear old LS)
+        try {
+          localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(fetchedStores)));
+          console.log('[StoreContext] Updated localStorage with fetched stores.');
+        } catch (e) {
+          console.error('[StoreContext] Failed to save stores to localStorage during cloud sync:', e);
+          // Toasting here might be too noisy if it's a quota issue. Logged already.
+        }
+      }
+    } catch (overallError) {
+      console.error('[StoreContext] Overall critical error in loadStores:', overallError);
+      toast({ title: 'Loading Error', description: 'A critical error occurred while loading store data.', variant: 'destructive' });
+      // Attempt to load from localStorage as a last resort if everything else failed
       const savedStores = localStorage.getItem('ecommerce-stores');
       if (savedStores) {
         try {
           fetchedStores = JSON.parse(savedStores);
-          console.log('Loaded stores from localStorage as fallback.');
+          console.log('[StoreContext] Loaded stores from localStorage as final fallback.');
         } catch (e) { 
-          console.error('Failed to parse localStorage stores:', e); 
+          console.error('[StoreContext] Failed to parse localStorage stores during final fallback:', e); 
           fetchedStores = [];
         }
-      }
-    } else {
-      if (storesFromDb && storesFromDb.length > 0) {
-        const storesWithDetails = await Promise.all(
-          storesFromDb.map(async (store) => {
-            // Fetch products
-            const { data: productsFromDb, error: productsError } = await supabase
-              .from('platform_products')
-              .select('*')
-              .eq('store_id', store.id);
-
-            if (productsError) {
-              console.error(`Error loading products for store ${store.id} (${store.name}):`, productsError.message);
-            }
-            const mappedProducts = productsFromDb ? productsFromDb.map(dbProduct => {
-              let imageStructure = { src: { large: '', medium: '' } };
-              if (dbProduct.images && Array.isArray(dbProduct.images) && dbProduct.images.length > 0) {
-                imageStructure.src.large = dbProduct.images[0];
-                imageStructure.src.medium = dbProduct.images[0];
-              }
-              return {
-                ...dbProduct, // This should include the dbProduct.id (UUID)
-                price: dbProduct.priceAmount, // Assuming priceAmount is a field
-                image: imageStructure,
-              };
-            }) : [];
-
-            // Fetch collections and their products
-            let mappedCollections = [];
-            const { data: rawCollectionsFromDb, error: collectionsError } = await supabase
-              .from('store_collections')
-              .select('*')
-              .eq('store_id', store.id);
-
-            if (collectionsError) {
-              console.error(`Error loading collections for store ${store.id} (${store.name}):`, collectionsError.message);
-            } else if (rawCollectionsFromDb && rawCollectionsFromDb.length > 0) {
-              mappedCollections = await Promise.all(rawCollectionsFromDb.map(async (collection) => {
-                const { data: productLinks, error: linksError } = await supabase
-                  .from('collection_products')
-                  .select('product_id')
-                  .eq('collection_id', collection.id);
-
-                let collectionProducts = [];
-                if (linksError) {
-                  console.error(`Error loading product links for collection ${collection.id}:`, linksError.message);
-                } else if (productLinks && productLinks.length > 0) {
-                  const productIdsForCollection = productLinks.map(link => link.product_id);
-                  collectionProducts = mappedProducts.filter(p => productIdsForCollection.includes(p.id));
-                }
-                return { ...collection, products: collectionProducts }; // Add products array to each collection
-              }));
-            }
-            return { ...store, products: mappedProducts, collections: mappedCollections };
-          })
-        );
-        fetchedStores = storesWithDetails;
       } else {
-        fetchedStores = []; // No stores found in DB for the user
+        fetchedStores = []; // Ensure it's an array if no LS data either
       }
-      
-      try {
-        localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(fetchedStores)));
-      } catch (e) {
-        console.error('Failed to save stores to localStorage during cloud sync:', e);
-        toast({
-          title: 'Local Cache Update Failed',
-          description: 'Could not fully update the local cache of stores. Some data might be temporarily unavailable offline.',
-          variant: 'warning',
-          duration: 8000,
-        });
-        if (e.name === 'QuotaExceededError') {
-          console.warn('LocalStorage quota seems to be exceeded. The application might not store all data locally, relying more on cloud data.');
-        }
-      }
+    } finally {
+      setStores(fetchedStores);
+      setIsLoadingStores(false);
+      console.log(`[StoreContext] loadStores finished. isLoadingStores: false. Stores count: ${fetchedStores.length}`);
     }
-    setStores(fetchedStores);
-    setIsLoadingStores(false);
-  }, [toast, supabase]); // Added supabase to dependencies as it's used directly
+  }, [toast, supabase]);
 
   useEffect(() => {
     // User state is now managed by AuthContext, so we listen to changes in `user` from `useAuth`
@@ -280,6 +311,10 @@ const prepareStoresForLocalStorage = (storesArray) => {
     }
 
     let newStoreInDb;
+    // Initialize variables that will be populated differently based on user login status
+    let finalProductsForStoreObject = [];
+    const productDbIdMap = new Map();
+    let insertedDbCollections = []; // To store collections data, potentially with DB IDs
 
     if (user) {
       // Ensure merchant_id is set for DB insertion, using the user's ID from AuthContext
@@ -300,8 +335,8 @@ const prepareStoresForLocalStorage = (storesArray) => {
       newStoreInDb = data;
 
       // Handle products
-      const productDbIdMap = new Map(); // Map original product identifier (from wizard) to DB UUID
-      const finalProductsForStoreObject = []; // Will hold product objects with their actual DB IDs
+      // finalProductsForStoreObject is already declared []
+      // productDbIdMap is already declared new Map()
 
       if (newStoreInDb && products && products.length > 0) {
         console.log(`Store ${newStoreInDb.id} created. Processing ${products.length} products.`);
@@ -344,6 +379,7 @@ const prepareStoresForLocalStorage = (storesArray) => {
       }
 
       // Handle collections
+      // insertedDbCollections is already declared []
       if (newStoreInDb && collections && collections.length > 0) { // 'collections' is from storeToCreate (wizardData)
         console.log(`Processing ${collections.length} collections for store ${newStoreInDb.id}.`);
         
@@ -354,10 +390,12 @@ const prepareStoresForLocalStorage = (storesArray) => {
           image_url: coll.imageUrl,
         }));
 
-        const { data: insertedDbCollections, error: collectionsError } = await supabase
+        const { data: dbInsertedCollections, error: collectionsError } = await supabase
           .from('store_collections')
           .insert(collectionsToInsertInDb)
           .select(); // Important to get the IDs of inserted collections
+        
+        insertedDbCollections = dbInsertedCollections || []; // Assign to the higher-scoped variable
 
         if (collectionsError) {
           console.error('Error saving collections to Supabase:', collectionsError);
@@ -406,10 +444,76 @@ const prepareStoresForLocalStorage = (storesArray) => {
         createdAt: new Date().toISOString() 
       }; 
       toast({ title: 'Store Created Locally', description: 'Store created locally. Log in to save to the cloud.' });
+      // Populate finalProductsForStoreObject and productDbIdMap for local stores
+      finalProductsForStoreObject = storeToCreate.products || [];
+      (finalProductsForStoreObject).forEach(p => {
+        const originalId = p.id || p.name; // Use name as fallback if id is not on wizard product
+        productDbIdMap.set(originalId, p.id); // Map original ID to its ID in finalProductsForStoreObject
+      });
+      insertedDbCollections = storeToCreate.collections || []; // Use original collections for local
+    } // Correct end of the else block
+    
+    // Hydration logic - now finalProductsForStoreObject, productDbIdMap, and insertedDbCollections are always defined.
+    let hydratedCollections = [];
+    const sourceCollections = storeToCreate.collections || [];
+    // sourceProducts is now consistently finalProductsForStoreObject
+    const sourceProducts = finalProductsForStoreObject; 
+
+    if (sourceCollections.length > 0) {
+      hydratedCollections = sourceCollections.map((wizardOrAiCollection) => {
+        let dbEquivalentCollectionData = {}; // Holds data from DB if collection was saved (e.g., DB ID)
+        if (user && insertedDbCollections && insertedDbCollections.length > 0) {
+            // Find the DB version of this collection by name (assuming names are unique for this creation batch)
+            const foundDbColl = insertedDbCollections.find(dbc => dbc.name === wizardOrAiCollection.name);
+            if (foundDbColl) {
+                dbEquivalentCollectionData = foundDbColl;
+            }
+        }
+        
+        let populatedProductsForThisCollection = [];
+        if (wizardOrAiCollection.product_ids && wizardOrAiCollection.product_ids.length > 0) {
+          wizardOrAiCollection.product_ids.forEach(originalProductId => {
+            const dbId = productDbIdMap.get(originalProductId); // Attempt to get DB ID
+            let productToLink = null;
+
+            if (dbId) { // A DB ID was mapped for this original product ID
+              productToLink = sourceProducts.find(p => p.id === dbId);
+              if (!productToLink) {
+                // This case implies the product was expected to have a DB ID but wasn't found in sourceProducts with that DB ID.
+                // This could happen if finalProductsForStoreObject wasn't updated correctly after DB operations.
+                // As a fallback, try finding by original ID if it's different from dbId.
+                console.warn(`[commonStoreCreation] Hydration: Product with DB ID ${dbId} (original: ${originalProductId}) not found in sourceProducts. Attempting fallback to original ID.`);
+                if (originalProductId !== dbId) {
+                    productToLink = sourceProducts.find(p => p.id === originalProductId);
+                }
+              }
+            } else { // No DB ID was mapped, so the product ID in sourceProducts should be the original ID.
+              productToLink = sourceProducts.find(p => p.id === originalProductId);
+            }
+
+            if (productToLink) {
+              populatedProductsForThisCollection.push(productToLink);
+            } else {
+              console.warn(`[commonStoreCreation] Hydration: Product with original ID ${originalProductId} (attempted DB ID: ${dbId || 'N/A'}) not found in sourceProducts for collection ${wizardOrAiCollection.name}. Skipping link.`);
+            }
+          });
+        }
+        return { 
+          ...wizardOrAiCollection, // Start with original data (name, desc, image, original product_ids)
+          ...dbEquivalentCollectionData, // Override with DB data if available (like DB collection ID)
+          products: populatedProductsForThisCollection, // This is the hydrated array of product objects
+        };
+      });
     }
     
-    // Merge to keep products and collections structure from wizard/prompt for immediate UI
-    const displayStore = { ...newStoreInDb, ...storeToCreate }; 
+    const storeReadyForDisplay = {
+      ...storeToCreate, 
+      products: sourceProducts, 
+      collections: hydratedCollections, // Use the newly hydrated collections
+    };
+
+    // Merge DB store data (like DB store ID, merchant_id) with the display-ready store data
+    const displayStore = { ...newStoreInDb, ...storeReadyForDisplay };
 
     setStores(prevStores => {
         const newStoresList = [displayStore, ...prevStores.filter(s => s.id !== displayStore.id)];

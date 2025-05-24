@@ -17,7 +17,10 @@ import { Button } from '@/components/ui/button';
 import { Lock, Unlock } from 'lucide-react';
 
 const StorePreview = () => {
+  console.log('[StorePreview] Component mounted.');
+
   const { storeId, productHandle: productHandleFromParams } = useParams(); // Get productHandle
+  console.log('[StorePreview] storeId from params:', storeId);
   const { getStoreById, setCurrentStore, viewMode, isLoadingStores, user } = useStore();
   const { toast } = useToast();
   
@@ -39,9 +42,14 @@ const StorePreview = () => {
 
   // Effect for loading store data and setting current store, and handling passkey auth
   useEffect(() => {
-    if (isLoadingStores) return;
+    console.log('[StorePreview] Main useEffect triggered. isLoadingStores:', isLoadingStores, 'storeId:', storeId);
+    if (isLoadingStores) {
+      console.log('[StorePreview] Still loading stores, returning.');
+      return;
+    }
 
     const storeData = getStoreById(storeId);
+    console.log('[StorePreview] storeData from getStoreById:', storeData);
     if (storeData) {
       setStore(storeData); // Local state for this page
       setCurrentStore(storeData); // Update global currentStore
