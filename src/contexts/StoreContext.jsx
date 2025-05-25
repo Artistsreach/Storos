@@ -197,10 +197,15 @@ const prepareStoresForLocalStorage = (storesArray) => {
                       const productIdsForCollection = productLinks.map(link => link.product_id);
                       collectionProducts = mappedProducts.filter(p => productIdsForCollection.includes(p.id));
                     }
-                    return { ...collection, products: collectionProducts };
+                    // Ensure the collection object has the image structure expected by CategoryShowcase
+                    return { 
+                      ...collection, 
+                      image: { src: collection.image_url || '' }, // Map image_url to image.src
+                      products: collectionProducts 
+                    };
                   } catch (collectionLinkError) {
                     console.error(`[StoreContext] Critical error processing product links for collection ${collection.id}:`, collectionLinkError);
-                    return { ...collection, products: [] }; // Return collection with empty products on error
+                    return { ...collection, image: { src: collection.image_url || '' }, products: [] }; // Return collection with empty products on error
                   }
                 }));
               }
@@ -261,6 +266,159 @@ const prepareStoresForLocalStorage = (storesArray) => {
       console.log(`[StoreContext] loadStores finished. isLoadingStores: false. Stores count: ${fetchedStores.length}`);
     }
   }, [toast, supabase]);
+
+  const updateStore = useCallback(async (storeId, updates) => {
+    // Local state will still update with settings for immediate UI feedback
+    const storeWithFullUpdates = stores.find(s => s.id === storeId);
+    let updatedLocalStore = null;
+    if (storeWithFullUpdates) {
+      updatedLocalStore = { ...storeWithFullUpdates, ...updates };
+    }
+
+    if (!user) {
+      // Handle local-only updates if no user is logged in
+      setStores(prevStores => {
+        const newStores = prevStores.map(store => {
+          if (store.id === storeId) {
+            return updatedLocalStore || { ...store, ...updates }; // Use the fully updated local store
+          }
+          return store;
+        });
+        try {
+          localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(newStores)));
+        } catch (e) {
+          console.error('Failed to save stores to localStorage during local-only update:', e);
+          toast({
+            title: 'Local Cache Update Failed',
+            description: 'Could not update the local cache for the store (local-only).',
+            variant: 'warning',
+            duration: 7000,
+          });
+        }
+        
+        // Update currentStore if it's the one being modified
+        if (currentStore && currentStore.id === storeId) {
+           setCurrentStore(prevCurrent => prevCurrent ? { ...prevCurrent, ...updates } : null);
+        }
+        return newStores;
+      });
+      toast({ title: 'Store Updated (Locally)', description: 'Changes saved locally.' });
+      return; // Exit if no user, as Supabase update won't happen
+    }
+
+    // If user exists, proceed with Supabase update
+    setIsLoadingStores(true); // Indicate loading state during Supabase operation
+    try {
+      // Exclude 'settings' from data sent to Supabase to prevent schema error
+      const { settings, ...updatesForSupabase } = updates;
+
+      const { data: updatedStoreFromSupabase, error } = await supabase
+        .from('stores')
+        .update(updatesForSupabase) // 'settings' is not included here
+        .eq('id', storeId)
+        .eq('merchant_id', user.id) // Changed user_id to merchant_id
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating store in Supabase:', error);
+        toast({ title: 'Update Failed (Cloud)', description: `${error.message}. Settings were not saved to the cloud.`, variant: 'destructive' });
+        // Still update local state to reflect UI changes, even if cloud save failed for settings
+        setStores(prevStores => {
+          const newStores = prevStores.map(s => 
+            s.id === storeId ? (updatedLocalStore || { ...s, ...updates }) : s
+          );
+          try {
+            localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(newStores)));
+          } catch (e) {
+            console.error('Failed to save stores to localStorage after Supabase update error:', e);
+            toast({
+              title: 'Local Cache Update Failed',
+              description: 'Could not update the local cache after a cloud update issue.',
+              variant: 'warning',
+              duration: 7000,
+            });
+          }
+          return newStores;
+        });
+        if (currentStore && currentStore.id === storeId) {
+          setCurrentStore(prevCurrent => updatedLocalStore || (prevCurrent ? {...prevCurrent, ...updates} : null) );
+        }
+        setIsLoadingStores(false);
+        return;
+      }
+
+      // If Supabase update is successful for other fields, merge with local settings for UI consistency
+      const finalUpdatedStore = { ...updatedStoreFromSupabase, settings: updatedLocalStore?.settings || storeWithFullUpdates?.settings || {} };
+
+      setStores(prevStores => {
+        const newStores = prevStores.map(store =>
+          store.id === storeId ? finalUpdatedStore : store
+        );
+        try {
+          localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(newStores)));
+        } catch (e) {
+          console.error('Failed to save stores to localStorage after successful Supabase update:', e);
+          toast({
+            title: 'Local Cache Update Failed',
+            description: 'Could not fully update the local cache after saving to cloud.',
+            variant: 'warning',
+            duration: 7000,
+          });
+        }
+        return newStores;
+      });
+
+      if (currentStore && currentStore.id === storeId) {
+        setCurrentStore(finalUpdatedStore);
+      }
+      toast({ title: 'Store Updated', description: 'Store details updated successfully.' });
+    } catch (e) {
+        console.error('Unexpected error in updateStore:', e);
+        toast({ title: 'Update Error', description: 'An unexpected error occurred.', variant: 'destructive' });
+    } finally {
+        setIsLoadingStores(false);
+    }
+  }, [stores, user, supabase, toast, currentStore, setCurrentStore, setStores, setIsLoadingStores, prepareStoresForLocalStorage]);
+
+  const updateStoreTextContent = useCallback(async (identifier, newText) => {
+    if (!currentStore || !currentStore.id) {
+      toast({ title: 'Error', description: 'No current store selected to update.', variant: 'destructive' });
+      return;
+    }
+    if (typeof identifier !== 'string' || identifier.trim() === '') {
+      toast({ title: 'Error', description: 'Invalid identifier for text content.', variant: 'destructive' });
+      return;
+    }
+
+    const storeId = currentStore.id;
+    
+    // Create a deep copy of the current store's content to avoid direct mutation
+    // Ensure currentStore.content exists and is an object, default to {} if not
+    const currentContent = (typeof currentStore.content === 'object' && currentStore.content !== null) 
+                           ? currentStore.content 
+                           : {};
+    let newContent = JSON.parse(JSON.stringify(currentContent));
+
+    // Use a helper to set nested properties
+    const keys = identifier.split('.');
+    let currentLevel = newContent;
+    
+    for (let i = 0; i < keys.length - 1; i++) {
+      const key = keys[i];
+      if (!currentLevel[key] || typeof currentLevel[key] !== 'object') {
+        currentLevel[key] = {}; // Create parent objects if they don't exist
+      }
+      currentLevel = currentLevel[key];
+    }
+    currentLevel[keys[keys.length - 1]] = newText;
+
+    // Call updateStore with the modified content
+    // updateStore expects the top-level field to update, e.g., { content: newContent }
+    await updateStore(storeId, { content: newContent });
+    
+    // Toast for successful update is handled within updateStore
+  }, [currentStore, updateStore, toast]);
 
   useEffect(() => {
     // User state is now managed by AuthContext, so we listen to changes in `user` from `useAuth`
@@ -479,9 +637,6 @@ const prepareStoresForLocalStorage = (storesArray) => {
             if (dbId) { // A DB ID was mapped for this original product ID
               productToLink = sourceProducts.find(p => p.id === dbId);
               if (!productToLink) {
-                // This case implies the product was expected to have a DB ID but wasn't found in sourceProducts with that DB ID.
-                // This could happen if finalProductsForStoreObject wasn't updated correctly after DB operations.
-                // As a fallback, try finding by original ID if it's different from dbId.
                 console.warn(`[commonStoreCreation] Hydration: Product with DB ID ${dbId} (original: ${originalProductId}) not found in sourceProducts. Attempting fallback to original ID.`);
                 if (originalProductId !== dbId) {
                     productToLink = sourceProducts.find(p => p.id === originalProductId);
@@ -498,10 +653,15 @@ const prepareStoresForLocalStorage = (storesArray) => {
             }
           });
         }
+        
+        // Ensure the final collection object has the image.src structure
+        const finalCollectionImageSrc = dbEquivalentCollectionData?.image_url || wizardOrAiCollection.imageUrl || '';
+
         return { 
-          ...wizardOrAiCollection, // Start with original data (name, desc, image, original product_ids)
-          ...dbEquivalentCollectionData, // Override with DB data if available (like DB collection ID)
-          products: populatedProductsForThisCollection, // This is the hydrated array of product objects
+          ...wizardOrAiCollection, 
+          ...dbEquivalentCollectionData, 
+          image: { src: finalCollectionImageSrc }, // Ensure image.src structure
+          products: populatedProductsForThisCollection, 
         };
       });
     }
@@ -921,125 +1081,95 @@ const finalizeBigCommerceImportFromWizard = async () => {
 
 
   const getStoreById = (id) => stores.find(store => store.id === id) || null;
+
+  const getStoreBySlug = useCallback(async (slug) => {
+    if (!slug) return null;
+    setIsLoadingStores(true);
+    try {
+      const { data: storeFromDb, error: storeError } = await supabase
+        .from('stores')
+        .select('*')
+        .eq('slug', slug)
+        .eq('status', 'published') // Ensure only published stores are fetched by slug
+        .single();
+
+      if (storeError || !storeFromDb) {
+        if (storeError && storeError.code !== 'PGRST116') { // PGRST116: "Searched item was not found"
+          console.error(`[StoreContext] Error fetching store by slug ${slug}:`, storeError);
+        }
+        return null;
+      }
+
+      // Fetch products for this store
+      const { data: productsFromDb, error: productsError } = await supabase
+        .from('platform_products')
+        .select('*')
+        .eq('store_id', storeFromDb.id);
+
+      if (productsError) {
+        console.error(`[StoreContext] Error loading products for store ${storeFromDb.id} (slug: ${slug}):`, productsError.message);
+      }
+      const mappedProducts = productsFromDb ? productsFromDb.map(dbProduct => {
+        let imageStructure = { src: { large: '', medium: '' } };
+        if (dbProduct.images && Array.isArray(dbProduct.images) && dbProduct.images.length > 0) {
+          imageStructure.src.large = dbProduct.images[0];
+          imageStructure.src.medium = dbProduct.images[0];
+        }
+        return {
+          ...dbProduct,
+          price: dbProduct.priceAmount,
+          image: imageStructure,
+        };
+      }) : [];
+
+      // Fetch collections for this store
+      let mappedCollections = [];
+      const { data: rawCollectionsFromDb, error: collectionsError } = await supabase
+        .from('store_collections')
+        .select('*')
+        .eq('store_id', storeFromDb.id);
+
+      if (collectionsError) {
+        console.error(`[StoreContext] Error loading collections for store ${storeFromDb.id} (slug: ${slug}):`, collectionsError.message);
+      } else if (rawCollectionsFromDb && rawCollectionsFromDb.length > 0) {
+        mappedCollections = await Promise.all(rawCollectionsFromDb.map(async (collection) => {
+          const { data: productLinks, error: linksError } = await supabase
+            .from('collection_products')
+            .select('product_id')
+            .eq('collection_id', collection.id);
+
+          let collectionProducts = [];
+          if (linksError) {
+            console.error(`[StoreContext] Error loading product links for collection ${collection.id}:`, linksError.message);
+          } else if (productLinks && productLinks.length > 0) {
+            const productIdsForCollection = productLinks.map(link => link.product_id);
+            collectionProducts = mappedProducts.filter(p => productIdsForCollection.includes(p.id));
+          }
+          return { 
+            ...collection, 
+            image: { src: collection.image_url || '' },
+            products: collectionProducts 
+          };
+        }));
+      }
+      
+      return { ...storeFromDb, products: mappedProducts, collections: mappedCollections };
+
+    } catch (error) {
+      console.error(`[StoreContext] Critical error in getStoreBySlug for slug ${slug}:`, error);
+      return null;
+    } finally {
+      setIsLoadingStores(false);
+    }
+  }, [supabase, setIsLoadingStores]);
   
   const getProductById = (storeId, productId) => {
     const store = getStoreById(storeId);
     return store?.products.find(p => p.id === productId) || null;
   };
 
-  const updateStore = async (storeId, updates) => {
-    // Local state will still update with settings for immediate UI feedback
-    const storeWithFullUpdates = stores.find(s => s.id === storeId);
-    let updatedLocalStore = null;
-    if (storeWithFullUpdates) {
-      updatedLocalStore = { ...storeWithFullUpdates, ...updates };
-    }
-
-    if (!user) {
-      // Handle local-only updates if no user is logged in
-      setStores(prevStores => {
-        const newStores = prevStores.map(store => {
-          if (store.id === storeId) {
-            return updatedLocalStore || { ...store, ...updates }; // Use the fully updated local store
-          }
-          return store;
-        });
-        try {
-          localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(newStores)));
-        } catch (e) {
-          console.error('Failed to save stores to localStorage during local-only update:', e);
-          toast({
-            title: 'Local Cache Update Failed',
-            description: 'Could not update the local cache for the store (local-only).',
-            variant: 'warning',
-            duration: 7000,
-          });
-        }
-        
-        // Update currentStore if it's the one being modified
-        if (currentStore && currentStore.id === storeId) {
-           setCurrentStore(prevCurrent => prevCurrent ? { ...prevCurrent, ...updates } : null);
-        }
-        return newStores;
-      });
-      toast({ title: 'Store Updated (Locally)', description: 'Changes saved locally.' });
-      return; // Exit if no user, as Supabase update won't happen
-    }
-
-    // If user exists, proceed with Supabase update
-    setIsLoadingStores(true); // Indicate loading state during Supabase operation
-    try {
-      // Exclude 'settings' from data sent to Supabase to prevent schema error
-      const { settings, ...updatesForSupabase } = updates;
-
-      const { data: updatedStoreFromSupabase, error } = await supabase
-        .from('stores')
-        .update(updatesForSupabase) // 'settings' is not included here
-        .eq('id', storeId)
-        .eq('merchant_id', user.id) // Changed user_id to merchant_id
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error updating store in Supabase:', error);
-        toast({ title: 'Update Failed (Cloud)', description: `${error.message}. Settings were not saved to the cloud.`, variant: 'destructive' });
-        // Still update local state to reflect UI changes, even if cloud save failed for settings
-        setStores(prevStores => {
-          const newStores = prevStores.map(s => 
-            s.id === storeId ? (updatedLocalStore || { ...s, ...updates }) : s
-          );
-          try {
-            localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(newStores)));
-          } catch (e) {
-            console.error('Failed to save stores to localStorage after Supabase update error:', e);
-            toast({
-              title: 'Local Cache Update Failed',
-              description: 'Could not update the local cache after a cloud update issue.',
-              variant: 'warning',
-              duration: 7000,
-            });
-          }
-          return newStores;
-        });
-        if (currentStore && currentStore.id === storeId) {
-          setCurrentStore(prevCurrent => updatedLocalStore || (prevCurrent ? {...prevCurrent, ...updates} : null) );
-        }
-        setIsLoadingStores(false);
-        return;
-      }
-
-      // If Supabase update is successful for other fields, merge with local settings for UI consistency
-      const finalUpdatedStore = { ...updatedStoreFromSupabase, settings: updatedLocalStore?.settings || storeWithFullUpdates?.settings || {} };
-
-      setStores(prevStores => {
-        const newStores = prevStores.map(store =>
-          store.id === storeId ? finalUpdatedStore : store
-        );
-        try {
-          localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(newStores)));
-        } catch (e) {
-          console.error('Failed to save stores to localStorage after successful Supabase update:', e);
-          toast({
-            title: 'Local Cache Update Failed',
-            description: 'Could not fully update the local cache after saving to cloud.',
-            variant: 'warning',
-            duration: 7000,
-          });
-        }
-        return newStores;
-      });
-
-      if (currentStore && currentStore.id === storeId) {
-        setCurrentStore(finalUpdatedStore);
-      }
-      toast({ title: 'Store Updated', description: 'Store details updated successfully.' });
-    } catch (e) {
-        console.error('Unexpected error in updateStore:', e);
-        toast({ title: 'Update Error', description: 'An unexpected error occurred.', variant: 'destructive' });
-    } finally {
-        setIsLoadingStores(false);
-    }
-  };
+  // The old updateStore location is now removed.
+  // The correct updateStore is defined earlier and wrapped in useCallback.
 
   const updateStorePassKey = async (storeId, passKey) => {
     if (!user) {
@@ -1268,7 +1398,7 @@ const finalizeBigCommerceImportFromWizard = async () => {
     const currentStoreState = stores.find(s => s.id === storeId);
     if (!currentStoreState) {
       console.warn(`[getUpdatesForVersion] Store with ID ${storeId} not found.`);
-      return { template_version: targetVersion }; 
+      return { template_version: targetVersion };
     }
 
     let updates = { template_version: targetVersion };
@@ -1279,14 +1409,18 @@ const finalizeBigCommerceImportFromWizard = async () => {
       if (themeFromCurrent.fontFamily === 'Inter' || currentActualVersion !== 'v2') {
         updates.theme = { ...themeFromCurrent, fontFamily: 'Montserrat' };
       } else {
-        updates.theme = { ...themeFromCurrent }; 
+        updates.theme = { ...themeFromCurrent };
       }
     } else if (targetVersion === 'v1') {
-      if (themeFromCurrent.fontFamily === 'Montserrat' && currentActualVersion === 'v2') {
+      if ((themeFromCurrent.fontFamily === 'Montserrat' || themeFromCurrent.fontFamily === 'PremiumMain') && (currentActualVersion === 'v2' || currentActualVersion === 'premium')) {
         updates.theme = { ...themeFromCurrent, fontFamily: 'Inter' };
       } else {
         updates.theme = { ...themeFromCurrent };
       }
+    } else if (targetVersion === 'premium') {
+      // For premium, we can define a specific font or other theme properties
+      // For now, let's assume it might use its own font or inherit and override later
+      updates.theme = { ...themeFromCurrent, fontFamily: 'PremiumMain' }; // Example: 'PremiumMain'
     }
     return updates;
   }, [stores]);
@@ -1305,14 +1439,18 @@ const finalizeBigCommerceImportFromWizard = async () => {
     await updateStore(storeId, updatesForNewVersion);
     
     // Toast the final state, reflecting the actual newVersion
-    toast({ title: 'Template Updated', description: `Store template is now ${newVersion === 'v1' ? 'Classic' : (newVersion === 'v2' ? 'Modern' : newVersion)}.` });
+    let templateName = newVersion;
+    if (newVersion === 'v1') templateName = 'Classic';
+    else if (newVersion === 'v2') templateName = 'Modern';
+    else if (newVersion === 'premium') templateName = 'Premium';
+    toast({ title: 'Template Updated', description: `Store template is now ${templateName}.` });
   };
 
-  const value = { 
+  const value = {
     stores, currentStore, isGenerating, isLoadingStores, cart, user,
-    generateStore,
+    generateStore, updateStoreTextContent, // Added updateStoreTextContent
     // importShopifyStore, // Replaced by wizard functions
-    getStoreById, updateStore, deleteStore, setCurrentStore, updateStorePassKey, assignStoreManager, updateStoreTemplateVersion,
+    getStoreById, getStoreBySlug, updateStore, deleteStore, setCurrentStore, updateStorePassKey, assignStoreManager, updateStoreTemplateVersion, // Added getStoreBySlug
     getProductById, updateProductImage, generateStoreFromWizard,
     addToCart, removeFromCart, updateQuantity, clearCart,
     generateAIProducts: generateAIProductsData,

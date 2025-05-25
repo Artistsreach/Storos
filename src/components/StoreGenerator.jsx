@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { Input } from '@/components/ui/input'; // Added Input
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Wand2, Loader2 } from 'lucide-react';
@@ -22,19 +23,36 @@ const promptExamples = [
 ];
 
 const StoreGenerator = () => {
+  const [storeName, setStoreName] = useState(''); // Added storeName state
   const [prompt, setPrompt] = useState('');
   const [selectedExample, setSelectedExample] = useState(null);
   const { generateStore, isGenerating } = useStore();
 
   const handleExampleClick = (index) => {
     setSelectedExample(index);
-    setPrompt(promptExamples[index]);
+    // Extract name from example if possible, or clear name field
+    const examplePrompt = promptExamples[index];
+    // Basic extraction: "store called 'NAME'" or "store named 'NAME'"
+    const nameMatch = examplePrompt.match(/store (?:called|named) '([^']+)'/i);
+    if (nameMatch && nameMatch[1]) {
+      setStoreName(nameMatch[1]);
+      // Set prompt to the rest of the example, or the full example if name extraction is complex
+      // For simplicity, we can let user adjust the prompt after selecting an example.
+      // Or, remove the name part from the prompt if we are confident.
+      // For now, let's set the full prompt and let user refine.
+      setPrompt(examplePrompt); 
+    } else {
+      setStoreName(''); // Clear name if not found in example
+      setPrompt(examplePrompt);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!prompt.trim()) return;
-    await generateStore(prompt);
+    if (!storeName.trim() || !prompt.trim()) return;
+    // Pass storeName and prompt to the generateStore function
+    // The generateStore function in StoreContext will need to handle these two arguments
+    await generateStore(prompt, storeName); 
   };
 
   return (
@@ -46,21 +64,41 @@ const StoreGenerator = () => {
     >
       <Card className="border-2 shadow-lg">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold">Generate Store with AI Prompt</CardTitle>
+          <CardTitle className="text-2xl font-bold">Generate Store with AI</CardTitle>
           <CardDescription>
-            Describe your dream store in detail. The AI will use your store name, product types, and style preferences to create it.
+            Enter your store name, then describe its products, style, and any other details. The AI will bring it to life.
           </CardDescription>
         </CardHeader>
         
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <Textarea
-              placeholder="e.g., 'A vibrant bookstore named BookNook, specializing in fantasy novels and graphic novels. Use a cozy, warm color palette with lots of wood textures. Feature at least 6 book products.'"
-              className="min-h-[120px] text-base resize-none"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
+            <div>
+              <label htmlFor="storeName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Store Name
+              </label>
+              <Input
+                id="storeName"
+                type="text"
+                placeholder="e.g., BookNook, FutureTech, Elegance"
+                className="text-base"
+                value={storeName}
+                onChange={(e) => setStoreName(e.target.value)}
+                disabled={isGenerating}
+              />
+            </div>
+            <div>
+              <label htmlFor="storePrompt" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                AI Prompt (Store Details)
+              </label>
+              <Textarea
+                id="storePrompt"
+                placeholder="e.g., 'A vibrant bookstore specializing in fantasy novels and graphic novels. Use a cozy, warm color palette with lots of wood textures. Feature at least 6 book products.'"
+                className="min-h-[120px] text-base resize-none"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
               disabled={isGenerating}
             />
+            </div> {/* Closing div for the AI Prompt section */}
             
             <div className="space-y-2">
               <p className="text-sm font-medium text-muted-foreground">Or try one of these examples for inspiration:</p>
@@ -85,7 +123,7 @@ const StoreGenerator = () => {
         <CardFooter>
           <Button 
             onClick={handleSubmit}
-            disabled={!prompt.trim() || isGenerating}
+            disabled={!storeName.trim() || !prompt.trim() || isGenerating}
             className="w-full"
             size="lg"
           >

@@ -172,7 +172,7 @@ const Header = () => {
     <>
       {/* Announcement Bar */}
       {!loadingProfile && !isStripeConnected && (
-        <div className="bg-blue-600 text-white py-2 px-4 text-center text-sm">
+        <div className="bg-red-600 text-white py-2 px-4 text-center text-sm">
           <button onClick={handleCreateStripeConnectAccount} disabled={isStripeActionLoading} className="hover:underline focus:outline-none">
             {isStripeActionLoading ? 'Processing...' : "Create A Business to Activate Checkout"}
           </button>

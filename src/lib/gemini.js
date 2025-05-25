@@ -185,3 +185,52 @@ export async function generateImagePromptSuggestions(productInfo) {
     return { error: `Error generating image prompt suggestions: ${error.message}` };
   }
 }
+
+export async function extractExplicitStoreNameFromPrompt(promptContent) {
+  if (!apiKey) {
+    console.error("API Key not configured. Cannot extract store name.");
+    return null; // Return null or an object like { name: null, error: "API Key missing." }
+  }
+
+  const genAI = new GoogleGenAI({ apiKey });
+
+  const extractStoreNameFunctionDeclaration = {
+    name: 'extract_store_name',
+    description: 'Extracts the desired store name if explicitly mentioned in the prompt using phrases like "store called \'My Store\'", "named \'My Store\'", or "store \'My Store\'". The name should be the direct object of such phrases.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        storeName: {
+          type: Type.STRING,
+          description: 'The explicitly mentioned name of the store.',
+        },
+      },
+      required: ['storeName'],
+    },
+  };
+
+  try {
+    const result = await genAI
+      .getGenerativeModel({ model: "gemini-pro" }) // Using gemini-pro as it's good for function calling
+      .generateContent({
+        contents: [{ role: "user", parts: [{text: promptContent}]}],
+        tools: [{ functionDeclarations: [extractStoreNameFunctionDeclaration] }],
+        // toolConfig: { functionCallingConfig: { mode: "ANY" } } // Optional: force a function call if appropriate
+      });
+    
+    const response = result.response;
+    const fc = response.functionCalls();
+
+    if (fc && fc.length > 0 && fc[0].name === 'extract_store_name' && fc[0].args && fc[0].args.storeName) {
+      console.log(`[extractExplicitStoreName] Gemini identified store name: ${fc[0].args.storeName}`);
+      return fc[0].args.storeName;
+    } else {
+      console.log("[extractExplicitStoreName] Gemini did not identify an explicit store name via function call.");
+      // console.log("Full response for debugging:", JSON.stringify(response, null, 2));
+      return null;
+    }
+  } catch (error) {
+    console.error("Error during Gemini store name extraction:", error);
+    return null; // Indicate failure to extract
+  }
+}

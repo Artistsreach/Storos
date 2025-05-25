@@ -1,0 +1,102 @@
+/* Import premium fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap');
+
+:root {
+  /* Primary Colors */
+  --premium-primary: #1a1a1a;
+  --premium-primary-light: #2d2d2d;
+  --premium-accent: #ff6b35;
+  --premium-accent-hover: #e55a2b;
+  
+  /* Neutrals */
+  --premium-white: #ffffff;
+  --premium-gray-50: #fafafa;
+  --premium-gray-100: #f5f5f5;
+  --premium-gray-200: #e5e5e5;
+  --premium-gray-800: #262626;
+  --premium-gray-900: #171717;
+  
+  /* Gradients */
+  /* Default fallback values for the gradient colors */
+  --premium-gradient-start-color: #667eea; /* Default primary-like color */
+  --premium-gradient-end-color: #764ba2;   /* Default secondary-like color */
+  --premium-gradient-primary: linear-gradient(135deg, var(--premium-gradient-start-color) 0%, var(--premium-gradient-end-color) 100%);
+  --premium-gradient-accent: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+  --premium-gradient-dark: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+}
+
+.premium-font-display {
+  font-family: 'Playfair Display', serif;
+}
+
+.premium-font-body {
+  font-family: 'Inter', sans-serif;
+}
+
+/* Example Premium Button Styles (to be expanded) */
+.premium-btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none; /* For anchor tags styled as buttons */
+}
+
+.premium-btn--primary {
+  background-color: var(--premium-accent);
+  color: var(--premium-white);
+}
+
+.premium-btn--primary:hover {
+  background-color: var(--premium-accent-hover);
+}
+
+.premium-btn--secondary {
+  background-color: var(--premium-primary-light);
+  color: var(--premium-white);
+  border: 1px solid var(--premium-accent);
+}
+.premium-btn--secondary:hover {
+  background-color: var(--premium-accent);
+  border-color: var(--premium-accent-hover);
+}
+
+.premium-btn--ghost {
+  background-color: transparent;
+  color: var(--premium-primary);
+  border: 1px solid var(--premium-gray-200);
+}
+.premium-btn--ghost:hover {
+  background-color: var(--premium-gray-50);
+  border-color: var(--premium-gray-800);
+}
+
+.premium-btn__icon {
+  margin-right: 0.5rem;
+}
+
+.premium-btn--loading {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Add more global premium styles here */
+body.premium-theme { /* Example: apply to body when premium theme is active */
+  background-color: var(--premium-gray-50);
+  color: var(--premium-primary);
+  font-family: var(--premium-font-body);
+}
+
+.dark body.premium-theme {
+    background-color: var(--premium-gray-900);
+    color: var(--premium-gray-100);
+}
+
+.bg-premium-gradient {
+  background: var(--premium-gradient-primary);
+}

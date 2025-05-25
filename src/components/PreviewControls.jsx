@@ -10,15 +10,18 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select'; // Import Select components
-import { ArrowLeft, Edit, Download, Copy, Eye, EyeOff, Sparkles, Palette } from 'lucide-react'; // Added Sparkles and Palette
+import { ArrowLeft, Edit, Download, Copy, Eye, EyeOff, Sparkles, Palette, UploadCloud } from 'lucide-react'; // Added Sparkles, Palette, and UploadCloud
 import { useToast } from '@/components/ui/use-toast';
 import { useStore } from '@/contexts/StoreContext'; // Import useStore
+import PublishStoreModal from '@/components/store/PublishStoreModal'; // Added import
+import { useState } from 'react'; // Added import
 
 const PreviewControls = ({ store, onEdit }) => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { viewMode, setViewMode, updateStoreTemplateVersion, currentStore } = useStore(); // Get viewMode, setViewMode and updateStoreTemplateVersion
-  
+  const { viewMode, setViewMode, updateStoreTemplateVersion, currentStore, updateStore } = useStore(); 
+  const [isPublishModalOpen, setIsPublishModalOpen] = useState(false); // Added state
+
   const handleExport = () => {
     // In a real implementation, this would generate and download the store code
     toast({
@@ -36,10 +39,20 @@ const PreviewControls = ({ store, onEdit }) => {
   };
   
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(`${window.location.origin}/store/${store.id}`); 
+    let linkToCopy;
+    // Use currentStore from context as it's more likely to be up-to-date after a publish action
+    if (currentStore && currentStore.status === 'published' && currentStore.slug) {
+      linkToCopy = `https://freshfront.co/${currentStore.slug}`;
+    } else if (store?.slug && store?.status === 'published') { // Fallback to prop if currentStore isn't updated yet
+      linkToCopy = `https://freshfront.co/${store.slug}`;
+    }
+    else {
+      linkToCopy = `${window.location.origin}/store/${store.id}`; 
+    }
+    navigator.clipboard.writeText(linkToCopy); 
     toast({
       title: 'Link Copied',
-      description: 'Store link has been copied to clipboard.',
+      description: `Copied: ${linkToCopy}`,
     });
   };
 
@@ -64,8 +77,37 @@ const PreviewControls = ({ store, onEdit }) => {
     }
     onEdit(); // This opens the EditStoreForm modal
   };
+
+  const openPublishModal = () => {
+    setIsPublishModalOpen(true);
+  };
+
+  const handleConfirmPublish = async (customSlug) => {
+    if (store && store.id) {
+      try {
+        await updateStore(store.id, { 
+          published_at: new Date().toISOString(), 
+          status: 'published',
+          slug: customSlug 
+        });
+        toast({
+          title: 'Store Published!',
+          description: `${store.name} is now live at freshfront.co/${customSlug}`,
+          className: 'bg-green-500 text-white',
+        });
+      } catch (error) {
+        console.error("Failed to publish store:", error);
+        toast({
+          title: 'Publish Failed',
+          description: 'Could not publish the store. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    }
+  };
   
   return (
+    <> {/* Added Fragment */}
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -118,10 +160,14 @@ const PreviewControls = ({ store, onEdit }) => {
                 <SelectContent>
                   <SelectItem value="v1">Classic Template</SelectItem>
                   <SelectItem value="v2">Modern Template</SelectItem>
+                  <SelectItem value="premium">Premium Template</SelectItem>
+                  <SelectItem value="sharp">Sharp Template</SelectItem>
+                  <SelectItem value="fresh">Fresh Template</SelectItem>
+                  <SelectItem value="sleek">Sleek Template</SelectItem>
                 </SelectContent>
               </Select>
 
-              <Button 
+              <Button
                 size="sm"
                 onClick={handleEditStoreClick} // Updated handler
               >
@@ -139,7 +185,7 @@ const PreviewControls = ({ store, onEdit }) => {
           >
             {viewMode === 'edit' ? (
               <>
-                <Eye className="mr-2 h-4 w-4" /> View as Consumer
+                <Eye className="mr-2 h-4 w-4" /> Customer View
               </>
             ) : (
               <>
@@ -147,9 +193,27 @@ const PreviewControls = ({ store, onEdit }) => {
               </>
             )}
           </Button>
+
+          {viewMode === 'published' && (
+            <Button
+              size="sm"
+              onClick={openPublishModal} // Changed to open modal
+              className="bg-green-500 hover:bg-green-600 text-white"
+            >
+              <UploadCloud className="mr-2 h-4 w-4" />
+              Publish
+            </Button>
+          )}
         </div>
       </div>
     </motion.div>
+    <PublishStoreModal
+      open={isPublishModalOpen}
+      onOpenChange={setIsPublishModalOpen}
+      store={store}
+      onConfirmPublish={handleConfirmPublish}
+    />
+    </> // Added Fragment
   );
 };
 
