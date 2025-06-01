@@ -46,3 +46,19 @@
 [debug] [2025-06-01T18:40:27.988Z] No OAuth tokens found
 [debug] [2025-06-01T18:40:28.285Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
 [debug] [2025-06-01T18:40:28.327Z] Running auto auth
+[debug] [2025-06-01T18:59:43.708Z] No OAuth tokens found
+[debug] [2025-06-01T18:59:43.713Z] No OAuth tokens found
+[debug] [2025-06-01T18:59:43.715Z] No OAuth tokens found
+[debug] [2025-06-01T18:59:43.715Z] No OAuth tokens found
+[debug] [2025-06-01T18:59:43.716Z] No OAuth tokens found
+[debug] [2025-06-01T18:59:43.716Z] No OAuth tokens found
+[debug] [2025-06-01T18:59:43.717Z] No OAuth tokens found
+[debug] [2025-06-01T18:59:43.718Z] No OAuth tokens found
+[debug] [2025-06-01T18:59:43.718Z] No OAuth tokens found
+[debug] [2025-06-01T18:59:43.719Z] No OAuth tokens found
+[debug] [2025-06-01T18:59:43.720Z] No OAuth tokens found
+[debug] [2025-06-01T18:59:43.720Z] No OAuth tokens found
+[debug] [2025-06-01T18:59:43.720Z] No OAuth tokens found
+[debug] [2025-06-01T18:59:43.722Z] No OAuth tokens found
+[debug] [2025-06-01T18:59:44.033Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-06-01T18:59:44.081Z] Running auto auth
