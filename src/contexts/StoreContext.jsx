@@ -1105,13 +1105,21 @@ const finalizeBigCommerceImportFromWizard = async () => {
   };
 
 
-  const getStoreById = (id) => stores.find(store => store.id === id) || null;
-  const getStoreByName = (name) => stores.find(store => generateStoreUrl(store.name) === name) || null;
+  const getStoreById = useCallback((id) => {
+    const foundStore = stores.find(store => store.id === id);
+    return foundStore ? { ...foundStore } : null; // Return a new object
+  }, [stores]);
   
-  const getProductById = (storeId, productId) => {
-    const store = getStoreById(storeId);
-    return store?.products.find(p => p.id === productId) || null;
-  };
+  const getStoreByName = useCallback((name) => { // Also wrap getStoreByName for consistency
+    const foundStore = stores.find(store => generateStoreUrl(store.name) === name);
+    return foundStore ? { ...foundStore } : null; // Return a new object
+  }, [stores]);
+  
+  const getProductById = useCallback((storeId, productId) => {
+    const store = getStoreById(storeId); // This will now use the useCallback version of getStoreById
+    const foundProduct = store?.products.find(p => p.id === productId);
+    return foundProduct ? { ...foundProduct } : null; // Return a new object
+  }, [getStoreById]); // Dependency is getStoreById (which depends on stores)
 
   // The old updateStore location is now removed.
   // The correct updateStore is defined earlier and wrapped in useCallback.
