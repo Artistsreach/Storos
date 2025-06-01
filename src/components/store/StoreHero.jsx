@@ -260,6 +260,10 @@ const StoreHero = ({ store, isPublishedView = false }) => {
           <motion.div
             variants={itemVariants}
             className="text-center lg:text-left space-y-8 lg:space-y-10"
+            initial={{ opacity: 0, x: -50 }} // Add initial state for slide-in
+            whileInView={{ opacity: 1, x: 0 }} // Add whileInView for scroll-triggered animation
+            viewport={{ once: true, amount: 0.3 }} // Configure viewport for the animation
+            transition={{ duration: 0.8, ease: "easeOut" }} // Add transition for smoothness
           >
             {/* Badge */}
             <motion.div
@@ -280,8 +284,8 @@ const StoreHero = ({ store, isPublishedView = false }) => {
             {/* Main Title */}
             <InlineTextEdit
               initialText={title}
-              onSave={updateStoreTextContent}
-              identifier="content.heroTitle"
+              onSave={(newText) => updateStoreTextContent('content.heroTitle', newText)}
+              isAdmin={!isPublishedView}
               as="h1" // The Tag component will be h1
               textClassName="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-[7.5rem] font-bold leading-none tracking-tighter font-poppins text-white drop-shadow-xl" // Decreased sizes by approx 1/4
               className="w-full" // Basic class for the container Tag if needed
@@ -289,7 +293,7 @@ const StoreHero = ({ store, isPublishedView = false }) => {
               <motion.span
                 className="bg-clip-text text-transparent" // Shimmer effect applied here
                 style={{
-                  backgroundImage: `linear-gradient(110deg, ${primaryColor} 20%, #ffffff 50%, ${primaryColor} 80%)`, // Adjusted gradient for better visibility on video
+                  backgroundImage: `linear-gradient(110deg, #ffffff 20%, ${primaryColor} 50%, #ffffff 80%)`, // White base, primaryColor shimmer
                   backgroundSize: "250% 100%", // Wider gradient for smoother shimmer
                 }}
                 animate={{
@@ -308,8 +312,9 @@ const StoreHero = ({ store, isPublishedView = false }) => {
             {/* Subtitle */}
             <InlineTextEdit
               initialText={subtitle}
-              onSave={updateStoreTextContent}
-              identifier="content.heroDescription"
+              onSave={(newText) => updateStoreTextContent('content.heroDescription', newText)}
+              isAdmin={!isPublishedView}
+              useTextarea={true}
               as="p" // The Tag component will be p
               textClassName="text-3xl md:text-4xl lg:text-5xl font-semibold text-slate-100 dark:text-slate-200 max-w-3xl mx-auto lg:mx-0 leading-relaxed drop-shadow-lg" // Moved to textClassName
               className="w-full" // Basic class for the container Tag if needed

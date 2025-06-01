@@ -22,25 +22,49 @@ import {
 } from "lucide-react";
 import { Button } from "../../ui/button";
 import { Switch } from "../../ui/switch";
-import { useStore } from "../../../contexts/StoreContext";
+import { useStore } from "../../../contexts/StoreContext"; // Adjusted path
 import { Link, useNavigate } from "react-router-dom";
-import { Badge } from "../../ui/badge";
+import { Badge } from "../../ui/badge"; // Adjusted path
 import InlineTextEdit from "../../ui/InlineTextEdit";
 import { ScrollArea } from "../../ui/scroll-area";
 import { Separator } from "../../ui/separator";
 import { cn } from "../../../lib/utils";
 
-const Header = ({ store, isPublishedView = false }) => { // Renamed component
-  const { name, theme, logo_url: logoUrl, id: storeId, settings } = store;
+const Header = ({ store, isPublishedView = false }) => {
+  const { 
+    name, 
+    theme: storeTheme, 
+    logo_url_light: logoUrlLight, // For dark backgrounds
+    logo_url_dark: logoUrlDark,   // For light backgrounds
+    id: storeId, 
+    settings 
+  } = store;
   const {
     cart,
     removeFromCart,
     updateQuantity,
     updateStoreTextContent,
     viewMode,
+    store: contextStore, // Get store from context for theme
   } = useStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
+
+  const theme = contextStore?.theme || storeTheme; // Prioritize contextStore theme
+  const primaryColor = theme?.primaryColor || "#6366F1";
+
+  // Helper function to generate a slightly darker shade
+  const getDarkerShade = (color, percent = 20) => {
+    if (!color.startsWith("#")) return color;
+    let num = parseInt(color.slice(1), 16),
+      amt = Math.round(2.55 * percent),
+      R = (num >> 16) - amt,
+      G = (num >> 8 & 0x00FF) - amt,
+      B = (num & 0x0000FF) - amt;
+    R = Math.max(0, R); G = Math.max(0, G); B = Math.max(0, B);
+    return "#" + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+  };
+  const secondaryColor = getDarkerShade(primaryColor, 20);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -207,26 +231,47 @@ const Header = ({ store, isPublishedView = false }) => { // Renamed component
       >
         <div className="container mx-auto px-6 flex items-center justify-between">
           <Link to={basePath} className="flex items-center gap-3 group">
-            {logoUrl && (
+            {(isDarkMode ? logoUrlLight : logoUrlDark) ? (
               <motion.div
                 className="relative"
                 whileHover={{ scale: 1.05 }}
                 transition={{ type: "spring", stiffness: 400, damping: 10 }}
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-300" />
+                <div
+                  className="absolute inset-0 rounded-full blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-300"
+                  style={{ background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` }}
+                />
                 <img
-                  src={logoUrl}
+                  src={isDarkMode ? logoUrlLight : logoUrlDark}
                   alt={`${name} logo`}
                   className="h-12 w-12 object-contain relative z-10 rounded-full"
                 />
               </motion.div>
-            )}
+            ) : (logoUrlLight || logoUrlDark) ? ( // Fallback
+              <motion.div
+                className="relative"
+                whileHover={{ scale: 1.05 }}
+                transition={{ type: "spring", stiffness: 400, damping: 10 }}
+              >
+                 <img
+                  src={logoUrlLight || logoUrlDark}
+                  alt={`${name} logo (fallback)`}
+                  className="h-12 w-12 object-contain relative z-10 rounded-full"
+                />
+              </motion.div>
+            ) : null}
             <InlineTextEdit
               initialText={name}
               onSave={updateStoreTextContent}
               identifier="name"
               as="span"
-              className="font-bold text-2xl tracking-tight bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent premium-font-display group-hover:from-purple-600 group-hover:to-pink-600 transition-all duration-300"
+              className="font-bold text-2xl tracking-tight bg-clip-text text-transparent premium-font-display transition-all duration-300"
+              style={{
+                backgroundImage: `linear-gradient(to right, ${document.documentElement.classList.contains('dark') ? '#FFFFFF' : '#1F2937'}, ${document.documentElement.classList.contains('dark') ? '#D1D5DB' : '#4B5563'})`,
+                '--group-hover-image': `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundImage = `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundImage = `linear-gradient(to right, ${document.documentElement.classList.contains('dark') ? '#FFFFFF' : '#1F2937'}, ${document.documentElement.classList.contains('dark') ? '#D1D5DB' : '#4B5563'})`}
             >
               {name}
             </InlineTextEdit>
@@ -247,13 +292,20 @@ const Header = ({ store, isPublishedView = false }) => { // Renamed component
                   as="a"
                   href={link.href}
                   onClick={(e) => handleNavLinkClick(e, link.href)}
-                  className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition-all duration-300 relative group premium-font-body"
+                  className="text-sm font-medium text-gray-700 dark:text-gray-300 transition-all duration-300 relative group premium-font-body"
+                  style={{ '--hover-text-color': primaryColor, '--dark-hover-text-color': secondaryColor }}
+                  onMouseEnter={(e) => e.currentTarget.style.color = document.documentElement.classList.contains('dark') ? secondaryColor : primaryColor}
+                  onMouseLeave={(e) => e.currentTarget.style.color = ''}
                 >
                   {link.label}
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-purple-600 to-pink-600 transition-all duration-300 group-hover:w-full" />
+                  <span
+                    className="absolute -bottom-1 left-0 w-0 h-0.5 transition-all duration-300 group-hover:w-full"
+                    style={{ background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` }}
+                  />
                   <motion.div
-                    className="absolute inset-0 bg-purple-100 dark:bg-purple-900/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10"
-                    layoutId="navHover"
+                    className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10"
+                    style={{ backgroundColor: `${primaryColor}1A` }}
+                    layoutId={`navHover-${link.identifier}`}
                   />
                 </InlineTextEdit>
               </motion.div>
@@ -266,7 +318,16 @@ const Header = ({ store, isPublishedView = false }) => { // Renamed component
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all duration-300 rounded-full"
+                className="text-gray-600 dark:text-gray-400 transition-all duration-300 rounded-full"
+                style={{ '--hover-text-color': primaryColor, '--dark-hover-text-color': secondaryColor, '--hover-bg-color': `${primaryColor}1A` }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = document.documentElement.classList.contains('dark') ? secondaryColor : primaryColor;
+                  e.currentTarget.style.backgroundColor = `${primaryColor}1A`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = '';
+                  e.currentTarget.style.backgroundColor = '';
+                }}
                 onClick={() => setIsSearchOpen(true)}
               >
                 <Search className="h-5 w-5" />
@@ -278,14 +339,23 @@ const Header = ({ store, isPublishedView = false }) => { // Renamed component
               <Button
                 variant="ghost"
                 size="icon"
-                className="hidden sm:flex text-gray-600 dark:text-gray-400 hover:text-pink-600 dark:hover:text-pink-400 hover:bg-pink-50 dark:hover:bg-pink-900/20 transition-all duration-300 relative rounded-full"
+                className="hidden sm:flex text-gray-600 dark:text-gray-400 transition-all duration-300 relative rounded-full"
+                style={{ '--hover-text-color': secondaryColor, '--dark-hover-text-color': primaryColor, '--hover-bg-color': `${secondaryColor}1A` }} // Using secondary for pink-like
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = document.documentElement.classList.contains('dark') ? primaryColor : secondaryColor;
+                  e.currentTarget.style.backgroundColor = `${secondaryColor}1A`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = '';
+                  e.currentTarget.style.backgroundColor = '';
+                }}
               >
                 <Heart className="h-5 w-5" />
                 {wishlistCount > 0 && (
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className="absolute -top-2 -right-2 h-5 w-5 bg-gradient-to-r from-pink-500 to-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold"
+                    className="absolute -top-2 -right-2 h-5 w-5 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full flex items-center justify-center font-bold" // Keep this as is for high visibility
                   >
                     {wishlistCount}
                   </motion.div>
@@ -323,7 +393,14 @@ const Header = ({ store, isPublishedView = false }) => { // Renamed component
             {/* Cart button */}
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button
-                className="relative flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-0 rounded-full px-6 py-2 shadow-lg hover:shadow-xl transition-all duration-300"
+                className="relative flex items-center gap-2 text-white border-0 rounded-full px-6 py-2 shadow-lg hover:shadow-xl transition-all duration-300"
+                style={{ background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` }}
+                onMouseEnter={(e) => {
+                  const hoverPrimary = getDarkerShade(primaryColor, -15); // Explicitly lighten for hover
+                  const hoverSecondary = getDarkerShade(secondaryColor, -15); // Explicitly lighten for hover
+                  e.currentTarget.style.background = `linear-gradient(to right, ${hoverPrimary}, ${hoverSecondary})`;
+                }}
+                onMouseLeave={(e) => e.currentTarget.style.background = `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`}
                 onClick={() => setIsCartOpen(true)}
               >
                 <ShoppingCart className="h-5 w-5" />
@@ -331,7 +408,7 @@ const Header = ({ store, isPublishedView = false }) => { // Renamed component
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className="absolute -top-2 -right-2 h-6 w-6 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold shadow-lg"
+                    className="absolute -top-2 -right-2 h-6 w-6 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold shadow-lg" // Keep this as is for high visibility
                   >
                     {cartItemCount}
                   </motion.div>
@@ -347,7 +424,16 @@ const Header = ({ store, isPublishedView = false }) => { // Renamed component
               <Button
                 variant="ghost"
                 size="icon"
-                className="lg:hidden text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all duration-300 rounded-full"
+                className="lg:hidden text-gray-600 dark:text-gray-400 transition-all duration-300 rounded-full"
+                style={{ '--hover-text-color': primaryColor, '--dark-hover-text-color': secondaryColor, '--hover-bg-color': `${primaryColor}1A` }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = document.documentElement.classList.contains('dark') ? secondaryColor : primaryColor;
+                  e.currentTarget.style.backgroundColor = `${primaryColor}1A`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = '';
+                  e.currentTarget.style.backgroundColor = '';
+                }}
                 onClick={() => setIsMobileMenuOpen(true)}
               >
                 <Menu className="h-6 w-6" />
@@ -375,7 +461,10 @@ const Header = ({ store, isPublishedView = false }) => { // Renamed component
             >
               <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl overflow-hidden">
                 <div className="flex justify-between items-center p-8 border-b border-gray-200 dark:border-gray-700">
-                  <h2 className="text-2xl font-bold premium-font-display bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                  <h2
+                    className="text-2xl font-bold premium-font-display bg-clip-text text-transparent"
+                    style={{ backgroundImage: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` }}
+                  >
                     Search Products
                   </h2>
                   <Button
@@ -395,7 +484,10 @@ const Header = ({ store, isPublishedView = false }) => { // Renamed component
                       ref={searchInputRef}
                       type="text"
                       placeholder="Search for products..."
-                      className="w-full pl-16 pr-6 py-4 text-lg border-2 border-gray-200 dark:border-gray-700 rounded-2xl focus:outline-none focus:border-purple-500 bg-gray-50 dark:bg-gray-800 transition-all duration-300 premium-font-body"
+                      className="w-full pl-16 pr-6 py-4 text-lg border-2 border-gray-200 dark:border-gray-700 rounded-2xl focus:outline-none bg-gray-50 dark:bg-gray-800 transition-all duration-300 premium-font-body"
+                      style={{ '--focus-border-color': primaryColor }}
+                      onFocus={(e) => e.target.style.borderColor = primaryColor}
+                      onBlur={(e) => e.target.style.borderColor = ''}
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -426,7 +518,10 @@ const Header = ({ store, isPublishedView = false }) => { // Renamed component
                                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                               />
                             ) : (
-                              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900 dark:to-pink-900 text-purple-600 dark:text-purple-400 text-4xl font-bold premium-font-display">
+                              <div
+                                className="w-full h-full flex items-center justify-center text-4xl font-bold premium-font-display"
+                                style={{ background: `linear-gradient(to bottom right, ${primaryColor}1A, ${secondaryColor}1A)`, color: primaryColor }}
+                              >
                                 {product.name.charAt(0)}
                               </div>
                             )}
@@ -438,7 +533,10 @@ const Header = ({ store, isPublishedView = false }) => { // Renamed component
                             <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mt-1 premium-font-body">
                               {product.description}
                             </p>
-                            <p className="font-bold mt-2 text-lg bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent premium-font-body">
+                            <p
+                              className="font-bold mt-2 text-lg bg-clip-text text-transparent premium-font-body"
+                              style={{ backgroundImage: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` }}
+                            >
                               ${product.price?.toFixed(2) || "0.00"}
                             </p>
                           </div>
@@ -470,14 +568,23 @@ const Header = ({ store, isPublishedView = false }) => { // Renamed component
                   className="flex items-center gap-3"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  {logoUrl && (
+                  {(isDarkMode ? logoUrlLight : logoUrlDark) ? (
                     <img
-                      src={logoUrl}
+                      src={isDarkMode ? logoUrlLight : logoUrlDark}
                       alt={`${name} logo`}
                       className="h-10 w-10 object-contain rounded-full"
                     />
-                  )}
-                  <span className="font-bold text-xl premium-font-display bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                  ) : (logoUrlLight || logoUrlDark) ? (
+                     <img
+                      src={logoUrlLight || logoUrlDark}
+                      alt={`${name} logo (fallback)`}
+                      className="h-10 w-10 object-contain rounded-full"
+                    />
+                  ) : null}
+                  <span
+                    className="font-bold text-xl premium-font-display bg-clip-text text-transparent"
+                    style={{ backgroundImage: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` }}
+                  >
                     {name}
                   </span>
                 </Link>
@@ -497,7 +604,10 @@ const Header = ({ store, isPublishedView = false }) => { // Renamed component
                     key={link.label}
                     href={link.href}
                     onClick={(e) => handleNavLinkClick(e, link.href)}
-                    className="text-lg font-medium text-gray-900 dark:text-white hover:text-purple-600 dark:hover:text-purple-400 transition-colors premium-font-body"
+                    className="text-lg font-medium text-gray-900 dark:text-white transition-colors premium-font-body"
+                    style={{ '--hover-text-color': primaryColor, '--dark-hover-text-color': secondaryColor }}
+                    onMouseEnter={(e) => e.currentTarget.style.color = document.documentElement.classList.contains('dark') ? secondaryColor : primaryColor}
+                    onMouseLeave={(e) => e.currentTarget.style.color = ''}
                     initial={{ opacity: 0, x: 50 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.1 }}
@@ -545,7 +655,10 @@ const Header = ({ store, isPublishedView = false }) => { // Renamed component
               className="fixed z-50 inset-y-0 right-0 h-full w-full max-w-md bg-white dark:bg-gray-900 shadow-2xl flex flex-col"
             >
               <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-                <h2 className="text-xl font-bold premium-font-display bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                <h2
+                  className="text-xl font-bold premium-font-display bg-clip-text text-transparent"
+                  style={{ backgroundImage: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` }}
+                >
                   Your Cart
                 </h2>
                 <Button
@@ -566,8 +679,11 @@ const Header = ({ store, isPublishedView = false }) => { // Renamed component
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
                     className="mb-6"
                   >
-                    <div className="w-24 h-24 bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900 dark:to-pink-900 rounded-full flex items-center justify-center mb-4">
-                      <ShoppingCart className="h-12 w-12 text-purple-600 dark:text-purple-400" />
+                    <div
+                      className="w-24 h-24 rounded-full flex items-center justify-center mb-4"
+                      style={{ background: `linear-gradient(to bottom right, ${primaryColor}1A, ${secondaryColor}1A)` }}
+                    >
+                      <ShoppingCart className="h-12 w-12" style={{ color: primaryColor }} />
                     </div>
                   </motion.div>
                   <h3 className="text-xl font-semibold mb-2 premium-font-display text-gray-900 dark:text-white">
@@ -578,7 +694,10 @@ const Header = ({ store, isPublishedView = false }) => { // Renamed component
                   </p>
                   <Button
                     onClick={() => setIsCartOpen(false)}
-                    className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-0 rounded-full px-8 py-3 text-lg font-medium premium-font-body"
+                    className="text-white border-0 rounded-full px-8 py-3 text-lg font-medium premium-font-body"
+                    style={{ background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = `linear-gradient(to right, ${getDarkerShade(primaryColor, -10)}, ${getDarkerShade(secondaryColor, -10)})`}
+                    onMouseLeave={(e) => e.currentTarget.style.background = `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`}
                   >
                     Continue Shopping
                   </Button>
@@ -686,13 +805,19 @@ const Header = ({ store, isPublishedView = false }) => { // Renamed component
                         <span className="text-gray-900 dark:text-white">
                           Total
                         </span>
-                        <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                        <span
+                          className="bg-clip-text text-transparent"
+                          style={{ backgroundImage: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` }}
+                        >
                           ${cartTotal.toFixed(2)}
                         </span>
                       </div>
                     </div>
                     <Button
-                      className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-0 rounded-full py-4 text-lg font-medium premium-font-body shadow-lg hover:shadow-xl transition-all duration-300"
+                      className="w-full text-white border-0 rounded-full py-4 text-lg font-medium premium-font-body shadow-lg hover:shadow-xl transition-all duration-300"
+                      style={{ background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = `linear-gradient(to right, ${getDarkerShade(primaryColor, -10)}, ${getDarkerShade(secondaryColor, -10)})`}
+                      onMouseLeave={(e) => e.currentTarget.style.background = `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`}
                       onClick={handleCheckout}
                     >
                       Proceed to Checkout

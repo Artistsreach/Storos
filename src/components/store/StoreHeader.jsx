@@ -14,8 +14,18 @@ import InlineTextEdit from '@/components/ui/InlineTextEdit';
 import ChangeLogoModal from '@/components/store/ChangeLogoModal'; // Import the new modal
 
 const StoreHeader = ({ store, isPublishedView = false }) => {
-  const { name, theme, logo_url: logoUrl, id: storeId, settings, content, template_version: storeTemplateVersion } = store; // Renamed template_version for clarity
-  const { cart, removeFromCart, updateQuantity, updateStore, updateStoreTemplateVersion } = useStore(); // Added updateStoreTemplateVersion
+  // Destructure logoUrlLight and logoUrlDark, provide fallbacks
+  const { 
+    name, 
+    theme, 
+    logo_url_light: logoUrlLight, // Logo for dark backgrounds
+    logo_url_dark: logoUrlDark,   // Logo for light backgrounds
+    id: storeId, 
+    settings, 
+    content, 
+    template_version: storeTemplateVersion 
+  } = store;
+  const { cart, removeFromCart, updateQuantity, updateStore, updateStoreTemplateVersion } = useStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isChangeImageDialogOpen, setIsChangeImageDialogOpen] = useState(false); // State for image dialog
@@ -85,15 +95,20 @@ const handleSaveHeaderText = async (field, value, index = null) => {
     console.log("Open change image dialog (placeholder)");
   };
 
-  const handleLogoReplaced = async (newLogoUrl) => {
-    if (storeId && newLogoUrl) {
+  const handleLogoReplaced = async (newLogoData) => { // Expects { logoUrlLight, logoUrlDark }
+    if (storeId && newLogoData) {
       try {
-        await updateStore(storeId, { logo_url: newLogoUrl });
-        console.log("Store logo updated successfully. Setting template to modern (v2).");
-        await updateStoreTemplateVersion(storeId, 'v2');
-        console.log("Store template set to modern (v2).");
+        // Update both logo URLs
+        await updateStore(storeId, { 
+          logo_url_light: newLogoData.logoUrlLight || store.logo_url_light, // Fallback to existing if one is not provided
+          logo_url_dark: newLogoData.logoUrlDark || store.logo_url_dark 
+        });
+        console.log("Store logos updated successfully.");
+        // The template refresh logic might need re-evaluation if it was tied to a single logo_url change.
+        // For now, let's assume it's still desired or handle it based on broader theme changes.
+        // await performTemplateRefresh(); // Consider if this is still needed or how it should behave
       } catch (error) {
-        console.error("Failed to update store logo or set template to modern:", error);
+        console.error("Failed to update store logos:", error);
         // Optionally, show a toast notification to the user about the failure
       }
     }
@@ -160,14 +175,29 @@ const handleSaveHeaderText = async (field, value, index = null) => {
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Link to={basePath} className="group">
-              {logoUrl && <img src={logoUrl} alt={`${name} logo`} className="h-16 w-16 object-contain group-hover:scale-105 transition-transform duration-200" />}
+              {(isDarkMode ? logoUrlLight : logoUrlDark) ? (
+                <img 
+                  src={isDarkMode ? logoUrlLight : logoUrlDark} 
+                  alt={`${name} logo`} 
+                  className="h-16 w-16 object-contain group-hover:scale-105 transition-transform duration-200" 
+                />
+              ) : (
+                // Fallback if the specific theme logo isn't available, try the other or a placeholder
+                (logoUrlLight || logoUrlDark) ? (
+                   <img 
+                    src={logoUrlLight || logoUrlDark} 
+                    alt={`${name} logo (fallback)`} 
+                    className="h-16 w-16 object-contain group-hover:scale-105 transition-transform duration-200" 
+                  />
+                ) : null // Or a placeholder div if neither is available
+              )}
             </Link>
-            {isAdmin && logoUrl && (
+            {isAdmin && (logoUrlLight || logoUrlDark) && (
               <Button variant="outline" size="icon" onClick={openChangeImageDialog} className="h-8 w-8 p-0 -ml-2 relative z-10 bg-background hover:bg-muted">
                 <Edit className="h-4 w-4" />
               </Button>
             )}
-            <Link to={basePath} className="group ml-2"> {/* Added ml-2 for spacing if edit button is present or not */}
+            <Link to={basePath} className="group ml-2">
               <span className="font-bold text-xl tracking-tight group-hover:text-primary transition-colors" style={{color: theme.primaryColor}}>
                 <InlineTextEdit
                   initialText={name}
@@ -244,9 +274,23 @@ const handleSaveHeaderText = async (field, value, index = null) => {
             <div className="flex justify-between items-center mb-8">
               <div className="flex items-center gap-2">
                 <Link to={basePath} className="group" onClick={() => setIsMobileMenuOpen(false)}>
-                  {logoUrl && <img src={logoUrl} alt={`${name} logo`} className="h-16 w-16 object-contain" />}
+                  {(isDarkMode ? logoUrlLight : logoUrlDark) ? (
+                    <img 
+                      src={isDarkMode ? logoUrlLight : logoUrlDark} 
+                      alt={`${name} logo`} 
+                      className="h-16 w-16 object-contain" 
+                    />
+                  ) : (
+                     (logoUrlLight || logoUrlDark) ? (
+                       <img 
+                        src={logoUrlLight || logoUrlDark} 
+                        alt={`${name} logo (fallback)`} 
+                        className="h-16 w-16 object-contain" 
+                      />
+                    ) : null
+                  )}
                 </Link>
-                {isAdmin && logoUrl && (
+                {isAdmin && (logoUrlLight || logoUrlDark) && (
                   <Button variant="outline" size="icon" onClick={() => { openChangeImageDialog(); setIsMobileMenuOpen(false); }} className="h-8 w-8 p-0 -ml-2 relative z-10 bg-background hover:bg-muted">
                     <Edit className="h-4 w-4" />
                   </Button>
@@ -378,8 +422,14 @@ const handleSaveHeaderText = async (field, value, index = null) => {
           onOpenChange={setIsChangeImageDialogOpen}
           storeId={storeId}
           storeName={name}
-          currentLogoUrl={logoUrl}
-          onLogoReplaced={handleLogoReplaced}
+          // Pass both current logos to the modal, it might need to decide which to show as "current"
+          // Or the modal could be enhanced to show both previews if it's about replacing specific versions.
+          // For simplicity, let's assume it primarily works with the light mode version for its display,
+          // but the onLogoReplaced will provide both new URLs.
+          currentLogoUrl={logoUrlDark} // Or a more sophisticated logic for the modal's "current" display
+          currentLogoUrlLight={logoUrlLight}
+          currentLogoUrlDark={logoUrlDark}
+          onLogoReplaced={handleLogoReplaced} // This now expects an object { logoUrlLight, logoUrlDark }
         />
       )}
     </>

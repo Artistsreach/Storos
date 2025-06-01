@@ -184,6 +184,9 @@ logger.error = (msg, options) => {
 export default defineConfig({
 	customLogger: logger,
 	plugins: [react(), addTransformIndexHtml],
+	// optimizeDeps: {
+	// 	exclude: ['@ffmpeg/ffmpeg'], // Removed to allow Vite to process ffmpeg
+	// },
 	server: {
 		cors: true,
 		headers: {
@@ -196,5 +199,10 @@ export default defineConfig({
 		alias: {
 			'@': path.resolve(__dirname, './src'),
 		},
+	},
+	build: {
+		// rollupOptions: {
+		// 	external: ['@ffmpeg/ffmpeg'], // Removed to allow Vite to bundle ffmpeg
+		// },
 	},
 });

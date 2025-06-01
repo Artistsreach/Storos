@@ -132,10 +132,36 @@ const StoreCollections = ({ store, isPublishedView = false }) => {
   
   const sectionTitle = content?.collectionsSectionTitle || "Shop by Collection";
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.2,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 50, scale: 0.9 },
+    visible: { 
+      opacity: 1, 
+      y: 0, 
+      scale: 1,
+      transition: { type: 'spring', stiffness: 100, damping: 12 }
+    },
+  };
+
   return (
     <>
       <section id={`collections-${store?.id || 'featured-collections'}`} className="container mx-auto px-4 pt-6 pb-12"> 
-        <h2 className="text-3xl font-bold tracking-tight text-center mb-10 md:mb-12">
+        <motion.h2 
+          className="text-3xl font-bold tracking-tight text-center mb-10 md:mb-12"
+          initial={{ opacity: 0, x: -50 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true, amount: 0.5 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+        >
           <InlineTextEdit
             initialText={sectionTitle}
             onSave={(newText) => handleSaveText('collectionsSectionTitle', newText)}
@@ -144,7 +170,7 @@ const StoreCollections = ({ store, isPublishedView = false }) => {
             textClassName="text-3xl font-bold tracking-tight text-center"
             // className="w-full text-center" // Container class
           />
-        </h2>
+        </motion.h2>
         {!collections || collections.length === 0 ? (
           <div className="text-center py-10">
             <p className="text-muted-foreground">No collections to display yet. Collections will appear here once added!</p>
@@ -155,18 +181,25 @@ const StoreCollections = ({ store, isPublishedView = false }) => {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"> 
+          <motion.div 
+            className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
+            variants={containerVariants}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.2 }}
+          > 
             {collections.map((collection, index) => ( // Added index
-              <CollectionCard 
-                key={collection.id || collection.name} // Use name as fallback key
-                collection={collection} 
-                onCollectionClick={handleCollectionClick}
-                isAdmin={isAdmin} // Pass isAdmin
-                onSaveCollectionText={handleSaveCollectionText} // Pass save handler
-                collectionIndex={index} // Pass index
-              />
+              <motion.div key={collection.id || collection.name} variants={itemVariants}>
+                <CollectionCard 
+                  collection={collection} 
+                  onCollectionClick={handleCollectionClick}
+                  isAdmin={isAdmin} // Pass isAdmin
+                  onSaveCollectionText={handleSaveCollectionText} // Pass save handler
+                  collectionIndex={index} // Pass index
+                />
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         )}
       </section>
       {selectedCollection && storeId && (

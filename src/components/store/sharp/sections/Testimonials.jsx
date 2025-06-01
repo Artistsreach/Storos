@@ -47,7 +47,7 @@ const Testimonials = ({ store, isPublishedView = false }) => {
     identifierAuthor: `testimonials.${i}.author`,
     identifierRole: `testimonials.${i}.role`,
   }));
-  const primaryColor = theme?.primaryColor || "#DC2626"; // Default red-600
+  const primaryColor = theme?.primaryColor || "#2563EB"; // Default blue-600
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -70,7 +70,7 @@ const Testimonials = ({ store, isPublishedView = false }) => {
           className="text-center mb-12 md:mb-16"
         >
           <motion.div
-            className="inline-flex items-center gap-2 px-3 py-1.5 bg-red-800/30 rounded-md text-xs font-semibold text-red-300 mb-4 border border-red-700/50 font-mono uppercase tracking-widest"
+            className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-800/30 rounded-md text-xs font-semibold text-blue-300 mb-4 border border-blue-700/50 font-mono uppercase tracking-widest"
             initial={{ scale: 0.9, opacity: 0 }}
             whileInView={{ scale: 1, opacity: 1 }}
             viewport={{ once: true }}
@@ -95,7 +95,7 @@ const Testimonials = ({ store, isPublishedView = false }) => {
             inputClassName="text-3xl md:text-5xl font-extrabold tracking-tight font-mono uppercase bg-transparent"
             className="text-3xl md:text-5xl font-extrabold tracking-tight font-mono uppercase"
           >
-            <span className="bg-gradient-to-r from-slate-100 via-red-400 to-orange-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-slate-100 via-blue-400 to-sky-400 bg-clip-text text-transparent">
               {sectionTitle}
             </span>
           </InlineTextEdit>
@@ -116,7 +116,7 @@ const Testimonials = ({ store, isPublishedView = false }) => {
             >
               <div className="flex items-center mb-4">
                 {testimonial.avatar ? (
-                  <img src={testimonial.avatar} alt={testimonial.author} className="w-12 h-12 rounded-full mr-4 border-2 border-red-500/70 object-cover" />
+                  <img src={testimonial.avatar} alt={testimonial.author} className="w-12 h-12 rounded-full mr-4 border-2 border-blue-500/70 object-cover" />
                 ) : (
                   <UserCircle className="w-12 h-12 text-slate-500 mr-4" />
                 )}
@@ -135,9 +135,9 @@ const Testimonials = ({ store, isPublishedView = false }) => {
                     onSave={(newText) => updateStoreTextContent(testimonial.identifierRole, newText)}
                     isAdmin={!isPublishedView && viewMode === 'edit'}
                     as="p"
-                    textClassName="text-xs text-red-400 font-mono uppercase tracking-wider"
-                    inputClassName="text-xs text-red-400 font-mono uppercase tracking-wider bg-transparent"
-                    className="text-xs text-red-400 font-mono uppercase tracking-wider"
+                    textClassName="text-xs text-blue-400 font-mono uppercase tracking-wider"
+                    inputClassName="text-xs text-blue-400 font-mono uppercase tracking-wider bg-transparent"
+                    className="text-xs text-blue-400 font-mono uppercase tracking-wider"
                   />
                 </div>
               </div>

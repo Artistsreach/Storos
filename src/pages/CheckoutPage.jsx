@@ -10,69 +10,114 @@ import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, CreditCard, Lock, ShoppingBag, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { motion } from 'framer-motion';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { loadStripe } from '@stripe/stripe-js';
+
+// Ensure your Stripe publishable key is in .env.local or configured securely
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY); 
 
 const CheckoutPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { clearCart, getStoreById } = useStore();
+  const { getStoreById } = useStore(); // Removed clearCart as Stripe handles post-payment
   const { toast } = useToast();
+  const functions = getFunctions();
 
-  const [cartItems, setCartItems] = useState([]);
+  const [productDetails, setProductDetails] = useState(null);
   const [storeName, setStoreName] = useState('Your');
   const [storeId, setStoreId] = useState(null);
   const [store, setStore] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [formData, setFormData] = useState({
-    email: '',
-    nameOnCard: '',
-    cardNumber: '',
-    expiryDate: '',
-    cvc: '',
-    address: '',
-    city: '',
-    postalCode: '',
-    country: 'United States' 
-  });
+  const [customerEmail, setCustomerEmail] = useState('');
+
 
   useEffect(() => {
-    if (location.state?.cart && location.state?.storeName && location.state?.storeId) {
-      setCartItems(location.state.cart);
-      setStoreName(location.state.storeName);
-      setStoreId(location.state.storeId);
-      const currentStore = getStoreById(location.state.storeId);
-      setStore(currentStore);
+    // Data passed from ProductDetail.jsx after Stripe Product/Price creation
+    const { 
+      stripePriceId, 
+      productName: name, 
+      productImage: image, 
+      quantity: qty, 
+      unitAmount, // Amount in cents
+      currency,
+      storeId: currentStoreId,
+      storeName: currentStoreName,
+    } = location.state || {};
+
+    if (stripePriceId && name && image && qty && unitAmount && currency && currentStoreId && currentStoreName) {
+      setProductDetails({
+        stripePriceId,
+        name,
+        image,
+        quantity: parseInt(qty, 10),
+        unitAmount: parseInt(unitAmount, 10), // Ensure it's an integer (cents)
+        currency: currency.toLowerCase(),
+      });
+      setStoreId(currentStoreId);
+      setStoreName(currentStoreName);
+      const currentStoreData = getStoreById(currentStoreId);
+      setStore(currentStoreData);
     } else {
-      toast({ title: "Cart is empty", description: "Redirecting to dashboard.", variant: "destructive" });
+      toast({ title: "Checkout Error", description: "Missing product information for checkout. Redirecting...", variant: "destructive" });
       navigate('/');
     }
   }, [location.state, navigate, toast, getStoreById]);
 
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const shipping = subtotal > 0 ? 5.00 : 0; 
-  const taxes = subtotal * 0.08; 
+  const subtotal = productDetails ? (productDetails.unitAmount / 100) * productDetails.quantity : 0;
+  // Shipping and taxes can be configured in Stripe Checkout Session or calculated here if needed
+  const shipping = subtotal > 0 ? 5.00 : 0; // Example, can be dynamic
+  const taxes = subtotal * 0.08; // Example, can be dynamic
   const total = subtotal + shipping + taxes;
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
 
   const handleSubmitOrder = async (e) => {
     e.preventDefault();
+    if (!productDetails || !customerEmail.trim()) {
+      toast({ title: "Missing Information", description: "Please enter your email address.", variant: "destructive" });
+      return;
+    }
     setIsProcessing(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    clearCart(); 
-    toast({
-      title: "Order Placed Successfully!",
-      description: `Thank you for your order from ${storeName}. Your items will be shipped soon.`,
-      duration: 5000,
-    });
-    setIsProcessing(false);
-    navigate(`/preview/${storeId || ''}`); 
+
+    try {
+      const createStripeCheckoutSession = httpsCallable(functions, 'createStripeCheckoutSession');
+      const result = await createStripeCheckoutSession({
+        priceId: productDetails.stripePriceId,
+        quantity: productDetails.quantity,
+        customerEmail: customerEmail,
+        successUrl: `${window.location.origin}/order-confirmation?session_id={CHECKOUT_SESSION_ID}&storeId=${storeId}`,
+        cancelUrl: `${window.location.origin}/checkout?storeId=${storeId}&canceled=true`, // Or back to product page
+      });
+
+      const { sessionId, error: functionError } = result.data;
+
+      if (functionError) {
+        throw new Error(functionError.message || 'Failed to create checkout session.');
+      }
+
+      if (!sessionId) {
+        throw new Error('Checkout session ID not received.');
+      }
+
+      const stripe = await stripePromise;
+      const { error: stripeError } = await stripe.redirectToCheckout({ sessionId });
+
+      if (stripeError) {
+        console.error("Stripe redirect error:", stripeError);
+        toast({ title: "Payment Error", description: stripeError.message, variant: "destructive" });
+        setIsProcessing(false);
+      }
+      // If redirectToCheckout is successful, the user is redirected to Stripe.
+      // They will be redirected to successUrl or cancelUrl from there.
+      // No need to setIsProcessing(false) here if redirect occurs.
+
+    } catch (error) {
+      console.error("Error creating Stripe Checkout session:", error);
+      toast({ title: "Checkout Failed", description: error.message || "Could not initiate payment.", variant: "destructive" });
+      setIsProcessing(false);
+    }
   };
 
-  if (cartItems.length === 0 && !isProcessing) {
+  if (!productDetails && !isProcessing) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-slate-900">
         <ShoppingBag className="h-24 w-24 text-primary mb-6" />
@@ -105,23 +150,25 @@ const CheckoutPage = () => {
           <Card className="md:col-span-1 h-fit sticky top-8 shadow-lg">
             <CardHeader>
               <CardTitle className="text-xl">Order Summary</CardTitle>
-              <CardDescription>Review your items from {storeName}.</CardDescription>
+              <CardDescription>Review your item from {storeName}.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="max-h-60 overflow-y-auto space-y-3 pr-2">
-                {cartItems.map(item => (
-                  <div key={item.id} className="flex justify-between items-center text-sm">
-                    <div className="flex items-center gap-2">
-                      <img-replace src={item.image?.src?.tiny || `https://via.placeholder.com/40x40.png?text=${item.name.substring(0,1)}`} alt={item.name} className="w-10 h-10 rounded object-cover" />
-                      <div>
-                        <p className="font-medium line-clamp-1">{item.name}</p>
-                        <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
-                      </div>
+              {productDetails && (
+                <div className="flex justify-between items-center text-sm">
+                  <div className="flex items-center gap-2">
+                    <img 
+                      src={productDetails.image?.src?.tiny || productDetails.image?.medium || productDetails.image?.large || `https://via.placeholder.com/40x40.png?text=${productDetails.name?.substring(0,1)}`} 
+                      alt={productDetails.name} 
+                      className="w-10 h-10 rounded object-cover" 
+                    />
+                    <div>
+                      <p className="font-medium line-clamp-1">{productDetails.name}</p>
+                      <p className="text-xs text-muted-foreground">Qty: {productDetails.quantity}</p>
                     </div>
-                    <p className="font-medium">${(item.price * item.quantity).toFixed(2)}</p>
                   </div>
-                ))}
-              </div>
+                  <p className="font-medium">${((productDetails.unitAmount / 100) * productDetails.quantity).toFixed(2)}</p>
+                </div>
+              )}
               <Separator />
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between"><span>Subtotal:</span><span>${subtotal.toFixed(2)}</span></div>
@@ -139,65 +186,26 @@ const CheckoutPage = () => {
           <form onSubmit={handleSubmitOrder} className="md:col-span-2 space-y-6">
             <Card className="shadow-lg">
               <CardHeader>
-                <CardTitle className="text-xl">Shipping Information</CardTitle>
+                <CardTitle className="text-xl">Contact Information</CardTitle>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="sm:col-span-2 space-y-1">
+              <CardContent className="grid grid-cols-1 gap-4">
+                <div className="space-y-1">
                   <Label htmlFor="email">Email Address</Label>
-                  <Input id="email" name="email" type="email" placeholder="you@example.com" value={formData.email} onChange={handleInputChange} required />
+                  <Input 
+                    id="email" 
+                    name="email" 
+                    type="email" 
+                    placeholder="you@example.com" 
+                    value={customerEmail} 
+                    onChange={(e) => setCustomerEmail(e.target.value)} 
+                    required 
+                  />
                 </div>
-                <div className="sm:col-span-2 space-y-1">
-                  <Label htmlFor="address">Street Address</Label>
-                  <Input id="address" name="address" placeholder="123 Main St" value={formData.address} onChange={handleInputChange} required />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="city">City</Label>
-                  <Input id="city" name="city" placeholder="Anytown" value={formData.city} onChange={handleInputChange} required />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="postalCode">Postal Code</Label>
-                  <Input id="postalCode" name="postalCode" placeholder="12345" value={formData.postalCode} onChange={handleInputChange} required />
-                </div>
-                 <div className="sm:col-span-2 space-y-1">
-                  <Label htmlFor="country">Country</Label>
-                  <Input id="country" name="country" value={formData.country} onChange={handleInputChange} required />
-                </div>
+                {/* Stripe Checkout will collect shipping and payment details */}
               </CardContent>
             </Card>
             
-            <Card className="shadow-lg">
-              <CardHeader>
-                <CardTitle className="text-xl">Payment Details</CardTitle>
-                <CardDescription className="flex items-center text-sm text-muted-foreground">
-                  <Lock className="h-3 w-3 mr-1.5" /> Secure Payment
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-1">
-                  <Label htmlFor="nameOnCard">Name on Card</Label>
-                  <Input id="nameOnCard" name="nameOnCard" placeholder="John M. Doe" value={formData.nameOnCard} onChange={handleInputChange} required />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="cardNumber">Card Number</Label>
-                  <div className="relative">
-                    <Input id="cardNumber" name="cardNumber" placeholder="•••• •••• •••• ••••" value={formData.cardNumber} onChange={handleInputChange} required />
-                    <CreditCard className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <Label htmlFor="expiryDate">Expiry Date</Label>
-                    <Input id="expiryDate" name="expiryDate" placeholder="MM/YY" value={formData.expiryDate} onChange={handleInputChange} required />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="cvc">CVC</Label>
-                    <Input id="cvc" name="cvc" placeholder="123" value={formData.cvc} onChange={handleInputChange} required />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Button type="submit" size="lg" className="w-full text-lg" disabled={isProcessing} style={{backgroundColor: store?.theme?.primaryColor || '#3B82F6'}}>
+            <Button type="submit" size="lg" className="w-full text-lg" disabled={isProcessing || !customerEmail.trim()} style={{backgroundColor: store?.theme?.primaryColor || '#3B82F6'}}>
               {isProcessing ? (
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
               ) : (

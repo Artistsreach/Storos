@@ -87,7 +87,7 @@ const StoreFooter = ({ store, isPublishedView = false }) => {
   const contactUsTitle = content?.footerContactUsTitle || "Contact Us";
   const addressText = content?.footerAddress || "123 Store Street, Cityville, ST 12345";
   const phoneNumberText = content?.footerPhoneNumber || "(123) 456-7890";
-  const copyrightSuffixText = content?.footerCopyrightSuffix || "All Rights Reserved. Powered by StoreGen AI.";
+  const copyrightSuffixText = content?.footerCopyrightSuffix || "All Rights Reserved. Powered by FreshFront.";
 
 
   return (
@@ -97,7 +97,7 @@ const StoreFooter = ({ store, isPublishedView = false }) => {
     >
       {/* Main footer content */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 20 }} // Reverted to original animation for the main block
         whileInView={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         viewport={{ once: true }}
@@ -172,9 +172,10 @@ const StoreFooter = ({ store, isPublishedView = false }) => {
                 ))}
               </ul>
             </div>
-
             {/* Customer Service */}
-            <div>
+            <motion.div
+              variants={{ hidden: { opacity: 0, x: -30 }, visible: { opacity: 1, x: 0, transition:{duration: 0.5, ease: "easeOut", delay: 0.2}} }}
+            >
               <h4 className="font-bold text-foreground mb-4 font-poppins">
                 <InlineTextEdit
                   initialText={customerServiceTitle}
@@ -203,8 +204,7 @@ const StoreFooter = ({ store, isPublishedView = false }) => {
                   </li>
                 ))}
               </ul>
-            </div>
-
+            </motion.div>
             {/* Contact Info */}
             <div className="space-y-3 text-sm">
               <h4 className="font-bold text-foreground mb-4 font-poppins">

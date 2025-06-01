@@ -21,7 +21,8 @@ import {
   UserPlus // Added for assigning manager
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { fetchPexelsImages } from '@/lib/utils.jsx'; // Added for Pexels
+// import { fetchPexelsImages } from '@/lib/utils.jsx'; // Commented out as it's not used and generateStoreUrl is from utils.js
+import { generateStoreUrl } from '@/lib/utils.js'; // Corrected path
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -103,16 +104,16 @@ const StoreCard = ({ store }) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="store-preview relative bg-cover bg-center rounded-lg overflow-hidden" // Apply background to motion.div, ensure overflow hidden for rounded corners
+      className="store-preview relative bg-cover bg-center rounded-[15px] overflow-hidden" // Apply background to motion.div, ensure overflow hidden for rounded corners
       style={store.card_background_url ? { backgroundImage: `url(${store.card_background_url})` } : { backgroundColor: '#374151' }} // Dark gray fallback
     >
       {/* This div is now for the overlay effect if needed, or can be removed if Card handles it all */}
       {/* <div className="absolute inset-0 bg-black/10" /> */} 
 
       {/* Card itself will have the backdrop blur and semi-transparent background */}
-      <Card className="h-full overflow-hidden border-2 border-white/20 hover:border-primary/50 transition-all duration-300 bg-black/30 backdrop-blur-sm text-white"> {/* Changed backdrop-blur-md to backdrop-blur-sm */}
+      <Card className="h-full overflow-hidden border-2 border-white/20 hover:border-primary/50 transition-all duration-300 bg-black/30 backdrop-blur-sm text-white rounded-[15px]"> {/* Changed backdrop-blur-md to backdrop-blur-sm and added rounded-[15px] */}
         
-        <div className="relative z-10 p-1 rounded-lg"> 
+        <div className="relative z-10 p-1 rounded-[15px]"> {/* Updated rounding here too for consistency if visible */}
           <CardHeader className="pb-2">
             <div className="flex justify-between items-start">
               <div className="flex items-center gap-2">
@@ -164,11 +165,11 @@ const StoreCard = ({ store }) => {
               size="sm"
               className="bg-white/90 hover:bg-white text-slate-800 border-slate-300 hover:border-slate-400"
               onClick={() => {
-                if (store && store.id) {
-                  navigate(`/store/${store.id}`);
+                if (store && store.name) { // Check for store.name
+                  navigate(`/${generateStoreUrl(store.name)}`); // Navigate using generateStoreUrl
                 } else {
-                  console.error("Store ID is missing, cannot navigate to preview.");
-                  // Consider adding a toast message for the user here if store.id is missing
+                  console.error("Store name is missing, cannot navigate to preview.");
+                  // Consider adding a toast message for the user here if store.name is missing
                 }
               }}
             >
@@ -180,7 +181,7 @@ const StoreCard = ({ store }) => {
                 variant="ghost" 
                 size="icon" 
                 className="h-8 w-8 text-gray-300 hover:text-white hover:bg-white/10"
-                onClick={() => navigate(`/store/${store.id}?edit=true`)}
+                onClick={() => store && store.name && navigate(`/${generateStoreUrl(store.name)}?edit=true`)} // Navigate using generateStoreUrl
               >
                 <Edit className="h-4 w-4" />
                 <span className="sr-only">Edit</span>
@@ -220,7 +221,7 @@ const StoreCard = ({ store }) => {
               placeholder="Set Pass Key" 
               value={passKey}
               onChange={(e) => setPassKey(e.target.value)}
-              className="h-8 text-xs flex-grow bg-neutral-700/60 dark:bg-neutral-800/60 border-neutral-500 dark:border-neutral-600 placeholder-gray-300 text-white focus:border-primary focus:ring-1 focus:ring-primary"
+              className="h-8 text-xs flex-grow bg-neutral-700/60 dark:bg-neutral-800/60 border-neutral-500 dark:border-neutral-600 placeholder-zinc-400 text-white focus:outline-none"
             />
             <Button 
               variant="outline" 
@@ -251,7 +252,7 @@ const StoreCard = ({ store }) => {
                   placeholder="Manager Email" 
                   value={managerEmail}
                   onChange={(e) => setManagerEmail(e.target.value)}
-                  className="h-8 text-xs flex-grow bg-neutral-700/60 dark:bg-neutral-800/60 border-neutral-500 dark:border-neutral-600 placeholder-gray-300 text-white focus:border-primary focus:ring-1 focus:ring-primary"
+                  className="h-8 text-xs flex-grow bg-neutral-700/60 dark:bg-neutral-800/60 border-neutral-500 dark:border-neutral-600 placeholder-zinc-400 text-white focus:outline-none"
                 />
                 <Button 
                   variant="outline" 

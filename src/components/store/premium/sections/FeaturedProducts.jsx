@@ -5,12 +5,29 @@ import { Search, Grid, List, Filter, Sparkles, TrendingUp } from "lucide-react";
 import { Button } from "../../../ui/button"; // Adjusted path
 import InlineTextEdit from "../../../ui/InlineTextEdit";
 import { useStore } from "../../../../contexts/StoreContext";
+import { generateStoreUrl } from "../../../../lib/utils.js"; // Added import
 
-const FeaturedProducts = ({ store, isPublishedView = false }) => { // Renamed component
-  const { products, theme, id: storeId, content } = store;
-  const { updateStoreTextContent, viewMode } = useStore();
+const FeaturedProducts = ({ store, isPublishedView = false }) => {
+  const { products, theme: storeTheme, id: storeId, content } = store; // Use storeTheme to avoid conflict
+  const { updateStoreTextContent, viewMode, store: contextStore } = useStore(); // Get store from context for theme
   const [displayMode, setDisplayMode] = useState("grid");
   const [searchTerm, setSearchTerm] = useState("");
+
+  const theme = contextStore?.theme || storeTheme; // Prioritize contextStore theme
+  const primaryColor = theme?.primaryColor || "#6366F1";
+
+  // Helper function to generate a slightly darker shade
+  const getDarkerShade = (color, percent = 20) => {
+    if (!color.startsWith("#")) return color;
+    let num = parseInt(color.slice(1), 16),
+      amt = Math.round(2.55 * percent),
+      R = (num >> 16) - amt,
+      G = (num >> 8 & 0x00FF) - amt,
+      B = (num & 0x0000FF) - amt;
+    R = Math.max(0, R); G = Math.max(0, G); B = Math.max(0, B);
+    return "#" + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+  };
+  const secondaryColor = getDarkerShade(primaryColor, 20);
   const [filteredProducts, setFilteredProducts] = useState(products || []);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -73,23 +90,27 @@ const FeaturedProducts = ({ store, isPublishedView = false }) => { // Renamed co
           animate={{ opacity: 1, y: 0 }}
           className="max-w-2xl mx-auto"
         >
-          <div className="w-24 h-24 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Sparkles className="w-12 h-12 text-purple-600 dark:text-purple-400" />
+          <div
+            className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6"
+            style={{ background: `linear-gradient(to right, ${primaryColor}33, ${secondaryColor}33)` }}
+          >
+            <Sparkles className="w-12 h-12" style={{ color: primaryColor }} />
           </div>
           <InlineTextEdit
             initialText={emptyStateTitle}
             onSave={(newText) => updateStoreTextContent('featuredProductsEmptyStateTitle', newText)}
             isAdmin={!isPublishedView && viewMode === 'edit'}
             as="h2"
-            textClassName="text-4xl font-bold mb-4 premium-font-display bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent"
-            inputClassName="text-4xl font-bold mb-4 premium-font-display bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent bg-transparent"
-            className="text-4xl font-bold mb-4 premium-font-display bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent"
+            textClassName="text-4xl font-bold mb-4 premium-font-display bg-clip-text text-transparent"
+            inputClassName="text-4xl font-bold mb-4 premium-font-display bg-clip-text text-transparent bg-transparent"
+            className="text-4xl font-bold mb-4 premium-font-display bg-clip-text text-transparent"
+            style={{ backgroundImage: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` }}
           />
           <InlineTextEdit
             initialText={emptyStateSubtitle}
             onSave={(newText) => updateStoreTextContent('featuredProductsEmptyStateSubtitle', newText)}
             isAdmin={!isPublishedView && viewMode === 'edit'}
-            as="p"
+            as="div"
             textClassName="text-gray-600 dark:text-gray-400 text-lg premium-font-body"
             inputClassName="text-gray-600 dark:text-gray-400 text-lg premium-font-body bg-transparent"
             className="text-gray-600 dark:text-gray-400 text-lg premium-font-body"
@@ -109,7 +130,10 @@ const FeaturedProducts = ({ store, isPublishedView = false }) => { // Renamed co
       <div className="p-6 space-y-3">
         <div className="h-5 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600 rounded-full animate-pulse w-3/4" />
         <div className="h-4 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600 rounded-full animate-pulse w-1/2" />
-        <div className="h-6 bg-gradient-to-r from-purple-200 to-pink-200 dark:from-purple-800 dark:to-pink-800 rounded-full animate-pulse w-1/3 mt-3" />
+        <div
+          className="h-6 rounded-full animate-pulse w-1/3 mt-3"
+          style={{ background: `linear-gradient(to right, ${primaryColor}4D, ${secondaryColor}4D)` }}
+        />
       </div>
     </div>
   );
@@ -117,7 +141,7 @@ const FeaturedProducts = ({ store, isPublishedView = false }) => { // Renamed co
   return (
     <section
       id={`products-${storeId}`}
-      className="py-20 bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-950"
+      className="pb-20 pt-[35px] bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-950"
     >
       <div className="container mx-auto px-6">
         <motion.div
@@ -127,7 +151,11 @@ const FeaturedProducts = ({ store, isPublishedView = false }) => { // Renamed co
           className="text-center mb-16"
         >
           <motion.div
-            className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 rounded-full text-sm font-semibold text-purple-700 dark:text-purple-300 mb-6"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold mb-6"
+            style={{
+              background: `linear-gradient(to right, ${primaryColor}1A, ${secondaryColor}1A)`,
+              color: primaryColor,
+            }}
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.2 }}
@@ -152,20 +180,23 @@ const FeaturedProducts = ({ store, isPublishedView = false }) => { // Renamed co
             inputClassName="text-4xl md:text-6xl font-black mb-6 tracking-tight premium-font-display bg-transparent"
             className="text-4xl md:text-6xl font-black mb-6 tracking-tight premium-font-display"
           >
-            <span className="bg-gradient-to-r from-gray-900 via-purple-800 to-pink-800 dark:from-white dark:via-purple-300 dark:to-pink-300 bg-clip-text text-transparent">
+            <span
+              className="bg-clip-text text-transparent"
+              style={{ backgroundImage: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` }}
+            >
               {sectionTitle}
             </span>
           </InlineTextEdit>
-          <InlineTextEdit
-            initialText={sectionSubtitle}
-            onSave={(newText) => updateStoreTextContent('featuredProductsSubtitle', newText)}
-            isAdmin={!isPublishedView && viewMode === 'edit'}
-            as="p"
-            textClassName="text-gray-600 dark:text-gray-300 max-w-2xl mx-auto text-lg md:text-xl premium-font-body leading-relaxed"
-            inputClassName="text-gray-600 dark:text-gray-300 max-w-2xl mx-auto text-lg md:text-xl premium-font-body leading-relaxed bg-transparent"
-            className="text-gray-600 dark:text-gray-300 max-w-2xl mx-auto text-lg md:text-xl premium-font-body leading-relaxed"
-            useTextarea={true}
-          />
+            <InlineTextEdit
+              initialText={sectionSubtitle}
+              onSave={(newText) => updateStoreTextContent('featuredProductsSubtitle', newText)}
+              isAdmin={!isPublishedView && viewMode === 'edit'}
+              as="div"
+              textClassName="text-gray-600 dark:text-gray-300 max-w-2xl mx-auto text-lg md:text-xl premium-font-body leading-relaxed"
+              inputClassName="text-gray-600 dark:text-gray-300 max-w-2xl mx-auto text-lg md:text-xl premium-font-body leading-relaxed bg-transparent"
+              className="text-gray-600 dark:text-gray-300 max-w-2xl mx-auto text-lg md:text-xl premium-font-body leading-relaxed"
+              useTextarea={true}
+            />
         </motion.div>
 
         {/* Enhanced search and filter controls */}
@@ -180,7 +211,10 @@ const FeaturedProducts = ({ store, isPublishedView = false }) => { // Renamed co
             <input
               type="text"
               placeholder={searchPlaceholder}
-              className="w-full pl-12 pr-6 py-4 border-2 border-gray-200 dark:border-gray-700 rounded-2xl focus:outline-none focus:border-purple-500 dark:focus:border-purple-400 bg-white dark:bg-gray-900 transition-all duration-300 premium-font-body text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+              className="w-full pl-12 pr-6 py-4 border-2 border-gray-200 dark:border-gray-700 rounded-2xl focus:outline-none bg-white dark:bg-gray-900 transition-all duration-300 premium-font-body text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+              style={{ '--focus-border-color': primaryColor, '--dark-focus-border-color': secondaryColor }}
+              onFocus={(e) => e.target.style.borderColor = document.documentElement.classList.contains('dark') ? secondaryColor : primaryColor}
+              onBlur={(e) => e.target.style.borderColor = ''}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -193,9 +227,10 @@ const FeaturedProducts = ({ store, isPublishedView = false }) => { // Renamed co
                 size="icon"
                 className={`rounded-xl transition-all duration-300 ${
                   displayMode === "grid"
-                    ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg"
-                    : "text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400"
+                    ? "text-white shadow-lg"
+                    : "text-gray-600 dark:text-gray-400"
                 }`}
+                style={displayMode === "grid" ? { background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` } : {':hover': {color: primaryColor}}}
                 onClick={() => setDisplayMode("grid")}
               >
                 <Grid className="h-5 w-5" />
@@ -205,9 +240,10 @@ const FeaturedProducts = ({ store, isPublishedView = false }) => { // Renamed co
                 size="icon"
                 className={`rounded-xl transition-all duration-300 ${
                   displayMode === "list"
-                    ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg"
-                    : "text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400"
+                    ? "text-white shadow-lg"
+                    : "text-gray-600 dark:text-gray-400"
                 }`}
+                style={displayMode === "list" ? { background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` } : {':hover': {color: primaryColor}}}
                 onClick={() => setDisplayMode("list")}
               >
                 <List className="h-5 w-5" />
@@ -216,7 +252,10 @@ const FeaturedProducts = ({ store, isPublishedView = false }) => { // Renamed co
 
             <Button
               variant="outline"
-              className="gap-2 rounded-2xl border-2 border-gray-200 dark:border-gray-700 hover:border-purple-500 dark:hover:border-purple-400 transition-all duration-300 premium-font-body"
+              className="gap-2 rounded-2xl border-2 border-gray-200 dark:border-gray-700 transition-all duration-300 premium-font-body"
+              style={{ '--hover-border-color': primaryColor, '--dark-hover-border-color': secondaryColor }}
+              onMouseEnter={(e) => e.currentTarget.style.borderColor = document.documentElement.classList.contains('dark') ? secondaryColor : primaryColor }
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = ''}
             >
               <Filter className="h-4 w-4" />
               <InlineTextEdit
@@ -288,7 +327,8 @@ const FeaturedProducts = ({ store, isPublishedView = false }) => { // Renamed co
                     product={product}
                     theme={theme}
                     index={index}
-                    storeId={storeId}
+                    storeName={generateStoreUrl(store.name)} // Pass generated URL
+                    storeId={storeId}      // Keep storeId (which is store.id)
                     isPublishedView={isPublishedView}
                     displayMode={displayMode}
                   />
@@ -320,21 +360,24 @@ const FeaturedProducts = ({ store, isPublishedView = false }) => { // Renamed co
               initialText={noProductsSubtitle}
               onSave={(newText) => updateStoreTextContent('featuredProductsNoProductsSubtitle', newText)}
               isAdmin={!isPublishedView && viewMode === 'edit'}
-              as="p"
+              as="div" // Changed from "p" to "div" to fix DOM nesting warning
               textClassName="text-lg text-gray-600 dark:text-gray-400 mb-8 premium-font-body"
               inputClassName="text-lg text-gray-600 dark:text-gray-400 mb-8 premium-font-body bg-transparent"
               className="text-lg text-gray-600 dark:text-gray-400 mb-8 premium-font-body"
               useTextarea={true}
             />
-            <Button
-              onClick={() => {
-                setSearchTerm("");
-                setSelectedCategory("all");
-              }}
-              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-0 rounded-full px-8 py-3 text-lg font-medium premium-font-body shadow-lg hover:shadow-xl transition-all duration-300"
-            >
-              <InlineTextEdit
-                initialText={clearFiltersButtonText}
+              <Button
+                onClick={() => {
+                  setSearchTerm("");
+                  setSelectedCategory("all");
+                }}
+                className="text-white border-0 rounded-full px-8 py-3 text-lg font-medium premium-font-body shadow-lg hover:shadow-xl transition-all duration-300"
+                style={{ background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` }}
+                onMouseEnter={(e) => e.currentTarget.style.background = `linear-gradient(to right, ${getDarkerShade(primaryColor, -10)}, ${getDarkerShade(secondaryColor, -10)})`}
+                onMouseLeave={(e) => e.currentTarget.style.background = `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`}
+              >
+                <InlineTextEdit
+                  initialText={clearFiltersButtonText}
                 onSave={(newText) => updateStoreTextContent('featuredProductsClearFiltersButtonText', newText)}
                 isAdmin={!isPublishedView && viewMode === 'edit'}
                 as="span"

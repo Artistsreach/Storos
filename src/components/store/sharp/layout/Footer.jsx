@@ -40,9 +40,9 @@ const Footer = ({ store, isPublishedView = false }) => { // Added isPublishedVie
           <div className="md:col-span-3 lg:col-span-1">
             <Link to={`/store/${storeId}`} className="flex items-center gap-2.5 mb-4 group">
               {logoUrl && (
-                <img src={logoUrl} alt={`${name} Logo`} className="h-10 w-10 object-contain rounded-md border border-slate-700 group-hover:border-red-500/70 transition-colors" />
+                <img src={logoUrl} alt={`${name} Logo`} className="h-10 w-10 object-contain rounded-md border border-slate-700 group-hover:border-blue-500/70 transition-colors" />
               )}
-              <span className="font-bold text-xl text-slate-100 group-hover:text-red-400 transition-colors font-mono uppercase tracking-tight">
+              <span className="font-bold text-xl text-slate-100 group-hover:text-blue-400 transition-colors font-mono uppercase tracking-tight">
                 {name}
               </span>
             </Link>
@@ -80,7 +80,7 @@ const Footer = ({ store, isPublishedView = false }) => { // Added isPublishedVie
                     isPublishedView={isPublishedView}
                     as="a"
                     href={link.href.startsWith('/') ? link.href : `#${link.href.replace('#','')}-${storeId}`}
-                    className="hover:text-red-400 transition-colors text-xs font-mono"
+                    className="hover:text-blue-400 transition-colors text-xs font-mono"
                   >
                     {link.label}
                   </InlineTextEdit>
@@ -102,9 +102,9 @@ const Footer = ({ store, isPublishedView = false }) => { // Added isPublishedVie
               {content?.footerSupportTitle || "Support"}
             </InlineTextEdit>
              <ul className="space-y-2">
-                <li><a href="#" className="hover:text-red-400 transition-colors text-xs font-mono">FAQ</a></li>
-                <li><a href="#" className="hover:text-red-400 transition-colors text-xs font-mono">Shipping</a></li>
-                <li><a href="#" className="hover:text-red-400 transition-colors text-xs font-mono">Returns</a></li>
+                <li><a href="#" className="hover:text-blue-400 transition-colors text-xs font-mono">FAQ</a></li>
+                <li><a href="#" className="hover:text-blue-400 transition-colors text-xs font-mono">Shipping</a></li>
+                <li><a href="#" className="hover:text-blue-400 transition-colors text-xs font-mono">Returns</a></li>
              </ul>
           </div>
 
@@ -128,7 +128,7 @@ const Footer = ({ store, isPublishedView = false }) => { // Added isPublishedVie
                   href={social.href} 
                   target="_blank" 
                   rel="noopener noreferrer" 
-                  className="text-slate-500 hover:text-red-400 transition-colors"
+                  className="text-slate-500 hover:text-blue-400 transition-colors"
                   aria-label={social.platform}
                 >
                   <social.icon className="w-5 h-5" />
@@ -156,7 +156,7 @@ const Footer = ({ store, isPublishedView = false }) => { // Added isPublishedVie
             {copyrightText}
           </InlineTextEdit>
           <div className="flex items-center justify-center md:justify-end mt-4 md:mt-0 text-xs font-mono">
-            <Shield className="w-3.5 h-3.5 mr-1.5 text-red-500" />
+            <Shield className="w-3.5 h-3.5 mr-1.5 text-blue-500" />
             <InlineTextEdit
               initialText={content?.footerSecureShoppingText || "Secure Shopping Guarantee"}
               onSave={(newText) => updateStoreTextContent('content.footerSecureShoppingText', newText)}

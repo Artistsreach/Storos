@@ -2,351 +2,479 @@ import { GoogleGenAI, Modality, HarmCategory, HarmBlockThreshold, Type } from "@
 
 // Log the API key value as soon as the module is loaded for diagnostics
 const GEMINI_API_KEY_FROM_ENV = import.meta.env.VITE_GEMINI_API_KEY;
-console.log("[geminiImageGeneration Module] VITE_GEMINI_API_KEY loaded from import.meta.env:", GEMINI_API_KEY_FROM_ENV ? `"${GEMINI_API_KEY_FROM_ENV.substring(0, 5)}..." (length: ${GEMINI_API_KEY_FROM_ENV.length})` : GEMINI_API_KEY_FROM_ENV);
+console.log("[geminiImageGeneration Module] VITE_GEMINI_API_KEY loaded:", GEMINI_API_KEY_FROM_ENV ? `"${GEMINI_API_KEY_FROM_ENV.substring(0, 5)}..."` : "Not found");
 
 const REMOVE_BG_API_KEY_FROM_ENV = import.meta.env.VITE_REMOVE_BG_API_KEY;
-console.log("[geminiImageGeneration Module] VITE_REMOVE_BG_API_KEY loaded from import.meta.env:", REMOVE_BG_API_KEY_FROM_ENV ? `"${REMOVE_BG_API_KEY_FROM_ENV.substring(0, 5)}..." (length: ${REMOVE_BG_API_KEY_FROM_ENV.length})` : REMOVE_BG_API_KEY_FROM_ENV);
+console.log("[geminiImageGeneration Module] VITE_REMOVE_BG_API_KEY loaded:", REMOVE_BG_API_KEY_FROM_ENV ? `"${REMOVE_BG_API_KEY_FROM_ENV.substring(0, 5)}..."` : "Not found");
 
-
-const GEMINI_API_KEY = GEMINI_API_KEY_FROM_ENV; // Use the logged value
+const GEMINI_API_KEY = GEMINI_API_KEY_FROM_ENV;
 const REMOVE_BG_API_KEY = REMOVE_BG_API_KEY_FROM_ENV;
 
-// Safety settings from the previous version, assuming compatibility with @google/genai
 const safetySettings = [
-  { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-  { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-  { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+  { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
 ];
 
-export async function generateLogoWithGemini(storeName) {
-  if (!storeName) {
-    throw new Error("Store name is required to generate a logo.");
+async function getLogoColorType(base64ImageData, mimeType, aiInstance) {
+  try {
+    const contents = [
+      { inlineData: { mimeType, data: base64ImageData } },
+      { text: "Describe the main colors of this logo. Is it primarily black, white, or colorful? If black or white, state which. If colorful, list the dominant colors." }
+    ];
+    const response = await aiInstance.models.generateContent({
+      model: "gemini-2.0-flash",
+      contents: contents,
+      safetySettings,
+      config: { responseModalities: [Modality.TEXT] }
+    });
+    const description = response?.text?.toLowerCase() || "";
+    console.log("[getLogoColorType] Gemini color description:", description);
+    if (description.includes("primarily black") || description.includes("black logo")) return "black";
+    if (description.includes("primarily white") || description.includes("white logo")) return "white";
+    if (description.includes("colorful") || description.includes("multiple colors") || description.includes("various colors")) return "colored";
+    console.warn("[getLogoColorType] Could not clearly determine logo color type. Defaulting to 'colored'. Desc:", description);
+    return "colored";
+  } catch (error) {
+    console.error("[getLogoColorType] Error analyzing logo color:", error);
+    return "colored";
   }
+}
 
-  if (!GEMINI_API_KEY) {
-    console.error("[geminiImageGeneration Function] VITE_GEMINI_API_KEY is not available. Ensure it's set in .env and dev server was restarted.");
-    throw new Error("Gemini API key is not configured. Please ensure VITE_GEMINI_API_KEY is in your .env file and the server was restarted.");
-  }
+export async function generateLogoWithGemini(storeName, updateProgressCallback = (progress, message) => console.log(`Logo Progress: ${progress}%, Message: ${message || ''}`)) {
+  if (!storeName) throw new Error("Store name is required.");
+  if (!GEMINI_API_KEY) throw new Error("Gemini API key not configured.");
 
-  // Instantiate the AI client using GoogleGenAI from @google/genai
   const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-
-  const prompt = `Create a modern, clean, and professional logo for an e-commerce store named "${storeName}". The logo should be suitable for a website header. Avoid text in the logo itself, or if text is present, ensure it is "${storeName}" and highly legible. Focus on an iconic and memorable design. Generate a square image. The main subject of the logo should be prominent and take up most of the frame.`;
+  const initialPrompt = `Create a modern, clean, and professional logo for an e-commerce store named "${storeName}". The logo should be suitable for a website header. Avoid text in the logo itself, or if text is present, ensure it is "${storeName}" and highly legible. Focus on an iconic and memorable design. Generate a square image. The main subject of the logo should be prominent.`;
+  let fullResponseText = "";
+  let initialImageData = null;
+  let initialImageMimeType = null;
 
   try {
-    console.log("[geminiImageGeneration Function] Attempting to generate logo using @google/genai SDK with ai.models.generateContent method.");
-
-    // Use ai.models.generateContent() as per the user's example
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash-preview-image-generation", // Reverted to gemini-2.0-flash-preview-image-generation
-      contents: prompt, // Pass the prompt string directly as per the example
-      safetySettings,   // Pass safetySettings; @google/genai should support this
-      config: {
-        responseModalities: [Modality.TEXT, Modality.IMAGE], // Reverted to TEXT and IMAGE as required by the model
-      },
+    console.log("[generateLogoWithGemini] Generating initial logo for:", storeName);
+    // Assuming initial logo generation is a small step within the logo phase
+    updateProgressCallback(undefined, `Generating initial logo for ${storeName}...`); 
+    const initialResponse = await ai.models.generateContent({
+      model: "gemini-2.0-flash-preview-image-generation",
+      contents: initialPrompt,
+      safetySettings,
+      config: { responseModalities: [Modality.TEXT, Modality.IMAGE] },
     });
 
-    let fullResponseText = ""; 
-    let imageData = null;
-    let imageMimeType = null;
-
-    // Parse the response based on the example's structure
-    // The response object from @google/genai's ai.models.generateContent is expected to directly contain candidates
-    if (response.candidates && response.candidates.length > 0 && response.candidates[0].content && response.candidates[0].content.parts) {
-      for (const part of response.candidates[0].content.parts) {
-        if (part.text) {
-          fullResponseText += part.text;
-        } else if (part.inlineData && part.inlineData.data) {
-          imageData = part.inlineData.data;
-          imageMimeType = part.inlineData.mimeType;
-          console.log("[geminiImageGeneration Function] Image data found in response part (mimeType: " + imageMimeType + ").");
-          break; // Assuming one logo image is sufficient
+    if (initialResponse.candidates?.[0]?.content?.parts) {
+      for (const part of initialResponse.candidates[0].content.parts) {
+        if (part.text) fullResponseText += part.text;
+        else if (part.inlineData?.data) {
+          initialImageData = part.inlineData.data;
+          initialImageMimeType = part.inlineData.mimeType;
+          break;
         }
       }
-    } else {
-      // Handle cases where the response structure is not as expected or parts are missing
-      console.warn("[geminiImageGeneration Function] Response structure unexpected, no parts found, or no candidates. Full response:", JSON.stringify(response));
-      // If there's a direct text response or error message in a different part of the response, try to capture it.
-      // This part might need refinement based on actual error responses from @google/genai.
-      if (response && typeof response.text === 'function') { // Check if response has a text method (common in some SDKs for full text)
-         fullResponseText = await response.text();
-      } else if (response && response.error && response.error.message) {
-         fullResponseText = `Error from API: ${response.error.message}`;
-      }
     }
+    if (!initialImageData) throw new Error("Failed to generate initial image data. " + (fullResponseText || "No text explanation."));
+    console.log("[generateLogoWithGemini] Initial logo generated. MimeType:", initialImageMimeType);
 
-    if (!imageData) {
-      console.error("[geminiImageGeneration Function] No image data found in Gemini response. Text response (if any):", fullResponseText);
-      throw new Error("Failed to generate image. Model did not return image data. " + (fullResponseText || "No text explanation from model."));
-    }
+    let logoUrlLight = null;
+    let logoUrlDark = null;
+    let transparentBase64 = initialImageData; // Start with original
+    let currentMimeType = initialImageMimeType;
 
-    console.log("[geminiImageGeneration Function] Successfully generated image data. Text response (if any):", fullResponseText);
-    
-    // Remove background from the generated logo
-    if (imageData && imageMimeType) {
+    if (REMOVE_BG_API_KEY) {
       try {
-        console.log("[geminiImageGeneration Function] Attempting to remove background from logo.");
-        const transparentImageData = await removeBackgroundFromLogo(imageData, imageMimeType);
-        console.log("[geminiImageGeneration Function] Successfully removed background from logo.");
-        return { imageData: transparentImageData, textResponse: fullResponseText };
-      } catch (bgRemoveError) {
-        console.error("[geminiImageGeneration Function] Error removing background:", bgRemoveError.message);
-        // Fallback to returning the original image if background removal fails
-        console.warn("[geminiImageGeneration Function] Background removal failed. Returning original image.");
-        return { imageData, textResponse: fullResponseText };
+        console.log("[generateLogoWithGemini] Removing background.");
+        updateProgressCallback(undefined, `Removing logo background...`); // Update message
+        transparentBase64 = await removeBackgroundFromLogo(initialImageData, initialImageMimeType);
+        currentMimeType = 'image/png'; // remove.bg outputs PNG
+        console.log("[generateLogoWithGemini] Background removed.");
+        updateProgressCallback(undefined, `Background removed.`); // Update message
+      } catch (bgError) {
+        console.warn("[generateLogoWithGemini] BG removal failed, using original:", bgError.message);
+        updateProgressCallback(undefined, `Background removal failed.`);
+        // transparentBase64 remains initialImageData, currentMimeType remains initialImageMimeType
       }
+    } else {
+      console.warn("[generateLogoWithGemini] No REMOVE_BG_API_KEY, skipping BG removal.");
+      updateProgressCallback(undefined, `Skipped background removal.`);
     }
-    // Should not reach here if imageData was null, as it's handled above.
-    // But as a safeguard:
-    return { imageData, textResponse: fullResponseText };
+    
+    // Color type analysis is a smaller step, might not need its own message update unless it's slow
+    const colorType = await getLogoColorType(transparentBase64, currentMimeType, ai);
+    const transparentDataUrl = `data:${currentMimeType};base64,${transparentBase64}`;
 
+    if (colorType === "black") {
+      logoUrlDark = transparentDataUrl; // Black logo for light backgrounds
+      try {
+        const editResultWhite = await editImageWithGemini(transparentBase64, currentMimeType, "Convert this black logo to a white logo, maintaining transparency and all details precisely. Output only the modified image.");
+        if (editResultWhite.editedImageData) {
+          logoUrlLight = `data:${editResultWhite.newMimeType};base64,${editResultWhite.editedImageData}`;
+        } else { throw new Error("Inversion to white failed."); }
+      } catch (invError) {
+        console.warn("[generateLogoWithGemini] Failed to make white version:", invError.message);
+        logoUrlLight = transparentDataUrl;
+      }
+    } else if (colorType === "white") {
+      logoUrlLight = transparentDataUrl; // White logo for dark backgrounds
+      try {
+        const editResultBlack = await editImageWithGemini(transparentBase64, currentMimeType, "Convert this white logo to a black logo, maintaining transparency and all details precisely. Output only the modified image.");
+        if (editResultBlack.editedImageData) {
+          logoUrlDark = `data:${editResultBlack.newMimeType};base64,${editResultBlack.editedImageData}`;
+        } else { throw new Error("Inversion to black failed."); }
+      } catch (invError) {
+        console.warn("[generateLogoWithGemini] Failed to make black version:", invError.message);
+        logoUrlDark = transparentDataUrl;
+      }
+    } else { // Colored or undetermined
+      logoUrlLight = transparentDataUrl;
+      logoUrlDark = transparentDataUrl;
+    }
+    return { logoUrlLight, logoUrlDark, textResponse: fullResponseText };
 
   } catch (error) {
-    console.error("[geminiImageGeneration Function] Error during logo generation:", error.message, error.stack, error);
-    // Preserve existing detailed error handling, adapt if @google/genai throws different error types
-    if (error.message && error.message.toLowerCase().includes("api key not valid")) {
-      throw new Error("Invalid Gemini API Key. Please check your VITE_GEMINI_API_KEY in the .env file.");
-    }
-    if (error.message && error.message.toLowerCase().includes("billing")) {
-      throw new Error("Gemini API request failed. Please check your Google Cloud project billing status and ensure the API is enabled.");
-    }
-    if (error.message && error.message.toLowerCase().includes("quota")) {
-      throw new Error("Gemini API quota exceeded. Please check your API usage limits.");
-    }
-    if (error.message && error.message.toLowerCase().includes("model not found")) {
-        throw new Error("The specified Gemini model ('gemini-2.0-flash-preview-image-generation') was not found or is not accessible. Please check model availability and SDK compatibility.");
-    }
-    if (error.message && (error.message.toLowerCase().includes("network error") || error.message.toLowerCase().includes("failed to fetch"))) {
-        throw new Error("A network error occurred while trying to reach the Gemini API. Please check your internet connection and firewall settings.");
-    }
-    // Check for permission-denied errors which can also relate to API key or enablement
-    if (error.message && error.message.toLowerCase().includes("permission denied")) {
-        throw new Error("Gemini API request failed due to a permission issue. Ensure the API key is correct, the Generative Language API is enabled in your Google Cloud project, and the project is correctly configured.");
-    }
-    // Fallback for other errors
-    throw new Error(`Image generation failed: ${error.message || "An unknown error occurred"}`);
+    console.error("[generateLogoWithGemini] Main error:", error.message, error.stack);
+    throw new Error(`Logo generation failed: ${error.message || "Unknown error"}`);
   }
 }
 
 export async function generateCaptionForImageData(base64ImageData, mimeType, captionUserPrompt) {
-  if (!GEMINI_API_KEY) {
-    console.error("[generateCaptionForImageData] VITE_GEMINI_API_KEY is not available.");
-    throw new Error("Gemini API key is not configured.");
-  }
-  if (!base64ImageData || !mimeType) {
-    throw new Error("Base64 image data and MIME type are required to generate a caption.");
-  }
+  if (!GEMINI_API_KEY) throw new Error("Gemini API key not configured.");
+  if (!base64ImageData || !mimeType) throw new Error("Image data and MIME type required for caption.");
 
   const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+  const captionResponseSchema = { type: Type.ARRAY, items: { type: Type.STRING }, description: "Array of 3 distinct caption options." };
+  const defaultCaptionPrompt = "Generate 3 distinct, short, punchy social media reel style captions for this product image. No emojis/hashtags. Clean strings. E.g., 'Fresh drop! Cop yours now.'";
+  let effectivePrompt = captionUserPrompt || defaultCaptionPrompt;
+  // Simplified prompt adjustment logic from before
+  if (captionUserPrompt && (!captionUserPrompt.toLowerCase().includes("3 options") && !captionUserPrompt.toLowerCase().includes("array of captions"))) {
+    effectivePrompt = `Generate an array of 3 distinct caption options based on: "${captionUserPrompt}". Style: social media reel. No emojis/hashtags.`;
+  }
 
-  const captionResponseSchema = {
-    type: Type.ARRAY,
-    items: { type: Type.STRING },
-    description: "An array of 3 distinct caption options for the image."
-  };
 
   try {
-    console.log(`[generateCaptionForImageData] Using provided image data. MimeType: ${mimeType}, Base64 length: ${base64ImageData.length}`);
-
-    const defaultCaptionPrompt = "Generate 3 distinct caption options for this product image, in the style of a social media reel. Captions should be short, punchy, and engaging. Do NOT include emojis or hashtags. Ensure each caption is a clean string without markdown. For example: 'Fresh drop! Cop yours now.' or 'Obsessed with this vibe!'.";
-    
-    let effectivePrompt = captionUserPrompt || defaultCaptionPrompt;
-    // Ensure the prompt asks for 3 options, social media reel style, and NO emojis/hashtags if a custom prompt is given.
-    if (captionUserPrompt) {
-        let baseRequest = `"${captionUserPrompt}"`;
-        if (!captionUserPrompt.toLowerCase().includes("social media reel")) {
-            baseRequest += " (style: social media reel)";
-        }
-        if (!captionUserPrompt.toLowerCase().includes("no emojis") && !captionUserPrompt.toLowerCase().includes("no hashtags")) {
-            baseRequest += " (important: do not include emojis or hashtags)";
-        }
-        
-        if (!captionUserPrompt.toLowerCase().includes("3 options") && !captionUserPrompt.toLowerCase().includes("three options") && !captionUserPrompt.toLowerCase().includes("array of captions")) {
-            effectivePrompt = `Generate an array of 3 distinct caption options based on this request: ${baseRequest}. Each caption should be a clean string without emojis or hashtags.`;
-        } else {
-            effectivePrompt = `Generate captions based on this request: ${baseRequest}. Each caption should be a clean string without emojis or hashtags.`;
-        }
-    }
-
-
-    const contents = [
-      {
-        inlineData: {
-          mimeType: mimeType,
-          data: base64ImageData,
-        },
-      },
-      { text: effectivePrompt }, 
-    ];
-
-    console.log(`[generateCaptionForImageData] Calling Gemini to generate caption options for image using responseSchema. Prompt: "${effectivePrompt}"`);
-    
+    const contents = [{ inlineData: { mimeType, data: base64ImageData } }, { text: effectivePrompt }];
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash", 
-      contents: contents,
-      safetySettings,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: captionResponseSchema,
-      },
+      model: "gemini-2.0-flash", contents, safetySettings,
+      config: { responseMimeType: "application/json", responseSchema: captionResponseSchema },
     });
-    
-    // The response.text() should directly be the JSON string if responseSchema is used
-    const responseText = response.text; // Or response.text() if it's a function
-    if (typeof responseText !== 'string' || responseText.trim() === '') {
-        console.error("[generateCaptionForImageData] Model did not return a text response for JSON schema. Response:", JSON.stringify(response));
-        throw new Error("Model response for JSON schema was empty or not a string.");
+    const responseText = response.text;
+    if (typeof responseText !== 'string' || !responseText.trim()) throw new Error("Model response empty or not string.");
+    const parsed = JSON.parse(responseText);
+    if (Array.isArray(parsed) && parsed.every(c => typeof c === 'string')) {
+      const cleaned = parsed.map(c => c.trim().replace(/\*/g, '')).filter(c => c.length > 0);
+      return cleaned.length > 0 ? cleaned : ["Generated image description."];
     }
-
-    try {
-      const parsedCaptions = JSON.parse(responseText);
-      if (Array.isArray(parsedCaptions) && parsedCaptions.every(c => typeof c === 'string')) {
-        const cleanedCaptions = parsedCaptions.map(c => c.trim().replace(/\*/g, '')).filter(c => c.length > 0); // Remove asterisks and trim
-        if (cleanedCaptions.length > 0) {
-          console.log(`[generateCaptionForImageData] Captions generated via responseSchema:`, cleanedCaptions);
-          return cleanedCaptions;
-        } else {
-           console.warn("[generateCaptionForImageData] Parsed captions array is empty or contains only empty strings after cleaning.");
-           return ["Generated image description."]; // Fallback
-        }
-      } else {
-        console.error("[generateCaptionForImageData] Parsed response is not an array of strings:", parsedCaptions);
-        throw new Error("Parsed JSON from model is not in the expected format (array of strings).");
-      }
-    } catch (parseError) {
-      console.error("[generateCaptionForImageData] Failed to parse JSON response from model:", responseText, "ParseError:", parseError);
-      // Provide a fallback if JSON parsing fails but we got some text
-      return [responseText.trim().replace(/\*/g, '') || "Could not generate caption."];
-    }
-
+    throw new Error("Parsed JSON not array of strings.");
   } catch (error) {
-    console.error("[generateCaptionForImageData] Error generating caption:", error.message, error.stack, error);
-    throw new Error(`Image caption generation failed: ${error.message || "An unknown error occurred"}`);
+    console.error("[generateCaptionForImageData] Error:", error.message);
+    return [(error.message.substring(0,100) || "Could not generate caption.")]; // Return error message or generic fallback
   }
 }
 
-// Helper function to convert base64 to Blob
 function base64ToBlob(base64, mimeType) {
   const byteCharacters = atob(base64);
   const byteNumbers = new Array(byteCharacters.length);
-  for (let i = 0; i < byteCharacters.length; i++) {
-    byteNumbers[i] = byteCharacters.charCodeAt(i);
-  }
-  const byteArray = new Uint8Array(byteNumbers);
-  return new Blob([byteArray], { type: mimeType });
+  for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i);
+  return new Blob([new Uint8Array(byteNumbers)], { type: mimeType });
 }
 
 async function removeBackgroundFromLogo(base64ImageData, mimeType) {
   if (!REMOVE_BG_API_KEY) {
-    console.error("[removeBackgroundFromLogo Function] VITE_REMOVE_BG_API_KEY is not available. Ensure it's set in .env and dev server was restarted.");
-    throw new Error("Remove.bg API key is not configured. Please ensure VITE_REMOVE_BG_API_KEY is in your .env file and the server was restarted.");
+    console.warn("[removeBackgroundFromLogo] No API key, skipping.");
+    return base64ImageData;
   }
-
   const imageBlob = base64ToBlob(base64ImageData, mimeType);
-
   const formData = new FormData();
   formData.append("size", "auto");
-  formData.append("image_file", imageBlob, "logo_from_gemini" + (mimeType.startsWith("image/") ? "." + mimeType.substring(6) : ".bin")); // Use image_file with Blob
-  formData.append("format", "png"); // Ensure PNG for transparency
+  formData.append("image_file", imageBlob, "logo_temp" + (mimeType.startsWith("image/") ? "." + mimeType.substring(6) : ".bin"));
+  formData.append("format", "png");
 
-  console.log("[removeBackgroundFromLogo Function] Calling remove.bg API with image_file (Blob).");
-  const response = await fetch("https://api.remove.bg/v1.0/removebg", {
-    method: "POST",
-    headers: { "X-Api-Key": REMOVE_BG_API_KEY },
-    body: formData,
-  });
-
-  if (response.ok) {
+  try {
+    const response = await fetch("https://api.remove.bg/v1.0/removebg", {
+      method: "POST", headers: { "X-Api-Key": REMOVE_BG_API_KEY }, body: formData,
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Remove.bg API Error ${response.status}: ${errorText}`);
+    }
     const arrayBuffer = await response.arrayBuffer();
-    // Convert ArrayBuffer to base64 string to keep data format consistent
-    const base64String = btoa(
-      new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
-    );
-    console.log("[removeBackgroundFromLogo Function] Successfully removed background. Returning base64 image data.");
-    return base64String;
-  } else {
-    const errorText = await response.text();
-    console.error("[removeBackgroundFromLogo Function] Error from remove.bg API:", response.status, response.statusText, errorText);
-    throw new Error(`Remove.bg API Error ${response.status}: ${response.statusText}. Details: ${errorText}`);
+    return btoa(new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), ''));
+  } catch (error) {
+    console.error("[removeBackgroundFromLogo] Error:", error.message);
+    throw error; // Re-throw to be caught by caller
   }
 }
 
-export async function editImageWithGemini(
-  imageBase64, // Changed from referenceImageBase64 & productImageBase64
-  imageMimeType, // Changed from referenceImageMimeType & productImageMimeType
-  editPrompt
-) {
-  if (!GEMINI_API_KEY) {
-    console.error("[editImageWithGemini] VITE_GEMINI_API_KEY is not available.");
-    throw new Error("Gemini API key is not configured.");
-  }
-  // Updated check for single image editing
-  if (!imageBase64 || !imageMimeType || !editPrompt) {
-    throw new Error("Image data, image MIME type, and edit prompt are required for image editing.");
-  }
+export async function editImageWithGemini(imageBase64, imageMimeType, editPrompt) {
+  if (!GEMINI_API_KEY) throw new Error("Gemini API key not configured.");
+  if (!imageBase64 || !imageMimeType || !editPrompt) throw new Error("Image data, MIME type, and prompt required.");
 
   const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-
-  // Contents for single image editing, matching user's example
-  const contents = [
-    { text: editPrompt },
-    {
-      inlineData: {
-        mimeType: imageMimeType,
-        data: imageBase64,
-      },
-    },
-  ];
-
-  // Safety settings (can be reused or customized)
-  const editSafetySettings = [
-    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-  ];
+  const contents = [{ text: editPrompt }, { inlineData: { mimeType: imageMimeType, data: imageBase64 } }];
 
   try {
-    console.log(`[editImageWithGemini] Calling Gemini for image editing with prompt: "${editPrompt}"`);
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash-preview-image-generation", // Reverted to match image generation model
-      contents: contents,
-      safetySettings: editSafetySettings,
-      config: {
-        responseModalities: [Modality.TEXT, Modality.IMAGE], // Expecting text (confirmation/description) and image
-      },
+      model: "gemini-2.0-flash-preview-image-generation", contents, safetySettings,
+      config: { responseModalities: [Modality.TEXT, Modality.IMAGE] },
+    });
+    let editedImageData = null, editTextResponse = "", newMimeType = imageMimeType;
+    if (response.candidates?.[0]?.content?.parts) {
+      for (const part of response.candidates[0].content.parts) {
+        if (part.text) editTextResponse += part.text;
+        else if (part.inlineData?.data) {
+          editedImageData = part.inlineData.data;
+          newMimeType = part.inlineData.mimeType || imageMimeType;
+          break;
+        }
+      }
+    }
+    if (!editedImageData) throw new Error("Failed to edit image. " + (editTextResponse || "No text explanation."));
+    return { editedImageData, newMimeType, editTextResponse };
+  } catch (error) {
+    console.error("[editImageWithGemini] Error:", error.message);
+    throw new Error(`Image editing failed: ${error.message || "Unknown error"}`);
+  }
+}
+
+export async function generateGenericProductImageWithGemini(productName, productDescription) {
+  if (!productName) throw new Error("Product name required.");
+  if (!GEMINI_API_KEY) throw new Error("Gemini API key not configured.");
+
+  const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+  let prompt = `Generate a clean, commercial-style product image for "${productName}".`;
+  if (productDescription) prompt += ` Description: "${productDescription}".`;
+  prompt += ` Main focus on product, simple/neutral/white background for e-commerce. Square image.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.0-flash-preview-image-generation", contents: prompt, safetySettings,
+      config: { responseModalities: [Modality.TEXT, Modality.IMAGE] },
+    });
+    let imageData = null, textResponse = "", imageMimeType = 'image/png';
+    if (response.candidates?.[0]?.content?.parts) {
+      for (const part of response.candidates[0].content.parts) {
+        if (part.text) textResponse += part.text;
+        else if (part.inlineData?.data) {
+          imageData = part.inlineData.data;
+          imageMimeType = part.inlineData.mimeType || 'image/png';
+          break;
+        }
+      }
+    }
+    if (!imageData) throw new Error("Failed to generate product image. " + (textResponse || "No text explanation."));
+    
+    if (REMOVE_BG_API_KEY) {
+      try {
+        const transparentImageData = await removeBackgroundFromLogo(imageData, imageMimeType);
+        return { imageData: transparentImageData, textResponse }; // remove.bg outputs PNG
+      } catch (bgError) {
+        console.warn("[generateGenericProductImageWithGemini] BG removal failed, using original:", bgError.message);
+        // Fallback to original if BG removal fails
+      }
+    }
+    return { imageData, textResponse }; // Return original if no BG key or BG removal failed
+  } catch (error) {
+    console.error("[generateGenericProductImageWithGemini] Error:", error.message);
+    throw new Error(`Product image generation failed: ${error.message || "Unknown error"}`);
+  }
+}
+
+export async function generateImageFromPromptForPod({ prompt, referenceImage }) {
+  if (!prompt) throw new Error("Prompt required.");
+  if (!GEMINI_API_KEY) throw new Error("Gemini API key not configured.");
+
+  const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+  let contents;
+  const basePodPrompt = `Generate visually appealing image for: "${prompt}". Suitable for merchandise (t-shirts, mugs). Clear subject, good contrast. Square image.`;
+
+  if (referenceImage?.base64Data && referenceImage?.mimeType) {
+    contents = [
+      { text: `Using provided image as reference, ${prompt}. Output for print-on-demand. Square image.` },
+      { inlineData: { mimeType: referenceImage.mimeType, data: referenceImage.base64Data } },
+    ];
+  } else {
+    contents = basePodPrompt;
+  }
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.0-flash-preview-image-generation", contents, safetySettings,
+      config: { responseModalities: [Modality.TEXT, Modality.IMAGE] },
+    });
+    let imageData = null, imageMimeType = null, textResponse = "";
+    if (response.candidates?.[0]?.content?.parts) {
+      for (const part of response.candidates[0].content.parts) {
+        if (part.text) textResponse += part.text;
+        else if (part.inlineData?.data) {
+          imageData = part.inlineData.data;
+          imageMimeType = part.inlineData.mimeType;
+          break;
+        }
+      }
+    }
+    if (!imageData) throw new Error("Failed to generate image from prompt. " + (textResponse || "No text explanation."));
+    return { imageData, imageMimeType, textResponse };
+  } catch (error) {
+    console.error("[generateImageFromPromptForPod] Error:", error.message);
+    throw new Error(`Image generation for POD failed: ${error.message || "Unknown error"}`);
+  }
+}
+
+export async function visualizeImageOnProductWithGemini(promptGeneratedBase64, promptGeneratedMimeType, baseProductImageUrl, originalUserPrompt, productName) {
+  if (!promptGeneratedBase64 || !baseProductImageUrl || !originalUserPrompt || !productName) throw new Error("All params required for visualization.");
+  if (!GEMINI_API_KEY) throw new Error("Gemini API key not configured.");
+
+  const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+  let baseProductBase64, baseProductMimeType;
+
+  try {
+    const fetchResponse = await fetch(baseProductImageUrl);
+    if (!fetchResponse.ok) throw new Error(`Failed to fetch base product image: ${fetchResponse.statusText}`);
+    const blob = await fetchResponse.blob();
+    baseProductMimeType = blob.type;
+    baseProductBase64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+    });
+  } catch (error) {
+    throw new Error(`Could not load base product image: ${error.message}`);
+  }
+
+  const imageVisualizationPrompt = `Take this generated image (Image 1 from prompt "${originalUserPrompt}"), and realistically superimpose it onto this base product image (Image 2, a ${productName}). Output only the combined image.`;
+  const productDetailsPrompt = `For a ${productName} with design from prompt "${originalUserPrompt}", generate: 1. Title (max 60 chars). 2. Price (float). 3. Description (2-3 sentences, max 200 chars).`;
+  const productDetailsResponseSchema = {
+    type: Type.OBJECT,
+    properties: {
+      title: { type: Type.STRING }, price: { type: Type.NUMBER }, description: { type: Type.STRING },
+    },
+    required: ["title", "price", "description"],
+  };
+
+  try {
+    const imageGenContents = [
+      { text: imageVisualizationPrompt },
+      { inlineData: { mimeType: promptGeneratedMimeType, data: promptGeneratedBase64 } },
+      { inlineData: { mimeType: baseProductMimeType, data: baseProductBase64 } },
+    ];
+    const imageResponse = await ai.models.generateContent({
+      model: "gemini-2.0-flash-preview-image-generation", contents: imageGenContents, safetySettings,
+      config: { responseModalities: [Modality.TEXT, Modality.IMAGE] },
     });
 
-    let editedImageData = null;
-    let editTextResponse = "";
+    let visualizedImageData = null, visualizedImageMimeType = null;
+    if (imageResponse.candidates?.[0]?.content?.parts) {
+      for (const part of imageResponse.candidates[0].content.parts) {
+        if (part.inlineData?.data) {
+          visualizedImageData = part.inlineData.data;
+          visualizedImageMimeType = part.inlineData.mimeType;
+          break;
+        }
+      }
+    }
+    if (!visualizedImageData) throw new Error("Failed to generate visualized product image.");
 
-    if (response.candidates && response.candidates.length > 0 && response.candidates[0].content && response.candidates[0].content.parts) {
+    const detailsResponse = await ai.models.generateContent({
+      model: "gemini-2.0-flash", contents: [{ text: productDetailsPrompt }], safetySettings,
+      config: { responseMimeType: "application/json", responseSchema: productDetailsResponseSchema },
+    });
+    let productDetails = JSON.parse(detailsResponse.text || '{}');
+     if (!productDetails.title) { // Basic validation / fallback
+        productDetails = { title: `Custom ${productName}`, price: 24.99, description: `Unique ${productName} with design: "${originalUserPrompt}".` };
+    }
+
+    return { visualizedImageData, visualizedImageMimeType, productDetails };
+  } catch (error) {
+    console.error("[visualizeImageOnProductWithGemini] Error:", error.message);
+    throw new Error(`Product visualization failed: ${error.message || "Unknown error"}`);
+  }
+}
+
+export async function generateDifferentAnglesFromImage(base64ImageData, mimeType, productName) {
+  if (!GEMINI_API_KEY) throw new Error("Gemini API key not configured.");
+  if (!base64ImageData || !mimeType || !productName) throw new Error("Image data, MIME type, and product name required.");
+
+  const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+  const prompts = [
+    `Show this product, "${productName}", from a slightly high front-left angle. Maintain product integrity.`,
+    `Show this product, "${productName}", from a direct side view. Maintain product integrity.`,
+    `Show this product, "${productName}", from a top-down perspective. Maintain product integrity.`
+  ];
+  const generatedImages = [];
+
+  try {
+    for (const promptText of prompts) {
+      const contents = [{ text: promptText }, { inlineData: { mimeType, data: base64ImageData } }];
+      const response = await ai.models.generateContent({
+        model: "gemini-2.0-flash-preview-image-generation", contents, safetySettings,
+        config: { responseModalities: [Modality.TEXT, Modality.IMAGE] },
+      });
+      let angleImageData = null;
+      if (response.candidates?.[0]?.content?.parts) {
+        for (const part of response.candidates[0].content.parts) {
+          if (part.inlineData?.data) {
+            angleImageData = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+            generatedImages.push(angleImageData);
+            break;
+          }
+        }
+      }
+      if (!angleImageData) console.warn(`[generateDifferentAnglesFromImage] No image data for one angle.`);
+    }
+    if (generatedImages.length === 0) throw new Error("Failed to generate any additional angle images.");
+    return generatedImages;
+  } catch (error) {
+    console.error("[generateDifferentAnglesFromImage] Error:", error.message);
+    throw new Error(`Generating different angles failed: ${error.message || "Unknown error"}`);
+  }
+}
+
+export async function generateCollectionImageWithGemini(collectionName, collectionDescription) {
+  if (!collectionName) throw new Error("Collection name is required to generate an image.");
+  if (!GEMINI_API_KEY) throw new Error("Gemini API key not configured.");
+
+  const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+  
+  let prompt = `Generate a visually appealing banner image for an e-commerce collection named "${collectionName}".`;
+  if (collectionDescription) {
+    prompt += ` The collection is described as: "${collectionDescription}".`;
+  }
+  prompt += ` The image should be thematic or abstract, suitable for a collection header or card. It should evoke the essence of the collection. Consider a wide aspect ratio like 16:9 or a square image if more appropriate for a card.`;
+
+  try {
+    console.log(`[generateCollectionImageWithGemini] Generating image for collection: ${collectionName}`);
+    const response = await ai.models.generateContent({
+      model: "gemini-2.0-flash-preview-image-generation",
+      contents: [{ role: "user", parts: [{text: prompt}]}], // Simple text prompt
+      safetySettings,
+      config: { responseModalities: [Modality.TEXT, Modality.IMAGE] },
+    });
+
+    let imageData = null;
+    let imageMimeType = 'image/png'; // Default MIME type
+    let textResponse = "";
+
+    if (response.candidates?.[0]?.content?.parts) {
       for (const part of response.candidates[0].content.parts) {
         if (part.text) {
-          editTextResponse += part.text;
-        } else if (part.inlineData && part.inlineData.data) {
-          editedImageData = part.inlineData.data;
-          // Assuming the edited image will also be PNG or same as input, Gemini might specify mimeType
-          console.log(`[editImageWithGemini] Edited image data received. MimeType from Gemini: ${part.inlineData.mimeType}`);
-          break; // Assuming one edited image part
+          textResponse += part.text;
+        } else if (part.inlineData?.data) {
+          imageData = part.inlineData.data;
+          imageMimeType = part.inlineData.mimeType || imageMimeType; // Use provided MIME type or default
+          // Assuming we only need the first image part found
+          break; 
         }
       }
     }
 
-    if (!editedImageData) {
-      console.error("[editImageWithGemini] No edited image data found in Gemini response. Text response (if any):", editTextResponse);
-      throw new Error("Failed to edit image. Model did not return new image data. " + (editTextResponse || "No text explanation from model."));
+    if (!imageData) {
+      throw new Error("Failed to generate image data for the collection. " + (textResponse || "No text explanation from AI."));
     }
 
-    console.log("[editImageWithGemini] Successfully edited image. Text response (if any):", editTextResponse);
-    // Returns raw base64 data of the edited image. The caller should form the data URL.
-    // Also returning the mime type provided by Gemini for the edited image.
-    const newMimeType = response.candidates[0].content.parts.find(p => p.inlineData)?.inlineData.mimeType || 'image/png';
-    return { editedImageData, newMimeType, editTextResponse };
+    return { imageData, imageMimeType, textResponse };
 
   } catch (error) {
-    console.error("[editImageWithGemini] Error during image editing:", error.message, error.stack, error);
-    throw new Error(`Image editing failed: ${error.message || "An unknown error occurred"}`);
+    console.error(`[generateCollectionImageWithGemini] Error generating image for collection "${collectionName}":`, error);
+    throw new Error(`Collection image generation failed for "${collectionName}": ${error.message || "Unknown error"}`);
   }
 }

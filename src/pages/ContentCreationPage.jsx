@@ -1,25 +1,25 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom"; // Added for navigation
 import {
-  Dialog, // This will likely be removed or replaced with page layout components
-  DialogContent, // This will likely be removed or replaced with page layout components
-  DialogHeader, // This will likely be removed or replaced with page layout components
-  DialogTitle, // This will likely be removed or replaced with page layout components
-  DialogDescription, // This will likely be removed or replaced with page layout components
-  DialogFooter, // This will likely be removed or replaced with page layout components
-  DialogClose, // This will likely be removed or replaced with page layout components
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription, 
+  DialogFooter, 
+  DialogClose, 
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { generateImagePromptSuggestions } from "@/lib/gemini.js"; // Added import
+import { generateImagePromptSuggestions } from "@/lib/gemini.js"; 
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
-import { generateImageWithGemini, generateId } from "@/lib/utils.jsx"; // Corrected import
-import { editImageWithGemini, generateCaptionForImageData } from "@/lib/geminiImageGeneration.js"; // Corrected import
-import { generateVideoWithVeoFromImage } from "@/lib/geminiVideoGeneration"; // Assuming this is in geminiVideoGeneration.js
+import { generateImageWithGemini, generateId } from "@/lib/utils.jsx"; 
+import { editImageWithGemini, generateCaptionForImageData } from "@/lib/geminiImageGeneration.js"; 
+import { generateVideoWithVeoFromImage } from "@/lib/geminiVideoGeneration"; 
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2,
@@ -45,12 +45,12 @@ import {
   Eye,
   Download,
   Share2,
-  ArrowLeft // Added for back button
+  ArrowLeft,
+  X // Added X icon
 } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area"; // Added for timeline if it gets long
+import { ScrollArea } from "@/components/ui/scroll-area"; 
+// import VideoEditor from "@/components/video/VideoEditor"; // Removed VideoEditor import
 
-// Helper to convert image URL (http or data) to base64 and mimeType
-// This is duplicated from other files, consider moving to a central util if not already there
 const convertImageSrcToBasics = (imageSrc) => {
   return new Promise((resolve, reject) => {
     if (!imageSrc) {
@@ -72,7 +72,6 @@ const convertImageSrcToBasics = (imageSrc) => {
         reject(new Error(`Invalid data URL format: ${error.message}`));
       }
     } else {
-      // Assuming it's an HTTP/HTTPS URL
       const img = new Image();
       img.crossOrigin = "Anonymous";
       img.onload = () => {
@@ -111,83 +110,111 @@ const convertImageSrcToBasics = (imageSrc) => {
   });
 };
 
-
-import { 
-    renderVoiceoverVideoWithCreatomate, 
-    renderProductShowcaseVideoWithCreatomate
-    // pollCreatomateRenderStatus was removed as SDK's client.render handles waiting
-} from "@/lib/creatomate.js";
 import { 
     generateImageWithOpenAI, 
     editImageWithOpenAI,
     dataUrlToImageFile
 } from "@/lib/openaiImageGeneration.js";
-import { useStore } from "@/contexts/StoreContext"; // Added import
-import { useParams, useLocation } from "react-router-dom"; // Added useParams and useLocation
-
+import { useStore } from "@/contexts/StoreContext"; 
+import { useParams, useLocation } from "react-router-dom"; 
 
 const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onContentCreated }) => {
   const { toast } = useToast();
-  const { storeId: storeIdFromParams } = useParams(); // Get storeId from URL
-  const location = useLocation(); // To get product passed via state if any
+  const { storeName: storeNameFromParams } = useParams(); 
+  const location = useLocation(); 
   
-  const storeId = storeIdFromParams || storeIdProp; // Prioritize storeId from URL params
-  const product = productProp || location.state?.product; // Use product from prop or location state
+  const productFromState = location.state?.product;
+  const storeDataFromState = location.state?.storeData; // Expecting full store data now
 
-  const { getStoreById } = useStore(); 
+  const product = productProp || productFromState; 
+
+  const { getStoreById, getStoreByName } = useStore(); 
   const [activeTab, setActiveTab] = useState("text-to-image");
 
-  // Text-to-image state
-  const [textPrompt, setTextPrompt] = useState(""); // For Gemini
-  const [openAITextPrompt, setOpenAITextPrompt] = useState(""); // For OpenAI
+  const [textPrompt, setTextPrompt] = useState(""); 
+  const [openAITextPrompt, setOpenAITextPrompt] = useState(""); 
   const [isGeneratingWithGemini, setIsGeneratingWithGemini] = useState(false);
   const [isGeneratingWithOpenAI, setIsGeneratingWithOpenAI] = useState(false);
-  const [generatedImage, setGeneratedImage] = useState(null); // { url: string, captions: string[], sourceApi?: 'gemini' | 'openai' }
+  const [generatedImage, setGeneratedImage] = useState(null); 
   const [suggestedImagePrompts, setSuggestedImagePrompts] = useState([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   
-  // Image-to-image state
-  const [imageEditPrompt, setImageEditPrompt] = useState(""); // For Gemini edit
-  // const [openAIImageEditPrompt, setOpenAIImageEditPrompt] = useState(""); // For OpenAI edit - REMOVED
-  const [selectedImageForEditing, setSelectedImageForEditing] = useState(null); // { url: string, captions: string[] (or original single caption), id: string }
+  const [imageEditPrompt, setImageEditPrompt] = useState(""); 
+  const [selectedImageForEditing, setSelectedImageForEditing] = useState(null); 
   const [isEditingWithGemini, setIsEditingWithGemini] = useState(false);
-  // const [isEditingWithOpenAI, setIsEditingWithOpenAI] = useState(false); // REMOVED
-  const [editedImage, setEditedImage] = useState(null); // { url: string, captions: string[] }
+  const [editedImage, setEditedImage] = useState(null); 
 
-  // Timeline state
-  const [timelineItems, setTimelineItems] = useState([]); // Array of { id, type: 'image' | 'video', url, caption: string, isVideo }
-  const [activeSelectedCaption, setActiveSelectedCaption] = useState(""); // Holds the user-selected caption for the current preview
+  const [timelineItems, setTimelineItems] = useState([]); 
+  const [activeSelectedCaption, setActiveSelectedCaption] = useState(""); 
   const [isConvertingToVeo, setIsConvertingToVeo] = useState(false);
-  const [isGeneratingCreatomateVideo, setIsGeneratingCreatomateVideo] = useState(false);
-  const [creatomateRenderStatus, setCreatomateRenderStatus] = useState("");
-  const [selectedCreatomateTemplate, setSelectedCreatomateTemplate] = useState("voiceover"); // 'voiceover' or 'product_showcase'
 
-  // File upload state
-  const [uploadedFile, setUploadedFile] = useState(null); // { url: string, caption: string }
+  const [uploadedFile, setUploadedFile] = useState(null); 
   const [isProcessingUpload, setIsProcessingUpload] = useState(false);
 
-  // Product Catalog State
   const [productCatalog, setProductCatalog] = useState([]);
   const [isLoadingProductCatalog, setIsLoadingProductCatalog] = useState(false);
   const [showCatalogPicker, setShowCatalogPicker] = useState(false);
+  const [viewingMedia, setViewingMedia] = useState(null); // State for the media viewer
 
+  const handleDownloadMedia = async () => {
+    if (!viewingMedia || !viewingMedia.url) return;
 
-  // Initialize with product info, fetch prompt suggestions, and load product catalog
-  useEffect(() => {
-    let currentStore = null;
-    if (storeId) {
-      currentStore = getStoreById(storeId);
-    } else if (product && product.store_id) { // Fallback if product has store_id
-      currentStore = getStoreById(product.store_id);
+    try {
+      const link = document.createElement('a');
+      let fileName = "download";
+
+      if (viewingMedia.url.startsWith('data:')) {
+        // Handle data URLs
+        const mimeTypeMatch = viewingMedia.url.match(/:(.*?);/);
+        const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'application/octet-stream';
+        const extension = mimeType.split('/')[1] || 'bin';
+        fileName = `${viewingMedia.caption?.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'media'}.${extension}`;
+        link.href = viewingMedia.url;
+      } else {
+        // Handle regular URLs - this might be subject to CORS if it's a cross-origin fetch
+        // For direct download of external URLs, it's often better if the server sets Content-Disposition
+        // However, for same-origin or properly CORS-configured URLs, or if browser can directly link, this works.
+        const response = await fetch(viewingMedia.url);
+        const blob = await response.blob();
+        link.href = URL.createObjectURL(blob);
+        
+        const nameFromUrl = viewingMedia.url.substring(viewingMedia.url.lastIndexOf('/') + 1).split('?')[0];
+        const extFromUrl = nameFromUrl.includes('.') ? nameFromUrl.substring(nameFromUrl.lastIndexOf('.') + 1) : '';
+        const defaultExt = viewingMedia.type === 'video' ? 'mp4' : 'png';
+        fileName = nameFromUrl || `${viewingMedia.caption?.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'media'}.${extFromUrl || defaultExt}`;
+      }
+
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      if (!viewingMedia.url.startsWith('data:')) {
+        URL.revokeObjectURL(link.href); // Clean up blob URL
+      }
+      toast({ title: "Download Started", description: `Downloading ${fileName}` });
+    } catch (error) {
+      console.error("Error downloading media:", error);
+      toast({ title: "Download Failed", description: error.message, variant: "destructive" });
     }
+  };
 
-    if (currentStore && currentStore.products) {
+  useEffect(() => {
+    let currentStoreDetails = storeDataFromState; // Prioritize storeData from navigation state
+    if (!currentStoreDetails) { // Fallback to fetching if not passed in state
+        if (storeNameFromParams) {
+            currentStoreDetails = getStoreByName(storeNameFromParams);
+        } else if (storeIdProp) {
+            currentStoreDetails = getStoreById(storeIdProp);
+        } else if (product && product.store_id) { 
+            currentStoreDetails = getStoreById(product.store_id);
+        }
+    }
+    
+    if (currentStoreDetails && currentStoreDetails.products) {
       setIsLoadingProductCatalog(true);
-      // Map products from store context to the simpler format needed by the picker
-      const mappedCatalog = currentStore.products.map(p => ({
+      const mappedCatalog = currentStoreDetails.products.map(p => ({
         id: p.id,
         name: p.name,
-        // Ensure image and src exist, provide placeholder if not
         image: {
           src: {
             medium: p.image?.src?.medium || `https://via.placeholder.com/100x100.png?text=${encodeURIComponent(p.name?.substring(0,10) || 'P')}`
@@ -197,18 +224,23 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
       setProductCatalog(mappedCatalog);
       setIsLoadingProductCatalog(false);
     } else {
-      // Fallback to sample data if no store-specific products are found
-      console.warn("[ContentCreationPage] No current store products found or storeId not available. Falling back to sample product catalog.");
+      console.warn("[ContentCreationPage] No current store products found. Falling back to sample product catalog.");
       setProductCatalog([
         { id: "sample_prod_1", name: "Sample Product Alpha", image: { src: { medium: "https://via.placeholder.com/100x100.png?text=Alpha" } } },
         { id: "sample_prod_2", name: "Sample Product Beta", image: { src: { medium: "https://via.placeholder.com/100x100.png?text=Beta" } } },
         { id: "sample_prod_3", name: "Sample Product Gamma", image: { src: { medium: "https://via.placeholder.com/100x100.png?text=Gamma" } } },
       ]);
-      setIsLoadingProductCatalog(false); // Ensure loading is false even for fallback
+      setIsLoadingProductCatalog(false);
     }
 
     if (product && product.name) {
       setTextPrompt(`A captivating image of ${product.name}`);
+      // Ensure setProductShowcaseData is defined or remove if not used
+      // setProductShowcaseData(prev => ({
+      //   ...prev,
+      //   productName: product.name,
+      //   productDescription: product.description || prev.productDescription,
+      // }));
       
       const fetchSuggestions = async () => {
         setIsLoadingSuggestions(true);
@@ -216,8 +248,8 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
           const productInfo = {
             name: product.name,
             description: product.description || "", 
-            niche: currentStore?.type || product.niche || "", 
-            storeName: currentStore?.name || product.storeName || "" 
+            niche: currentStoreDetails?.type || product.niche || "", 
+            storeName: currentStoreDetails?.name || product.storeName || "" 
           };
           const result = await generateImagePromptSuggestions(productInfo);
           if (result.suggestions && result.suggestions.length > 0) {
@@ -233,9 +265,8 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
       };
       fetchSuggestions();
     }
-  }, [product, storeId, getStoreById]);
+  }, [product, storeDataFromState, storeNameFromParams, storeIdProp, getStoreById, getStoreByName]);
 
-  // Handle text-to-image generation (Gemini Flash Preview)
   const handleGenerateImageWithGemini = async () => {
     if (!textPrompt.trim()) {
       toast({ title: "Error", description: "Please enter a prompt for image generation", variant: "destructive" });
@@ -267,7 +298,6 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
     }
   };
 
-  // Handle text-to-image generation with OpenAI
   const handleGenerateImageWithOpenAI_UI = async () => {
     if (!openAITextPrompt.trim()) {
       toast({ title: "Error", description: "Please enter a prompt for OpenAI image generation", variant: "destructive" });
@@ -298,7 +328,6 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
     }
   };
 
-  // Handle image editing with Gemini (text-and-image-to-image)
   const handleEditImageWithGemini = async (itemToEdit, editPromptForGemini) => {
     if (!itemToEdit || !itemToEdit.url) {
         toast({ title: "Error", description: "No image selected to edit with Gemini.", variant: "destructive" });
@@ -336,7 +365,6 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
     }
   };
 
-  // Handle file upload
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -348,14 +376,21 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
       const reader = new FileReader();
       reader.onload = async (event) => {
         const dataUrl = event.target.result;
+        const fileType = file.type.startsWith('video/') ? 'video' : 'image';
         let captions = [file.name];
-        try {
-          const { base64ImageData, mimeType } = await convertImageSrcToBasics(dataUrl);
-          captions = await generateCaptionForImageData(base64ImageData, mimeType, "Uploaded image caption");
-        } catch (captionError) {
-          console.error("Error generating caption for uploaded image:", captionError);
+        
+        if (fileType === 'image') {
+          try {
+            const { base64ImageData, mimeType } = await convertImageSrcToBasics(dataUrl);
+            captions = await generateCaptionForImageData(base64ImageData, mimeType, "Uploaded image caption");
+          } catch (captionError) {
+            console.error("Error generating caption for uploaded image:", captionError);
+          }
+        } else {
+          captions = [`Uploaded video: ${file.name}`];
         }
-        setUploadedFile({ url: dataUrl, captions: captions });
+
+        setUploadedFile({ url: dataUrl, captions: captions, type: fileType });
         if (captions && captions.length > 0) setActiveSelectedCaption(captions[0]);
         setIsProcessingUpload(false);
       };
@@ -371,30 +406,27 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
     }
   };
 
-  // Add item to timeline
-  const addToTimeline = (imageUrl, caption, type = "image") => {
-    if (!imageUrl) {
-        toast({ title: "Cannot Add", description: "Image URL is missing.", variant: "destructive"});
+  const addToTimeline = (itemUrl, caption, type = "image") => {
+    if (!itemUrl) {
+        toast({ title: "Cannot Add", description: "Item URL is missing.", variant: "destructive"});
         return;
     }
     const newItem = {
       id: generateId(),
       type,
-      url: imageUrl,
+      url: itemUrl,
       caption: caption || `Item ${timelineItems.length + 1}`,
       isVideo: type === "video",
     };
     setTimelineItems((prev) => [...prev, newItem]);
     toast({ title: "Added to Timeline", description: `${type === "video" ? "Video" : "Image"} added to your content timeline.` });
-    // Clear the source fields after adding to timeline
     setGeneratedImage(null);
     setEditedImage(null);
     setUploadedFile(null);
-    setSelectedImageForEditing(null); // This clears the image selected for editing
-    setActiveSelectedCaption(""); // Clear the active caption
+    setSelectedImageForEditing(null); 
+    setActiveSelectedCaption(""); 
   };
 
-  // Move item in timeline
   const moveItem = (index, direction) => {
     const newItems = [...timelineItems];
     const item = newItems[index];
@@ -405,13 +437,11 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
     setTimelineItems(newItems);
   };
 
-  // Remove item from timeline
   const removeItemFromTimeline = (id) => {
     setTimelineItems((prev) => prev.filter((item) => item.id !== id));
     toast({ title: "Removed from Timeline", description: "Item removed." });
   };
 
-  // Convert image in timeline to video using Veo 2
   const handleConvertToVeoVideo = async (item, index) => {
     if (item.isVideo) {
       toast({ title: "Already a Video", description: "This item is already a video." });
@@ -422,7 +452,6 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
       const { base64ImageData, mimeType } = await convertImageSrcToBasics(item.url);
       const prompt = item.caption || `Create a short video from this image: ${product ? product.name : 'product showcase'}`;
       
-      // generateVideoWithVeoFromImage is from lib/geminiVideoGeneration.js
       const videoUrl = await generateVideoWithVeoFromImage(prompt, base64ImageData, mimeType); 
 
       const newItems = [...timelineItems];
@@ -437,65 +466,6 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
     }
   };
 
-  // Generate final video using Creatomate
-  const handleGenerateCreatomateVideo = async () => {
-    if (timelineItems.length === 0) {
-      toast({ title: "Empty Timeline", description: "Add content to the timeline first.", variant: "destructive" });
-      return;
-    }
-    setIsGeneratingCreatomateVideo(true);
-    setCreatomateRenderStatus("Starting video generation...");
-    toast({ title: "Creatomate Process Started", description: "Your video is being prepared." });
-
-    try {
-      let renderResponse;
-      if (selectedCreatomateTemplate === "voiceover") {
-        if (timelineItems.length === 0) {
-            toast({ title: "Error", description: "Please add items to the timeline for the voiceover video.", variant: "destructive" });
-            setIsGeneratingCreatomateVideo(false);
-            return;
-        }
-        renderResponse = await renderVoiceoverVideoWithCreatomate(timelineItems);
-      } else if (selectedCreatomateTemplate === "product_showcase") {
-        const productItem = timelineItems.find(item => item.type === 'image'); // Strictly find an image item
-        if (!productItem) {
-            toast({ title: "Error", description: "Please add at least one image to the timeline for the product showcase template.", variant: "destructive" });
-            setIsGeneratingCreatomateVideo(false);
-            return;
-        }
-        // Example branding - this could be configurable
-        const branding = { websiteUrl: product?.storeUrl || "www.yourstore.com", ctaText: "Shop Now!" };
-        renderResponse = await renderProductShowcaseVideoWithCreatomate(productItem, branding);
-      } else {
-        throw new Error("Invalid Creatomate template selected.");
-      }
-
-      // With Creatomate SDK, renderResponse from renderXVideoWithCreatomate is the final render object
-      // as client.render() waits for completion. Polling is no longer needed here.
-      if (renderResponse && renderResponse.status === 'succeeded' && renderResponse.url) {
-        toast({ title: "Creatomate Video Generated!", description: `Video successfully created: ${renderResponse.url}`, duration: 9000 });
-        setCreatomateRenderStatus(`Video ready: ${renderResponse.url}`);
-        if (onContentCreated) {
-          onContentCreated({ type: "video", url: renderResponse.url, source: "creatomate", renderDetails: renderResponse });
-        }
-        // Optionally, add the final video to the timeline or display it
-        // addToTimeline(renderResponse.url, `Final Video (${selectedCreatomateTemplate})`, "video");
-      } else if (renderResponse && renderResponse.status === 'failed') {
-        throw new Error(renderResponse.error_message || "Creatomate video generation failed.");
-      } else {
-        // This case should ideally not be reached if client.render() behaves as expected (resolves with success or rejects with error)
-        throw new Error("Creatomate video generation did not complete successfully or returned unexpected data.");
-      }
-    } catch (error) {
-      console.error("Error generating Creatomate video:", error);
-      toast({ title: "Creatomate Video Failed", description: error.message, variant: "destructive", duration: 9000 });
-      setCreatomateRenderStatus(`Error: ${error.message}`);
-    } finally {
-      setIsGeneratingCreatomateVideo(false);
-    }
-  };
-  
-  // Edit caption for timeline item
   const handleEditTimelineItemCaption = (id) => {
     const item = timelineItems.find(i => i.id === id);
     if (!item) return;
@@ -509,7 +479,7 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
   const handleSelectProductFromCatalog = (selectedProduct) => {
     if (selectedProduct.image && selectedProduct.image.src && selectedProduct.image.src.medium) {
         const caption = `Product: ${selectedProduct.name}`;
-        addToTimeline(selectedProduct.image.src.medium, caption);
+        addToTimeline(selectedProduct.image.src.medium, caption, 'image'); 
     } else {
         toast({ title: "No Image", description: `Product ${selectedProduct.name} has no image.`, variant: "destructive"});
     }
@@ -518,8 +488,8 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
 
 
   return (
-    <div className="container mx-auto p-4 md:p-6 lg:p-8 space-y-8">
-      <header className="relative text-center pb-4"> {/* Added relative positioning and padding */}
+    <div className="container mx-auto p-4 md:p-6 lg:p-8 space-y-8 bg-background"> {/* Changed to use theme's bg-background */}
+      <header className="relative text-center pb-4"> 
         <Link to="/" className="absolute left-0 top-0">
           <Button variant="outline" size="icon">
             <ArrowLeft className="h-5 w-5" />
@@ -533,7 +503,6 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 xl:gap-8">
-        {/* Left Column: Generation & Editing Tools */}
         <div className="lg:col-span-1 space-y-6">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-3">
@@ -542,12 +511,11 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
               <TabsTrigger value="upload"><Upload className="mr-1 h-4 w-4 inline-block"/>Upload</TabsTrigger>
             </TabsList>
 
-            {/* Text to Image Tab (Gemini & OpenAI) */}
             <TabsContent value="text-to-image" className="mt-4 p-4 border rounded-lg bg-card shadow">
-              <Label htmlFor="text-prompt-gemini" className="text-lg font-semibold">Text-to-Image (Gemini)</Label>
+              <Label htmlFor="text-prompt-model1" className="text-lg font-semibold">Text-to-Image (Quick)</Label>
               <Textarea
-                id="text-prompt-gemini"
-                placeholder="e.g., 'A futuristic cityscape at sunset' (Gemini)"
+                id="text-prompt-model1"
+                placeholder="e.g., 'A futuristic cityscape at sunset'"
                 value={textPrompt}
                 onChange={(e) => setTextPrompt(e.target.value)}
                 rows={3}
@@ -557,7 +525,7 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
               {isLoadingSuggestions && <p className="text-xs text-muted-foreground mt-1">Loading prompt suggestions...</p>}
               {suggestedImagePrompts.length > 0 && !isLoadingSuggestions && (
                 <div className="mt-2 space-y-1">
-                  <Label className="text-xs text-muted-foreground">Suggestions for Gemini:</Label>
+                  <Label className="text-xs text-muted-foreground">Suggestions:</Label>
                   <div className="flex flex-wrap gap-1">
                     {suggestedImagePrompts.map((suggestion, idx) => (
                       <Button key={idx} variant="outline" size="xs" onClick={() => setTextPrompt(suggestion)} className="text-xs">
@@ -569,15 +537,15 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
               )}
               <Button onClick={handleGenerateImageWithGemini} disabled={isGeneratingWithGemini || isGeneratingWithOpenAI || !textPrompt.trim()} className="w-full mt-3">
                 {isGeneratingWithGemini ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand className="mr-2 h-4 w-4" />}
-                Generate with Gemini
+                Generate with Quick
               </Button>
 
               <Separator className="my-4"/>
               
-              <Label htmlFor="text-prompt-openai" className="text-lg font-semibold">Text-to-Image (OpenAI gpt-image-1)</Label>
+              <Label htmlFor="text-prompt-model2" className="text-lg font-semibold">Text-to-Image (Quality)</Label>
               <Textarea
-                id="text-prompt-openai"
-                placeholder="e.g., 'A photorealistic cat astronaut' (OpenAI)"
+                id="text-prompt-model2"
+                placeholder="e.g., 'A photorealistic cat astronaut'"
                 value={openAITextPrompt} 
                 onChange={(e) => setOpenAITextPrompt(e.target.value)}
                 rows={3}
@@ -586,13 +554,13 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
               />
               <Button onClick={handleGenerateImageWithOpenAI_UI} disabled={isGeneratingWithGemini || isGeneratingWithOpenAI || !openAITextPrompt.trim()} className="w-full mt-3">
                 {isGeneratingWithOpenAI ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-2 h-4 w-4" />}
-                Generate with OpenAI
+                Generate with Quality
               </Button>
 
               {generatedImage && generatedImage.url && (
-                <div className="mt-4 border rounded-md p-4 space-y-3 bg-muted/50 min-h-[320px]"> {/* Increased padding and space, added min-h */}
-                  <img src={generatedImage.url} alt={`Generated by ${generatedImage.sourceApi || 'AI'}`} className="w-full rounded-md object-contain max-h-96" /> {/* Increased max-h */}
-                  <p className="text-xs text-muted-foreground">Source: {generatedImage.sourceApi?.toUpperCase()}</p>
+                <div className="mt-4 border rounded-md p-4 space-y-3 bg-muted/50 min-h-[320px]"> 
+                  <img src={generatedImage.url} alt={`Generated by ${generatedImage.sourceApi === 'gemini' ? 'Quick' : (generatedImage.sourceApi === 'openai' ? 'Quality' : 'AI')}`} className="w-full rounded-md object-contain max-h-96" /> 
+                  <p className="text-xs text-muted-foreground">Source: {generatedImage.sourceApi === 'gemini' ? 'Quick' : (generatedImage.sourceApi === 'openai' ? 'Quality' : 'AI')}</p>
                   <Label className="text-sm font-medium">Choose a caption:</Label>
                   <div className="flex flex-wrap gap-2">
                     {(generatedImage.captions || []).map((cap, idx) => (
@@ -614,7 +582,6 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
               )}
             </TabsContent>
 
-            {/* Image Editing Tab (OpenAI / Gemini) */}
             <TabsContent value="image-edit" className="mt-4 p-4 border rounded-lg bg-card shadow">
               <Label className="text-lg font-semibold">Image Editing</Label>
               {!selectedImageForEditing && <p className="text-sm text-muted-foreground mt-1">Select an image from the timeline to enable editing.</p>}
@@ -624,27 +591,10 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
                     <p className="text-sm font-medium">Editing: <span className="text-primary truncate">{selectedImageForEditing.caption}</span></p>
                     <img src={selectedImageForEditing.url} alt="Selected for editing" className="w-full rounded-md object-contain max-h-48 border" />
                     
-                    {/* OpenAI Edit Section Removed */}
-                    {/* <Label htmlFor="edit-prompt-openai">Edit with OpenAI (gpt-image-1)</Label>
-                    <Textarea
-                        id="edit-prompt-openai"
-                        placeholder="Describe OpenAI edits (e.g., 'add a hat on the person')"
-                        value={openAIImageEditPrompt} 
-                        onChange={(e) => setOpenAIImageEditPrompt(e.target.value)}
-                        rows={2}
-                        disabled={isEditingWithOpenAI || isEditingWithGemini}
-                    />
-                    <Button onClick={() => handleEditImageWithOpenAI(selectedImageForEditing, openAIImageEditPrompt)} disabled={isEditingWithOpenAI || isEditingWithGemini || !openAIImageEditPrompt.trim()} className="w-full">
-                        {isEditingWithOpenAI ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Scissors className="mr-2 h-4 w-4" />}
-                        Edit with OpenAI (gpt-image-1)
-                    </Button>
-
-                    <Separator className="my-3"/> */}
-
-                    <Label htmlFor="edit-prompt-gemini">Edit with Gemini</Label>
+                    <Label htmlFor="edit-prompt-model1">Edit with Quick</Label>
                      <Textarea
-                        id="edit-prompt-gemini"
-                        placeholder="Describe Gemini edits (e.g., 'change background to a beach')"
+                        id="edit-prompt-model1"
+                        placeholder="Describe edits (e.g., 'change background to a beach')"
                         value={imageEditPrompt} 
                         onChange={(e) => setImageEditPrompt(e.target.value)}
                         rows={2}
@@ -652,14 +602,14 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
                     />
                     <Button onClick={() => handleEditImageWithGemini(selectedImageForEditing, imageEditPrompt)} disabled={isEditingWithGemini || !imageEditPrompt.trim()} className="w-full">
                         {isEditingWithGemini ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand className="mr-2 h-4 w-4" />}
-                        Edit with Gemini
+                        Edit with Quick
                     </Button>
                 </div>
               )}
               {editedImage && editedImage.url && (
-                <div className="mt-4 border rounded-md p-4 space-y-3 bg-muted/50 min-h-[320px]"> {/* Increased padding and space, added min-h */}
-                  <img src={editedImage.url} alt={`Edited by ${editedImage.sourceApi || 'AI'}`} className="w-full rounded-md object-contain max-h-96" /> {/* Increased max-h */}
-                   <p className="text-xs text-muted-foreground">Source: {editedImage.sourceApi?.toUpperCase()}</p>
+                <div className="mt-4 border rounded-md p-4 space-y-3 bg-muted/50 min-h-[320px]"> 
+                  <img src={editedImage.url} alt={`Edited by ${editedImage.sourceApi === 'gemini' ? 'Quick' : 'AI'}`} className="w-full rounded-md object-contain max-h-96" /> 
+                   <p className="text-xs text-muted-foreground">Source: {editedImage.sourceApi === 'gemini' ? 'Quick' : 'AI'}</p>
                   <Label className="text-sm font-medium">Choose a caption for the edited image:</Label>
                    <div className="flex flex-wrap gap-2">
                     {(editedImage.captions || []).map((cap, idx) => (
@@ -681,15 +631,18 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
               )}
             </TabsContent>
 
-            {/* Upload Tab */}
             <TabsContent value="upload" className="mt-4 p-4 border rounded-lg bg-card shadow">
-              <Label htmlFor="image-upload" className="text-lg font-semibold">Upload Image</Label>
-              <Input id="image-upload" type="file" accept="image/*" onChange={handleFileUpload} className="mt-2" disabled={isProcessingUpload} />
+              <Label htmlFor="file-upload" className="text-lg font-semibold">Upload Image or Video</Label>
+              <Input id="file-upload" type="file" accept="image/*,video/*" onChange={handleFileUpload} className="mt-2" disabled={isProcessingUpload} />
               {isProcessingUpload && <div className="mt-2 flex items-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...</div>}
               {uploadedFile && uploadedFile.url && (
-                <div className="mt-4 border rounded-md p-4 space-y-3 bg-muted/50 min-h-[320px]"> {/* Increased padding and space, added min-h */}
-                  <img src={uploadedFile.url} alt="Uploaded content" className="w-full rounded-md object-contain max-h-96" /> {/* Increased max-h */}
-                  <Label className="text-sm font-medium">Choose a caption for the uploaded image:</Label>
+                <div className="mt-4 border rounded-md p-4 space-y-3 bg-muted/50 min-h-[320px]">
+                  {uploadedFile.type === 'image' ? (
+                    <img src={uploadedFile.url} alt="Uploaded content" className="w-full rounded-md object-contain max-h-96" />
+                  ) : (
+                    <video src={uploadedFile.url} controls className="w-full rounded-md max-h-96">Your browser does not support the video tag.</video>
+                  )}
+                  <Label className="text-sm font-medium">Choose a caption for the uploaded content:</Label>
                   <div className="flex flex-wrap gap-2">
                     {(uploadedFile.captions || []).map((cap, idx) => (
                       <Button
@@ -703,7 +656,7 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
                       </Button>
                     ))}
                   </div>
-                  <Button onClick={() => addToTimeline(uploadedFile.url, activeSelectedCaption)} size="sm" className="w-full mt-2" disabled={!activeSelectedCaption}>
+                  <Button onClick={() => addToTimeline(uploadedFile.url, activeSelectedCaption, uploadedFile.type)} size="sm" className="w-full mt-2" disabled={!activeSelectedCaption}>
                     <Plus className="mr-2 h-4 w-4" /> Add to Timeline
                   </Button>
                 </div>
@@ -711,7 +664,6 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
             </TabsContent>
           </Tabs>
           
-          {/* Product Catalog Picker */}
           <div className="p-4 border rounded-lg bg-card shadow">
             <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold">Product Catalog</h3>
@@ -737,11 +689,10 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
           </div>
         </div>
 
-        {/* Right Column: Timeline & Final Output */}
         <div className="lg:col-span-2 space-y-6">
           <div className="p-4 md:p-6 border rounded-lg bg-card shadow min-h-[400px]">
             <h2 className="text-2xl font-semibold mb-4">Content Timeline</h2>
-            <ScrollArea className="h-[calc(100vh-350px)] min-h-[300px] pr-3"> {/* Adjust height as needed */}
+            <ScrollArea className="h-[calc(100vh-350px)] min-h-[300px] pr-3"> 
               {timelineItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                   <Film className="h-12 w-12 mb-3" />
@@ -758,7 +709,8 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, x: -50 }}
                       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                      className="mb-3 p-3 border rounded-md flex items-start gap-3 hover:shadow-md transition-shadow bg-background"
+                      className="mb-3 p-3 border rounded-md flex items-start gap-3 hover:shadow-md transition-shadow bg-background cursor-pointer"
+                      onClick={() => setViewingMedia(item)}
                     >
                       <div className="w-24 h-24 flex-shrink-0 relative rounded overflow-hidden group bg-muted">
                         {item.isVideo ? (
@@ -770,7 +722,7 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
                           <Button
                             size="icon" variant="secondary"
                             className="absolute top-1 right-1 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() => handleConvertToVeoVideo(item, index)}
+                            onClick={(e) => { e.stopPropagation(); handleConvertToVeoVideo(item, index); }}
                             disabled={isConvertingToVeo}
                             title="Convert to Veo Video"
                           >
@@ -780,7 +732,8 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
                           <Button
                             size="icon" variant="outline"
                             className="absolute bottom-1 right-1 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setSelectedImageForEditing(item);
                               setActiveTab("image-edit");
                             }}
@@ -796,10 +749,10 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
                                 {item.isVideo ? "Video" : "Image"} {index + 1}
                             </span>
                             <div className="flex items-center">
-                                <Button size="icon" variant="ghost" onClick={() => moveItem(index, -1)} disabled={index === 0} className="h-7 w-7"><MoveUp className="h-4 w-4" /></Button>
-                                <Button size="icon" variant="ghost" onClick={() => moveItem(index, 1)} disabled={index === timelineItems.length - 1} className="h-7 w-7"><MoveDown className="h-4 w-4" /></Button>
-                                <Button size="icon" variant="ghost" onClick={() => handleEditTimelineItemCaption(item.id)} className="h-7 w-7"><Pencil className="h-4 w-4" /></Button>
-                                <Button size="icon" variant="ghost" onClick={() => removeItemFromTimeline(item.id)} className="h-7 w-7 text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); moveItem(index, -1);}} disabled={index === 0} className="h-7 w-7"><MoveUp className="h-4 w-4" /></Button>
+                                <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); moveItem(index, 1);}} disabled={index === timelineItems.length - 1} className="h-7 w-7"><MoveDown className="h-4 w-4" /></Button>
+                                <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); handleEditTimelineItemCaption(item.id);}} className="h-7 w-7"><Pencil className="h-4 w-4" /></Button>
+                                <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); removeItemFromTimeline(item.id);}} className="h-7 w-7 text-destructive"><Trash2 className="h-4 w-4" /></Button>
                             </div>
                         </div>
                         <p className="text-sm mt-1 text-muted-foreground line-clamp-3" title={item.caption}>{item.caption}</p>
@@ -810,43 +763,55 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
               )}
             </ScrollArea>
             {timelineItems.length > 0 && <Separator className="my-4" />}
-            <div className="space-y-3">
-              <Label htmlFor="creatomate-template-select">Creatomate Template</Label>
-              <div className="flex gap-2">
-                <Button 
-                    variant={selectedCreatomateTemplate === 'voiceover' ? 'default' : 'outline'}
-                    onClick={() => setSelectedCreatomateTemplate('voiceover')}
-                    className="flex-1"
-                >
-                    Voiceover Slideshow
-                </Button>
-                <Button 
-                    variant={selectedCreatomateTemplate === 'product_showcase' ? 'default' : 'outline'}
-                    onClick={() => setSelectedCreatomateTemplate('product_showcase')}
-                    className="flex-1"
-                >
-                    Product Showcase
-                </Button>
+            
+            {/* Media Viewer Section */}
+            {viewingMedia && (
+              <div className="mt-6 p-4 border rounded-lg bg-card shadow">
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-lg font-semibold">Media Viewer</h3>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={handleDownloadMedia}>
+                      <Download className="mr-2 h-4 w-4" />
+                      Download
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => setViewingMedia(null)}>
+                      <X className="h-5 w-5" />
+                    </Button>
+                  </div>
+                </div>
+                {viewingMedia.type === 'image' || !viewingMedia.isVideo ? (
+                  <img 
+                    src={viewingMedia.url} 
+                    alt={viewingMedia.caption || 'Viewing media'} 
+                    className="w-full max-h-[60vh] rounded-md object-contain border" 
+                  />
+                ) : (
+                  <video 
+                    src={viewingMedia.url} 
+                    controls 
+                    className="w-full max-h-[60vh] rounded-md border bg-black"
+                  >
+                    Your browser does not support the video tag.
+                  </video>
+                )}
+                <p className="text-sm text-muted-foreground mt-2 text-center">{viewingMedia.caption}</p>
               </div>
+            )}
+             {/* End Media Viewer Section */}
 
-              <Button
-                onClick={handleGenerateCreatomateVideo}
-                disabled={isGeneratingCreatomateVideo || timelineItems.length === 0}
-                className="w-full"
-                size="lg"
-              >
-                {isGeneratingCreatomateVideo ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Film className="mr-2 h-5 w-5" />}
-                Generate with Creatomate
-              </Button>
-              {creatomateRenderStatus && (
-                <p className="text-xs text-muted-foreground mt-1 text-center p-2 bg-muted rounded-md">
-                  Status: {creatomateRenderStatus}
-                </p>
-              )}
-              <p className="text-xs text-muted-foreground mt-1 text-center">
-                Uses selected Creatomate template with ElevenLabs narration.
+            {/* Video Editor section removed as per user request */}
+            {/* 
+            <div className="space-y-3 p-4 border rounded-lg bg-card shadow">
+              <h3 className="text-xl font-semibold mb-2">Video Editor (VEO 2 Output)</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Combine and sequence your VEO 2 videos from the timeline.
+              </p>
+              // <VideoEditor timelineVideos={timelineItems.filter(item => item.isVideo)} />
+              <p className="text-xs text-muted-foreground mt-3 text-center">
+                Video editing features are currently under review.
               </p>
             </div>
+            */}
           </div>
         </div>
       </div>

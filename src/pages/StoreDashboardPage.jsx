@@ -12,9 +12,9 @@ import SettingsTab from '@/components/dashboard/SettingsTab';
 import { useStore } from '@/contexts/StoreContext'; // To potentially load store-specific data
 
 const StoreDashboardPage = () => {
-  const { storeId } = useParams();
+  const { storeName } = useParams(); // Changed from storeId
   const location = useLocation();
-  const { getStoreById, setCurrentStore, isLoadingStores } = useStore();
+  const { getStoreById, getStoreByName, setCurrentStore, isLoadingStores } = useStore(); // Added getStoreByName
   
   // Default to 'orders' tab, or read from URL query param if present
   const queryParams = new URLSearchParams(location.search);
@@ -23,17 +23,17 @@ const StoreDashboardPage = () => {
   const [store, setStore] = useState(null);
 
   useEffect(() => {
-    if (!isLoadingStores) {
-      const currentStoreData = getStoreById(storeId);
+    if (!isLoadingStores && storeName) { // Check for storeName
+      const currentStoreData = getStoreByName(storeName); // Use getStoreByName
       if (currentStoreData) {
         setStore(currentStoreData);
         setCurrentStore(currentStoreData); // Set in context if needed by dashboard tabs
       } else {
-        console.error(`Store with ID ${storeId} not found.`);
+        console.error(`Store with name ${storeName} not found.`);
         // Potentially navigate to an error page or dashboard home
       }
     }
-  }, [storeId, getStoreById, setCurrentStore, isLoadingStores]);
+  }, [storeName, getStoreByName, setCurrentStore, isLoadingStores]); // Updated dependencies
 
   // Update activeTab if URL query param changes
   useEffect(() => {
@@ -83,14 +83,19 @@ const StoreDashboardPage = () => {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-xl font-semibold mb-2">Store Not Found</h2>
-          <p className="text-muted-foreground">Could not load dashboard for store ID: {storeId}</p>
+          <p className="text-muted-foreground">Could not load dashboard for store: {storeName}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <DashboardLayout activeTab={activeTab} setActiveTab={setActiveTab} storeId={storeId}>
+    <DashboardLayout 
+      activeTab={activeTab} 
+      setActiveTab={setActiveTab} 
+      storeId={store?.id} 
+      storeName={store?.name} // Pass storeName
+    >
       {renderTabContent()}
     </DashboardLayout>
   );

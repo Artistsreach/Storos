@@ -17,7 +17,7 @@ const ImportSourceSelector = ({ onSelectSource, onClose }) => { // Added onClose
       </Button>
       <CardHeader>
         <CardTitle>Import Store Data</CardTitle>
-        <CardDescription>
+        <CardDescription className="text-slate-500 dark:text-slate-400"> {/* Adjusted text color */}
           Select your e-commerce platform to begin importing your store and product data.
         </CardDescription>
       </CardHeader>
@@ -28,7 +28,7 @@ const ImportSourceSelector = ({ onSelectSource, onClose }) => { // Added onClose
             <TabsTrigger value="bigcommerce">BigCommerce</TabsTrigger>
           </TabsList>
           <TabsContent value="shopify" className="mt-4">
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4"> {/* Adjusted text color */}
               Connect to your Shopify store to import your shop details, products, and collections.
             </p>
             <Button className="w-full" onClick={() => onSelectSource('shopify')}>
@@ -36,7 +36,7 @@ const ImportSourceSelector = ({ onSelectSource, onClose }) => { // Added onClose
             </Button>
           </TabsContent>
           <TabsContent value="bigcommerce" className="mt-4">
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4"> {/* Adjusted text color */}
               Connect to your BigCommerce store to import your store settings and product catalog.
             </p>
             <Button className="w-full" onClick={() => onSelectSource('bigcommerce')}>
@@ -46,7 +46,7 @@ const ImportSourceSelector = ({ onSelectSource, onClose }) => { // Added onClose
         </Tabs>
       </CardContent>
       <CardFooter>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-slate-500 dark:text-slate-400"> {/* Adjusted text color */}
           You will be guided through a few steps to connect and confirm the data to be imported.
         </p>
       </CardFooter>

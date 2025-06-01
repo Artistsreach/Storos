@@ -21,7 +21,7 @@ const AdminDashboard = () => {
         </div>
       </main>
       <footer className="mt-auto py-6 text-center text-sm text-muted-foreground">
-        <p>© {new Date().getFullYear()} StoreGen AI - Admin Panel</p>
+        <p>© {new Date().getFullYear()} FreshFront - Admin Panel</p>
       </footer>
     </div>
   );

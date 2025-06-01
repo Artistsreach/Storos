@@ -50,11 +50,14 @@ module.exports = {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))',
 				},
+        'custom-dark-grey': '#121212', // Added custom darker grey
+        'electric-blue': '##14202b', // Defined electric-blue for button background
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
 				md: 'calc(var(--radius) - 2px)',
 				sm: 'calc(var(--radius) - 4px)',
+        xl: '15px', // Updated for 15px rounded corners
 			},
 			keyframes: {
 				'accordion-down': {

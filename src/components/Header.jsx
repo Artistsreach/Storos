@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion'; // Added AnimatePresence
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingBag, LogIn, LogOut, Settings, Sun, Moon, Briefcase, ExternalLink, ChevronDown } from 'lucide-react'; // Adjusted icons
+import { ShoppingBag, LogIn, LogOut, Settings, Sun, Moon, Briefcase, ExternalLink, ChevronDown, Menu, X } from 'lucide-react'; // Added Menu, X
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -14,20 +14,24 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"; // Import Dropdown components
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabaseClient';
+import { functions } from '@/lib/firebaseClient'; // Import Firebase functions instance
+import { httpsCallable } from 'firebase/functions'; // Import httpsCallable
+// import { supabase } from '@/lib/supabaseClient'; // Removed Supabase import
 import SubscribeButton from '@/components/SubscribeButton';
 
 const Header = () => {
-  const { isAuthenticated, user, session, subscriptionStatus, loadingProfile, profile } = useAuth(); // Added profile
+  const { isAuthenticated, user, logout, session, subscriptionStatus, loadingProfile, profile } = useAuth(); // Changed signOut: firebaseSignOut to logout
   const navigate = useNavigate();
-  const [isPortalLoading, setIsPortalLoading] = useState(false);
-  const [portalError, setPortalError] = useState(null);
-  const [isStripeActionLoading, setIsStripeActionLoading] = useState(false); // For Connect actions
-  const [stripeActionError, setStripeActionError] = useState(null);
+  const [isPortalLoading, setIsPortalLoading] = useState(false); // Uncommented Stripe related state
+  const [portalError, setPortalError] = useState(null); // Uncommented Stripe related state
+  const [isStripeActionLoading, setIsStripeActionLoading] = useState(false); // Uncommented Stripe related state
+  const [stripeActionError, setStripeActionError] = useState(null); // Uncommented Stripe related state
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // State for mobile menu
 
-  const isSubscribed = subscriptionStatus === 'active';
-  const isStripeConnected = profile?.stripe_account_id && profile?.stripe_account_details_submitted;
+  const isSubscribed = subscriptionStatus === 'active'; // Restored Stripe related state
+  const isStripeConnected = profile?.stripe_account_id && profile?.stripe_account_details_submitted; // Restored Stripe related state
+
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
@@ -53,116 +57,88 @@ const Header = () => {
   };
 
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error('Error logging out:', error);
-    } else {
+    try {
+      await logout(); // Call the logout function from context
       navigate('/auth'); // Redirect to auth page after logout
+    } catch (error) {
+      console.error('Error logging out:', error);
     }
   };
 
   const handleManageBilling = async () => {
-    if (!session?.access_token) {
-      setPortalError('Authentication token not found. Please log in again.');
-      // Or redirect to login, or show a toast
+    if (!user) {
+      setPortalError('Authentication required. Please log in again.');
       return;
     }
     setIsPortalLoading(true);
-      setPortalError(null);
-      try {
-        const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-portal-session`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${session.access_token}`,
-            },
-          }
-        );
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.error || 'Failed to create portal session.');
-        }
-        window.location.href = data.url; // Redirect to Stripe Customer Portal
-      } catch (err) {
-        console.error('Portal session error:', err);
-        setPortalError(err.message);
-      } finally {
-        setIsPortalLoading(false);
+    setPortalError(null);
+    try {
+      const createPortalSession = httpsCallable(functions, 'stripeCreatePortalSession');
+      // const idToken = await user.getIdToken(); // ID token can be implicitly handled by callable functions if rules allow
+      const result = await createPortalSession();
+      const data = result.data;
+      if (data && data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error(data.error || 'Failed to create portal session URL.');
       }
-    };
+    } catch (err) {
+      console.error('Portal session error:', err);
+      setPortalError(err.message || 'An unexpected error occurred.');
+    } finally {
+      setIsPortalLoading(false);
+    }
+  };
 
   const handleCreateStripeConnectAccount = async () => {
-    if (!session?.access_token || !user) {
+    if (!user) {
       setStripeActionError("Authentication required.");
       return;
     }
     setIsStripeActionLoading(true);
     setStripeActionError(null);
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-stripe-connect-account`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ record: { id: user.id, email: user.email } }),
-        }
-      );
-      const data = await response.json();
-      if (!response.ok) {
-        const errorDetail = data.error || (data.data && data.data.error) || "Failed to create Stripe Connect account link.";
-        throw new Error(errorDetail);
-      }
-      if (data.account_link_url) {
-        window.location.href = data.account_link_url;
-      } else if (data.url) {
-        window.location.href = data.url;
+      const createConnectAccount = httpsCallable(functions, 'stripeCreateConnectAccount');
+      // const idToken = await user.getIdToken();
+      // Pass user email for Stripe account creation if needed by the backend
+      const result = await createConnectAccount({ email: user.email }); 
+      const data = result.data;
+
+      if (data && data.accountLinkUrl) {
+        window.location.href = data.accountLinkUrl;
       } else {
-        throw new Error("No URL returned from Stripe Connect account creation.");
+        throw new Error(data.error || 'Failed to create Stripe Connect account link.');
       }
     } catch (err) {
       console.error("Stripe Connect account creation error:", err);
-      setStripeActionError(err.message);
+      setStripeActionError(err.message || 'An unexpected error occurred.');
     } finally {
       setIsStripeActionLoading(false);
     }
   };
 
   const handleManageStripeAccount = async () => {
-    if (!session?.access_token || !user || !profile?.stripe_account_id) {
+    if (!user || !profile?.stripe_account_id) {
       setStripeActionError("Stripe account not connected or user not authenticated.");
       return;
     }
     setIsStripeActionLoading(true);
     setStripeActionError(null);
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-stripe-login-link`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`, // Important for user identification if your function uses JWT
-          },
-          body: JSON.stringify({ user_id: user.id }), // Send user_id as expected by the function
-        }
-      );
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to create Stripe login link.");
-      }
-      if (data.url) {
-        window.location.href = data.url;
+      const createLoginLink = httpsCallable(functions, 'stripeCreateLoginLink');
+      // const idToken = await user.getIdToken();
+      // Pass stripe_account_id to the cloud function
+      const result = await createLoginLink({ stripeAccountId: profile.stripe_account_id }); 
+      const data = result.data;
+
+      if (data && data.loginLinkUrl) {
+        window.location.href = data.loginLinkUrl;
       } else {
-        throw new Error("No login link URL returned.");
+        throw new Error(data.error || 'Failed to create Stripe login link.');
       }
     } catch (err) {
       console.error("Stripe login link error:", err);
-      setStripeActionError(err.message);
+      setStripeActionError(err.message || 'An unexpected error occurred.');
     } finally {
       setIsStripeActionLoading(false);
     }
@@ -170,13 +146,13 @@ const Header = () => {
 
   return (
     <>
-      {/* Announcement Bar */}
-      {!loadingProfile && !isStripeConnected && (
-        <div className="bg-red-600 text-white py-2 px-4 text-center text-sm">
+      {/* Announcement Bar - Restored */}
+      {!loadingProfile && isAuthenticated && !isStripeConnected && ( // Added isAuthenticated check for announcement bar
+        <div className="bg-foreground text-background py-2 px-4 text-center text-sm dark:bg-blue-700 dark:text-white">
           <button onClick={handleCreateStripeConnectAccount} disabled={isStripeActionLoading} className="hover:underline focus:outline-none">
             {isStripeActionLoading ? 'Processing...' : "Create A Business to Activate Checkout"}
           </button>
-          {stripeActionError && <p className="text-xs text-yellow-300 mt-1">{stripeActionError}</p>}
+          {stripeActionError && <p className="text-xs text-destructive mt-1">{stripeActionError}</p>}
         </div>
       )}
       <motion.header
@@ -188,41 +164,25 @@ const Header = () => {
         <Link to="/" className="flex items-center gap-2">
           <img 
             src={isDarkMode 
-              ? "https://uwbrgokfgelgxeonoqah.supabase.co/storage/v1/object/public/images/ffwhite.png" 
-              : "https://uwbrgokfgelgxeonoqah.supabase.co/storage/v1/object/public/images/FreshFrontLogo.png"} 
+              ? "https://firebasestorage.googleapis.com/v0/b/themeforge-hui99.firebasestorage.app/o/ffwhite.png?alt=media&token=a2ebe18b-109c-4c55-b9e1-ec226a788632" 
+              : "https://firebasestorage.googleapis.com/v0/b/themeforge-hui99.firebasestorage.app/o/Ffblack%20(1).png?alt=media&token=cd13601d-6e44-41b9-9e25-35b6f510f99a"} 
             alt="FreshFront Logo" 
-            className="h-[60px] w-auto" // Ensure these images are publicly accessible in your Supabase bucket.
+            className="h-10 sm:h-[60px] w-auto transition-all" // Adjusted logo size for responsiveness
           />
-        <span className="font-bold text-xl">FreshFront</span>
+        <span className="font-bold text-lg sm:text-xl transition-all">FreshFront</span>
       </Link>
       
-      <div className="flex items-center gap-3">
-        {isAuthenticated && (
-          <>
-            {/* Generic Content Creation link removed, will be added to specific store pages */}
-          </>
-        )}
-
-        {/* "AI-Powered" button removed */}
-
-        {portalError && <p className="text-xs text-red-500">{portalError}</p> /* Display portal error if any */}
-
-        {isAuthenticated && !loadingProfile && (
+      {/* Desktop Navigation Items */}
+      <nav className="hidden md:flex items-center gap-3">
+        {isAuthenticated && !loadingProfile && ( // Stripe related UI restored
           <>
             <SubscribeButton 
               className="px-3 py-1.5 rounded-full text-sm font-medium" 
               showIcon={true} 
             />
-            {isSubscribed && (
-              <Button variant="outline" size="sm" onClick={handleManageBilling} disabled={isPortalLoading} className="rounded-full px-3 py-1.5 text-sm font-medium ml-2">
-                <Settings className="mr-2 h-4 w-4" /> {isPortalLoading ? 'Loading...' : 'Manage Billing'}
-              </Button>
-            )}
-
-            {/* Stripe Connect Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="rounded-full px-3 py-1.5 text-sm font-medium ml-2">
+                <Button variant="outline" size="sm" className="rounded-full px-3 py-1.5 text-sm font-medium">
                   <Briefcase className="mr-2 h-4 w-4" /> Business <ChevronDown className="ml-1 h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -236,36 +196,41 @@ const Header = () => {
                   </DropdownMenuItem>
                 ) : (
                   <DropdownMenuItem onClick={handleManageStripeAccount} disabled={isStripeActionLoading}>
-                    <Settings className="mr-2 h-4 w-4" />
-                    {isStripeActionLoading ? 'Processing...' : 'Manage Business Account'}
+                    <ExternalLink className="mr-2 h-4 w-4" /> {/* Changed Icon to ExternalLink for consistency */}
+                    {isStripeActionLoading ? 'Processing...' : 'Dashboard'}
                   </DropdownMenuItem>
                 )}
-                {stripeActionError && <DropdownMenuItem disabled><p className="text-xs text-red-500">{stripeActionError}</p></DropdownMenuItem>}
+                {isSubscribed && (
+                  <DropdownMenuItem onClick={handleManageBilling} disabled={isPortalLoading}>
+                    <Settings className="mr-2 h-4 w-4" />
+                    {isPortalLoading ? 'Loading...' : 'Manage Billing'}
+                  </DropdownMenuItem>
+                )}
+                {stripeActionError && <DropdownMenuItem disabled><p className="text-xs text-destructive">{stripeActionError}</p></DropdownMenuItem>}
+                {portalError && <DropdownMenuItem disabled><p className="text-xs text-destructive">{portalError}</p></DropdownMenuItem>}
               </DropdownMenuContent>
             </DropdownMenu>
           </>
         )}
-
         <div className="flex items-center gap-2">
           <Switch
-            id="theme-switcher"
+            id="theme-switcher-desktop"
             checked={isDarkMode}
             onCheckedChange={toggleTheme}
             aria-label="Toggle dark mode"
           />
           {isDarkMode ? <Moon className="h-5 w-5 text-muted-foreground" /> : <Sun className="h-5 w-5 text-muted-foreground" />}
         </div>
-
         {isAuthenticated ? (
           <>
-            {user?.user_metadata?.avatar_url && (
+            {user?.photoURL && ( // Use photoURL from Firebase user
               <img 
-                src={user.user_metadata.avatar_url} 
+                src={user.photoURL} 
                 alt="User avatar" 
                 className="h-6 w-6 rounded-full" 
               />
             )}
-            <span className="text-sm text-muted-foreground hidden sm:inline">
+            <span className="text-sm text-muted-foreground hidden lg:inline"> {/* Show email on larger screens */}
               {user?.email}
             </span>
             <Button variant="outline" size="sm" onClick={handleLogout}>
@@ -279,8 +244,97 @@ const Header = () => {
             </Button>
           </Link>
         )}
+      </nav>
+
+      {/* Mobile Menu Button */}
+      <div className="md:hidden">
+        <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+          {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+        </Button>
       </div>
     </motion.header>
+
+    {/* Mobile Menu Overlay */}
+    <AnimatePresence>
+      {isMobileMenuOpen && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          className="md:hidden fixed inset-x-0 top-[117px] z-40 bg-background/95 backdrop-blur-sm p-6 border-b shadow-lg"
+          // Header height on small screens is approx 72px (logo h-10=40px + py-4=32px). 72px + 45px margin = 117px.
+        >
+          <nav className="flex flex-col gap-4">
+          {isAuthenticated && !loadingProfile && ( // Stripe related UI restored
+            <>
+              <SubscribeButton 
+                className="w-full justify-start px-3 py-2 text-base" 
+                showIcon={true} 
+              />
+              {!isStripeConnected ? (
+                <Button variant="outline" onClick={handleCreateStripeConnectAccount} disabled={isStripeActionLoading} className="w-full justify-start px-3 py-2 text-base">
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  {isStripeActionLoading ? 'Processing...' : 'Create Business Account'}
+                </Button>
+              ) : (
+                <Button variant="outline" onClick={handleManageStripeAccount} disabled={isStripeActionLoading} className="w-full justify-start px-3 py-2 text-base">
+                  <ExternalLink className="mr-2 h-4 w-4" /> {/* Changed Icon to ExternalLink for consistency */}
+                  {isStripeActionLoading ? 'Processing...' : 'Dashboard'}
+                </Button>
+              )}
+              {isSubscribed && (
+                <Button variant="outline" onClick={handleManageBilling} disabled={isPortalLoading} className="w-full justify-start px-3 py-2 text-base">
+                  <Settings className="mr-2 h-4 w-4" /> {isPortalLoading ? 'Loading...' : 'Manage Billing'}
+                </Button>
+              )}
+               {stripeActionError && <p className="text-xs text-destructive px-3 py-1">{stripeActionError}</p>}
+               {portalError && <p className="text-xs text-destructive px-3 py-1">{portalError}</p>}
+            </>
+          )}
+          <div className="flex items-center justify-between px-3 py-2">
+              <span className="text-base">Dark Mode</span>
+              <Switch
+                id="theme-switcher-mobile"
+                checked={isDarkMode}
+                onCheckedChange={toggleTheme}
+                aria-label="Toggle dark mode"
+              />
+            </div>
+            {isAuthenticated ? (
+              <>
+                {user?.photoURL && ( // Use photoURL from Firebase user
+                  <div className="flex items-center gap-2 px-3 py-2">
+                    <img 
+                      src={user.photoURL} 
+                      alt="User avatar" 
+                      className="h-8 w-8 rounded-full" 
+                    />
+                     <span className="text-sm text-muted-foreground">{user?.email}</span>
+                  </div>
+                )}
+                <Button variant="outline" onClick={handleLogout} className="w-full justify-start px-3 py-2 text-base">
+                  <LogOut className="mr-2 h-4 w-4" /> Logout
+                </Button>
+              </>
+            ) : (
+              <Link to="/auth" className="w-full">
+                <Button variant="outline" className="w-full justify-start px-3 py-2 text-base">
+                  <LogIn className="mr-2 h-4 w-4" /> Login
+                </Button>
+              </Link>
+            )}
+             {/* portalError is already handled above for mobile, this one might be redundant or for a different context if it was ever shown outside the dropdowns.
+                 However, the previous change already added portalError display to the mobile business buttons section.
+                 If this specific one is still needed, it should also be text-destructive.
+                 For now, assuming the earlier changes cover mobile error display for portalError.
+                 If a distinct portalError display is needed here, it should be:
+                 {portalError && <p className="text-xs text-destructive px-3 py-1">{portalError}</p>}
+                 Let's remove this specific one as it seems duplicative after the prior refactor.
+             */}
+          </nav>
+        </motion.div>
+      )}
+    </AnimatePresence>
     </>
   );
 };

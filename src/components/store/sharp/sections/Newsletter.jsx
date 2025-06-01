@@ -28,7 +28,7 @@ const Newsletter = ({ store, isPublishedView = false }) => {
   };
 
   return (
-    <section id={`newsletter-${storeId}`} className="py-16 md:py-24 bg-gradient-to-br from-slate-900 via-slate-800 to-red-950 text-white">
+    <section id={`newsletter-${storeId}`} className="py-16 md:py-24 bg-gradient-to-br from-slate-900 via-slate-800 to-blue-950 text-white overflow-hidden">
       <div className="container mx-auto px-4 sm:px-6 text-center">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -36,7 +36,7 @@ const Newsletter = ({ store, isPublishedView = false }) => {
           viewport={{ once: true, amount: 0.3 }}
           transition={{ duration: 0.6 }}
         >
-          <Mail className="h-12 w-12 mx-auto mb-4 text-red-400" />
+          <Mail className="h-12 w-12 mx-auto mb-4 text-blue-400" />
           <InlineTextEdit
             initialText={sectionTitle}
             onSave={(newText) => updateStoreTextContent('newsletterSectionTitle', newText)}
@@ -83,12 +83,12 @@ const Newsletter = ({ store, isPublishedView = false }) => {
               onChange={(e) => setEmail(e.target.value)}
               placeholder={inputPlaceholderText}
               required
-              className="h-12 flex-grow bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:border-red-500/70 rounded-md font-mono text-sm px-4"
+              className="h-12 flex-grow bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:border-blue-500/70 rounded-md font-mono text-sm px-4"
             />
             <Button
               type="submit"
               size="lg"
-              className="h-12 w-full sm:w-auto bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-700 hover:to-orange-600 text-white border-0 rounded-md px-6 font-mono uppercase tracking-wider text-sm shadow-md hover:shadow-lg"
+              className="h-12 w-full sm:w-auto bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white border-0 rounded-md px-6 font-mono uppercase tracking-wider text-sm shadow-md hover:shadow-lg"
             >
               <Send className="w-4 h-4 mr-2" />
               <InlineTextEdit

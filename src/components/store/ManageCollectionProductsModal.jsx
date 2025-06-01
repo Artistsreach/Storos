@@ -90,8 +90,9 @@ const ManageCollectionProductsModal = ({
                         className="flex-1 cursor-pointer"
                       >
                         <div className="flex items-center gap-3">
-                          {product.imageUrl ? (
-                            <img src={product.imageUrl} alt={product.name} className="w-12 h-12 object-cover rounded-sm" />
+                          {/* Use the first image from the 'images' array */}
+                          {(product.images && product.images.length > 0) ? (
+                            <img src={product.images[0]} alt={product.name} className="w-12 h-12 object-cover rounded-sm" />
                           ) : (
                             <div className="w-12 h-12 bg-muted rounded-sm flex items-center justify-center text-xs text-muted-foreground">
                               No Img

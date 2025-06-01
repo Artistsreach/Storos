@@ -53,9 +53,10 @@ const StoreNewsletter = ({ store, isPublishedView = false }) => {
     <section className="py-16 bg-background">
       <div className="container mx-auto px-4">
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
+          initial={{ opacity: 0, y: 50, scale: 0.95 }}
+          whileInView={{ opacity: 1, y: 0, scale: 1 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{ duration: 0.7, ease: [0.25, 0.1, 0.25, 1], delay: 0.1 }}
           className="max-w-2xl mx-auto text-center bg-muted/60 dark:bg-slate-800/40 p-8 md:p-12 rounded-xl shadow-lg"
           style={{ borderColor: `${theme.primaryColor}30`, borderWidth: '1px' }}
         >

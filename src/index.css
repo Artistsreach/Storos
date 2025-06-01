@@ -7,50 +7,61 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import Modern Template Styles */
+@import './styles/modern-template.css';
+
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 20% 53.3%;
-    --primary-foreground: 210 10% 98%;
-    --secondary: 210 10% 96.1%;
-    --secondary-foreground: 222.2 15% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 10% 96.1%;
-    --accent-foreground: 222.2 15% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 20% 53.3%;
+    --background: 0 0% 100%; /* white */
+    --foreground: 0 0% 10%; /* dark grey */
+    --card: 0 0% 100%; /* white */
+    --card-foreground: 0 0% 10%; /* dark grey */
+    --popover: 0 0% 100%; /* white */
+    --popover-foreground: 0 0% 10%; /* dark grey */
+    --primary: 0 0% 20%; /* darker grey */
+    --primary-foreground: 0 0% 98%; /* off-white */
+    --secondary: 0 0% 96%; /* very light grey */
+    --secondary-foreground: 0 0% 15%; /* dark grey */
+    --muted: 0 0% 96%; /* very light grey */
+    --muted-foreground: 0 0% 40%; /* medium grey */
+    --accent: 0 0% 94%; /* light grey */
+    --accent-foreground: 0 0% 15%; /* dark grey */
+    --destructive: 0 0% 40%; /* medium grey (was red) */
+    --destructive-foreground: 0 0% 98%; /* off-white */
+    --border: 0 0% 85%; /* light grey */
+    --input: 0 0% 85%; /* light grey */
+    --ring: 0 0% 20%; /* darker grey */
     --radius: 0.5rem;
+
+    /* Theme-aware gradient colors - Light Mode */
+    --gradient-start-color: hsl(var(--background));
+    --gradient-end-color: hsl(var(--secondary));
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 20% 59.8%;
-    --primary-foreground: 222.2 15% 11.2%;
-    --secondary: 217.2 15% 17.5%;
-    --secondary-foreground: 210 10% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 15% 17.5%;
-    --accent-foreground: 210 10% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 20% 48%;
+    --background: 0 0% 3%; /* very dark grey / near black */
+    --foreground: 0 0% 97%; /* very light grey / off-white */
+    --card: 0 0% 7%; /* slightly lighter than background */
+    --card-foreground: 0 0% 97%; /* very light grey / off-white */
+    --popover: 0 0% 7%; /* slightly lighter than background */
+    --popover-foreground: 0 0% 97%; /* very light grey / off-white */
+    --primary: 0 0% 15%; /* slightly lighter dark grey */
+    --primary-foreground: 0 0% 10%; /* dark grey for text on primary in dark mode */
+    --secondary: 0 0% 12%; /* dark grey, lighter than background but still dark */
+    --secondary-foreground: 0 0% 92%; /* light grey for text on secondary */
+    --muted: 0 0% 12%; /* same as secondary for muted elements */
+    --muted-foreground: 0 0% 85%; /* lighter grey for muted text */
+    --accent: 0 0% 18%; /* slightly lighter dark grey for accents */
+    --accent-foreground: 0 0% 92%; /* light grey for text on accent */
+    --destructive: 0 0% 25%; /* darker grey for destructive elements */
+    --destructive-foreground: 0 0% 97%; /* very light grey for text on destructive */
+    --border: 0 0% 18%; /* slightly lighter dark grey for borders */
+    --input: 0 0% 18%; /* slightly lighter dark grey for input backgrounds */
+    --ring: 0 0% 50%; /* darker grey for rings */
+
+    /* Theme-aware gradient colors - Dark Mode (overrides) */
+    --gradient-start-color: hsl(var(--background));
+    --gradient-end-color: hsl(var(--secondary));
   }
 }
 
@@ -65,7 +76,8 @@
 }
 
 .gradient-bg {
-  background: linear-gradient(135deg, #77B8B8 0%, #3B82F6 100%);
+  /* background: linear-gradient(135deg, #77B8B8 0%, #3B82F6 100%); */ /* Old hardcoded gradient */
+  background: linear-gradient(135deg, var(--gradient-start-color) 0%, var(--gradient-end-color) 100%); /* New theme-aware gradient */
 }
 
 .glass-card {

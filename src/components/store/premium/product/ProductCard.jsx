@@ -13,14 +13,16 @@ import {
   ArrowRight,
   Plus,
   Minus,
+  Edit, // Added Edit
 } from "lucide-react";
 import { Link } from "react-router-dom"; // Added Link import
 import { Button } from "../../../ui/button"; // Adjusted path
 import { useStore } from "../../../../contexts/StoreContext"; // Adjusted path
 import { Badge } from "../../../ui/badge"; // Adjusted path
+import ProductEditModal from "@/components/store/ProductEditModal"; // Import Edit Modal
 
 const ProductCard = ({
-  product = {
+  product: initialProductProp = { // Renamed product to initialProductProp
     id: "sample-1",
     name: "Premium Product",
     description:
@@ -40,63 +42,98 @@ const ProductCard = ({
     isBestseller: false,
     discount: 15,
     originalPrice: 349.99,
+    inventory_count: 10, // Default inventory
+    variants: [], // Default variants
+    currencyCode: 'USD', // Default currency
   },
   theme = {},
   index = 0,
-  storeId = "sample-store",
+  storeName, // Added storeName
+  storeId = "sample-store", // Kept storeId for internal logic like addToCart
   isPublishedView = false,
   displayMode = "grid",
 }) => {
-  const { addToCart } = useStore();
+  const { addToCart, store, updateStore: updateContextStore, currentStore } = useStore(); // Added updateContextStore, currentStore
+
+  const [displayProduct, setDisplayProduct] = useState(() => {
+    const rawId = initialProductProp.id || `product-${index}`;
+    return {
+      id: rawId,
+      name: initialProductProp.name || "Premium Product",
+      description: initialProductProp.description || "A luxurious item crafted with exceptional attention to detail",
+      price: typeof initialProductProp.price === "number" ? initialProductProp.price : parseFloat(initialProductProp.price) || 299.99,
+      image: initialProductProp.image || { src: { large: "https://via.placeholder.com/800", medium: "https://via.placeholder.com/400" } },
+      rating: initialProductProp.rating || 4.8,
+      reviewCount: initialProductProp.reviewCount || 127,
+      isNew: initialProductProp.isNew || false,
+      isBestseller: initialProductProp.isBestseller || false,
+      discount: initialProductProp.discount || 0,
+      originalPrice: initialProductProp.originalPrice || null,
+      inventory_count: initialProductProp.inventory_count === undefined ? 10 : initialProductProp.inventory_count,
+      variants: initialProductProp.variants || [],
+      currencyCode: initialProductProp.currencyCode || 'USD',
+    };
+  });
+
+  useEffect(() => {
+    const rawId = initialProductProp.id || `product-${index}`;
+    setDisplayProduct({
+      id: rawId,
+      name: initialProductProp.name || "Premium Product",
+      description: initialProductProp.description || "A luxurious item crafted with exceptional attention to detail",
+      price: typeof initialProductProp.price === "number" ? initialProductProp.price : parseFloat(initialProductProp.price) || 299.99,
+      image: initialProductProp.image || { src: { large: "https://via.placeholder.com/800", medium: "https://via.placeholder.com/400" } },
+      rating: initialProductProp.rating || 4.8,
+      reviewCount: initialProductProp.reviewCount || 127,
+      isNew: initialProductProp.isNew || false,
+      isBestseller: initialProductProp.isBestseller || false,
+      discount: initialProductProp.discount || 0,
+      originalPrice: initialProductProp.originalPrice || null,
+      inventory_count: initialProductProp.inventory_count === undefined ? 10 : initialProductProp.inventory_count,
+      variants: initialProductProp.variants || [],
+      currencyCode: initialProductProp.currencyCode || 'USD',
+    });
+  }, [initialProductProp, index]);
+  
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [showQuickView, setShowQuickView] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false); // State for edit modal
+  const isAdmin = !isPublishedView;
+
+  const primaryColor = store?.theme?.primaryColor || theme?.primaryColor || "#6366F1"; // Use store theme or passed theme
+
+  // Helper function to generate a slightly darker shade
+  const getDarkerShade = (color, percent = 20) => {
+    if (!color.startsWith("#")) return color;
+    let num = parseInt(color.slice(1), 16),
+      amt = Math.round(2.55 * percent),
+      R = (num >> 16) - amt,
+      G = (num >> 8 & 0x00FF) - amt,
+      B = (num & 0x0000FF) - amt;
+    R = Math.max(0, R); G = Math.max(0, G); B = Math.max(0, B);
+    return "#" + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+  };
+  const secondaryColor = getDarkerShade(primaryColor, 20);
 
   // Encode Shopify GIDs for URL safety
   const isShopifyGid = (id) => typeof id === 'string' && id.startsWith('gid://shopify/');
-  const rawProductId = product.id || `product-${index}`;
-  const productId = isShopifyGid(rawProductId) ? btoa(rawProductId) : rawProductId;
+  const productIdForUrl = isShopifyGid(displayProduct.id) ? btoa(displayProduct.id) : displayProduct.id;
 
-  // Enhanced product data with defaults
-  const productData = {
-    id: rawProductId, // Use rawProductId here
-    name: product.name || "Premium Product",
-    description:
-      product.description ||
-      "A luxurious item crafted with exceptional attention to detail",
-    price:
-      typeof product.price === "number"
-        ? product.price
-        : parseFloat(product.price) || 299.99,
-    image: product.image || {
-      src: {
-        large:
-          "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&q=80",
-        medium:
-          "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&q=80",
-      },
-    },
-    rating: product.rating || 4.8,
-    reviewCount: product.reviewCount || 127,
-    isNew: product.isNew || false,
-    isBestseller: product.isBestseller || false,
-    discount: product.discount || 0,
-    originalPrice: product.originalPrice || null,
-  };
 
   // Calculate discounted price
   const discountedPrice =
-    productData.discount > 0
-      ? productData.price * (1 - productData.discount / 100)
-      : productData.price;
+    displayProduct.discount > 0
+      ? displayProduct.price * (1 - displayProduct.discount / 100)
+      : displayProduct.price;
 
   // Generate smart badges based on product data
   const getBadges = () => {
     const badges = [];
 
-    if (productData.isNew) {
+    if (displayProduct.isNew) {
       badges.push({
         text: "New",
         icon: Sparkles,
@@ -104,7 +141,7 @@ const ProductCard = ({
       });
     }
 
-    if (productData.isBestseller) {
+    if (displayProduct.isBestseller) {
       badges.push({
         text: "Bestseller",
         icon: Crown,
@@ -112,19 +149,20 @@ const ProductCard = ({
       });
     }
 
-    if (productData.discount > 0) {
+    if (displayProduct.discount > 0) {
       badges.push({
-        text: `-${productData.discount}%`,
+        text: `-${displayProduct.discount}%`,
         icon: Zap,
         className: "bg-gradient-to-r from-red-500 to-pink-500 text-white",
       });
     }
 
-    if (productData.rating >= 4.5) {
+    if (displayProduct.rating >= 4.5) {
       badges.push({
         text: "Top Rated",
         icon: Star,
-        className: "bg-gradient-to-r from-purple-500 to-indigo-500 text-white",
+        style: { background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` },
+        className: "text-white", // Keep text white for contrast
       });
     }
 
@@ -183,9 +221,9 @@ const ProductCard = ({
 
   const handleAddToCart = (e) => {
     e.stopPropagation();
-    if (addToCart && isPublishedView) {
+    if (addToCart && isPublishedView && (displayProduct.inventory_count === undefined || displayProduct.inventory_count > 0)) {
       for (let i = 0; i < quantity; i++) {
-        addToCart(productData, storeId);
+        addToCart(displayProduct, storeId); // Use displayProduct
       }
     }
   };
@@ -200,9 +238,50 @@ const ProductCard = ({
     setShowQuickView(true);
   };
 
+  const handleEditProductClick = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setIsEditModalOpen(true);
+  };
+
+  const handleCloseEditModal = () => {
+    setIsEditModalOpen(false);
+  };
+
+  const handleSaveProductChanges = async (updatedProductDataFromModal) => {
+    if (storeId && displayProduct.id) { // Use displayProduct.id
+      try {
+        await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-product`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('supabase.auth.token')}`,
+          },
+          body: JSON.stringify({ store_id: storeId, product_id: displayProduct.id, ...updatedProductDataFromModal }) // Use displayProduct.id
+        });
+        setDisplayProduct(prevData => ({ ...prevData, ...updatedProductDataFromModal })); // Update local state
+
+        // Update StoreContext
+        if (currentStore && currentStore.id === storeId && currentStore.products) {
+          const updatedProductsArray = currentStore.products.map(p =>
+            p.id === displayProduct.id ? { ...p, ...updatedProductDataFromModal } : p
+          );
+          updateContextStore(storeId, { products: updatedProductsArray });
+        } else if (currentStore && currentStore.id === storeId && !currentStore.products) {
+           updateContextStore(storeId, { products: [{ ...displayProduct, ...updatedProductDataFromModal }] });
+        }
+
+        setIsEditModalOpen(false);
+      } catch (error) {
+        console.error('Failed to save product changes:', error);
+      }
+    }
+  };
+
   // List view layout
   if (displayMode === "list") {
     return (
+      <>
       <motion.div
         variants={cardVariants}
         initial="hidden"
@@ -214,12 +293,12 @@ const ProductCard = ({
       >
         <div className="flex flex-col md:flex-row">
           {/* Image Section */}
-          <Link to={`/store/${storeId}/product/${productId}`} className="block relative md:w-1/3 aspect-square md:aspect-auto overflow-hidden">
+          <Link to={`/${storeName}/product/${productIdForUrl}`} className="block relative md:w-1/3 aspect-square md:aspect-auto overflow-hidden"> {/* Use storeName and productIdForUrl */}
             <motion.img
               src={
-                productData.image?.src?.medium || productData.image?.src?.large
+                displayProduct.image?.src?.medium || displayProduct.image?.src?.large
               }
-              alt={productData.name}
+              alt={displayProduct.name}
               className="w-full h-full object-cover"
               variants={imageVariants}
               initial="hidden"
@@ -240,7 +319,8 @@ const ProductCard = ({
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: -20 }}
                       transition={{ delay: badgeIndex * 0.1 }}
-                      className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold ${badge.className} shadow-lg backdrop-blur-sm`}
+                      className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold ${badge.className || ''} shadow-lg backdrop-blur-sm`}
+                      style={badge.style || {}}
                     >
                       <IconComponent className="w-3 h-3" />
                       <span>{badge.text}</span>
@@ -276,27 +356,36 @@ const ProductCard = ({
 
           {/* Content Section */}
           <div className="flex-1 p-8">
-            <Link to={`/store/${storeId}/product/${productId}`} className="block">
+            <Link to={`/${storeName}/product/${productIdForUrl}`} className="block"> {/* Use storeName and productIdForUrl */}
               <div className="flex justify-between items-start mb-4">
                 <div className="flex-1">
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors duration-300">
-                    {productData.name}
+                  <h3
+                    className="text-2xl font-bold text-gray-900 dark:text-white mb-2 transition-colors duration-300"
+                    style={{ '--hover-text-color': primaryColor, '--dark-hover-text-color': secondaryColor }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.color = document.documentElement.classList.contains('dark') ? secondaryColor : primaryColor;
+                    }}
+                    onMouseLeave={(e) => {
+                       e.currentTarget.style.color = ''; // Revert to CSS defined color
+                    }}
+                  >
+                    {displayProduct.name}
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400 leading-relaxed line-clamp-2">
-                    {productData.description}
+                    {displayProduct.description}
                   </p>
                 </div>
               </div>
             </Link>
 
             {/* Rating */}
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mb-2">
               <div className="flex items-center">
                 {[...Array(5)].map((_, i) => (
                   <Star
                     key={i}
                     className={`w-4 h-4 ${
-                      i < Math.floor(productData.rating)
+                      i < Math.floor(displayProduct.rating)
                         ? "text-yellow-400 fill-yellow-400"
                         : "text-gray-300 dark:text-gray-600"
                     }`}
@@ -304,7 +393,7 @@ const ProductCard = ({
                 ))}
               </div>
               <span className="text-sm text-gray-600 dark:text-gray-400">
-                {productData.rating} ({productData.reviewCount} reviews)
+                {displayProduct.rating} ({displayProduct.reviewCount} reviews)
               </span>
             </div>
 
@@ -314,9 +403,9 @@ const ProductCard = ({
                 <span className="text-3xl font-bold text-gray-900 dark:text-white">
                   ${discountedPrice.toFixed(2)}
                 </span>
-                {productData.originalPrice && productData.discount > 0 && (
+                {displayProduct.originalPrice && displayProduct.discount > 0 && (
                   <span className="text-lg text-gray-500 dark:text-gray-400 line-through">
-                    ${productData.originalPrice.toFixed(2)}
+                    ${displayProduct.originalPrice.toFixed(2)}
                   </span>
                 )}
               </div>
@@ -354,40 +443,66 @@ const ProductCard = ({
 
                 <Button
                   onClick={handleAddToCart}
-                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-0 rounded-full px-8 py-3 font-medium shadow-lg hover:shadow-xl transition-all duration-300 group"
+                  className="text-white border-0 rounded-full px-8 py-3 font-medium shadow-lg hover:shadow-xl transition-all duration-300 group"
+                  style={{ background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = `linear-gradient(to right, ${getDarkerShade(primaryColor, -10)}, ${getDarkerShade(secondaryColor, -10)})`} 
+                  onMouseLeave={(e) => e.currentTarget.style.background = `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`}
+                  disabled={displayProduct.inventory_count !== undefined && displayProduct.inventory_count <= 0}
                 >
                   <ShoppingCart className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform duration-300" />
-                  Add to Cart
+                  {displayProduct.inventory_count !== undefined && displayProduct.inventory_count <= 0 ? 'Out of Stock' : 'Add to Cart'}
                   <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform duration-300" />
                 </Button>
+                {isAdmin && (
+                  <Button
+                    onClick={handleEditProductClick}
+                    variant="outline"
+                    className="rounded-full px-6 py-3 text-sm font-medium border-gray-300 dark:border-gray-700 hover:border-primary hover:text-primary dark:hover:border-primary dark:hover:text-primary transition-colors duration-300"
+                  >
+                    <Edit className="w-4 h-4 mr-2" />
+                    Edit
+                  </Button>
+                )}
               </div>
             </div>
           </div>
         </div>
       </motion.div>
+      {isEditModalOpen && (
+        <ProductEditModal
+          product={displayProduct} 
+          isOpen={isEditModalOpen}
+          onClose={handleCloseEditModal}
+          onSave={handleSaveProductChanges}
+          storeId={storeId}
+          theme={theme}
+        />
+      )}
+      </>
     );
   }
 
   // Grid view layout (default)
   return (
-    <motion.div
-      variants={cardVariants}
-      initial="hidden"
-      animate="visible"
-      whileHover="hover"
-      className="group bg-white dark:bg-gray-900 rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 dark:border-gray-800 backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      <Link to={`/store/${storeId}/product/${productId}`} className="block">
-        {/* Image Container */}
-        <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700">
-          <motion.img
-            src={productData.image?.src?.medium || productData.image?.src?.large}
-            alt={productData.name}
-          className="w-full h-full object-cover"
-          variants={imageVariants}
-          initial="hidden"
+    <>
+      <motion.div
+        variants={cardVariants}
+        initial="hidden"
+        animate="visible"
+        whileHover="hover"
+        className="group bg-white dark:bg-gray-900 rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 dark:border-gray-800 backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        <Link to={`/${storeName}/product/${productIdForUrl}`} className="block"> {/* Use storeName and productIdForUrl */}
+          {/* Image Container */}
+          <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700">
+            <motion.img
+              src={displayProduct.image?.src?.medium || displayProduct.image?.src?.large}
+              alt={displayProduct.name}
+            className="w-full h-full object-cover"
+            variants={imageVariants}
+            initial="hidden"
           animate={imageLoaded ? "visible" : "hidden"}
           whileHover="hover"
           onLoad={() => setImageLoaded(true)}
@@ -405,7 +520,8 @@ const ProductCard = ({
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ delay: badgeIndex * 0.1 }}
-                  className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold ${badge.className} shadow-lg backdrop-blur-sm`}
+                  className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold ${badge.className || ''} shadow-lg backdrop-blur-sm`}
+                  style={badge.style || {}}
                 >
                   <IconComponent className="w-3 h-3" />
                   <span>{badge.text}</span>
@@ -452,10 +568,14 @@ const ProductCard = ({
                 </motion.button>
 
                 <motion.button
-                  className="w-12 h-12 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300"
+                  className="w-12 h-12 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300"
+                  style={{ background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = `linear-gradient(to right, ${getDarkerShade(primaryColor, -10)}, ${getDarkerShade(secondaryColor, -10)})`}
+                  onMouseLeave={(e) => e.currentTarget.style.background = `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`}
                   whileHover={{ scale: 1.1, y: -2 }}
                   whileTap={{ scale: 0.9 }}
                   onClick={handleAddToCart}
+                  disabled={displayProduct.inventory_count !== undefined && displayProduct.inventory_count <= 0}
                 >
                   <ShoppingCart className="w-5 h-5 text-white" />
                 </motion.button>
@@ -474,7 +594,7 @@ const ProductCard = ({
       </Link>
       {/* Content */}
       <div className="p-6">
-        <Link to={`/store/${storeId}/product/${productId}`} className="block">
+        <Link to={`/${storeName}/product/${productIdForUrl}`} className="block"> {/* Use storeName and productIdForUrl */}
           {/* Rating */}
           <div className="flex items-center gap-2 mb-3">
             <div className="flex items-center">
@@ -482,7 +602,7 @@ const ProductCard = ({
                 <Star
                   key={i}
                   className={`w-4 h-4 ${
-                    i < Math.floor(productData.rating)
+                    i < Math.floor(displayProduct.rating)
                       ? "text-yellow-400 fill-yellow-400"
                       : "text-gray-300 dark:text-gray-600"
                   }`}
@@ -490,20 +610,28 @@ const ProductCard = ({
               ))}
             </div>
             <span className="text-sm text-gray-600 dark:text-gray-400">
-              ({productData.reviewCount})
+              ({displayProduct.reviewCount})
             </span>
           </div>
 
           {/* Product Name */}
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors duration-300 line-clamp-2">
-            {productData.name}
+          <h3
+            className="text-xl font-bold text-gray-900 dark:text-white mb-2 transition-colors duration-300 line-clamp-2"
+            style={{ '--hover-text-color': primaryColor, '--dark-hover-text-color': secondaryColor }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = document.documentElement.classList.contains('dark') ? secondaryColor : primaryColor;
+            }}
+            onMouseLeave={(e) => {
+               e.currentTarget.style.color = ''; // Revert to CSS defined color
+            }}
+          >
+            {displayProduct.name}
           </h3>
 
           {/* Description */}
-          <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed mb-4 line-clamp-2">
-            {productData.description}
+          <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed mb-2 line-clamp-2">
+            {displayProduct.description}
           </p>
-
           {/* Price */}
         </Link>
         <div className="flex items-center justify-between mb-4">
@@ -511,9 +639,9 @@ const ProductCard = ({
             <span className="text-2xl font-bold text-gray-900 dark:text-white">
               ${discountedPrice.toFixed(2)}
             </span>
-            {productData.originalPrice && productData.discount > 0 && (
+            {displayProduct.originalPrice && displayProduct.discount > 0 && (
               <span className="text-sm text-gray-500 dark:text-gray-400 line-through">
-                ${productData.originalPrice.toFixed(2)}
+                ${displayProduct.originalPrice.toFixed(2)}
               </span>
             )}
           </div>
@@ -552,15 +680,42 @@ const ProductCard = ({
 
             <Button
               onClick={handleAddToCart}
-              className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-0 rounded-full py-2 text-sm font-medium shadow-lg hover:shadow-xl transition-all duration-300 group"
+              className="flex-1 text-white border-0 rounded-full py-2 text-sm font-medium shadow-lg hover:shadow-xl transition-all duration-300 group"
+              style={{ background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` }}
+              onMouseEnter={(e) => e.currentTarget.style.background = `linear-gradient(to right, ${getDarkerShade(primaryColor, -10)}, ${getDarkerShade(secondaryColor, -10)})`}
+              onMouseLeave={(e) => e.currentTarget.style.background = `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`}
+              disabled={displayProduct.inventory_count !== undefined && displayProduct.inventory_count <= 0}
             >
               <ShoppingCart className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform duration-300" />
-              Add to Cart
+              {displayProduct.inventory_count !== undefined && displayProduct.inventory_count <= 0 ? 'Out of Stock' : 'Add to Cart'}
+            </Button>
+          </div>
+        )}
+        {isAdmin && (
+          <div className="mt-4">
+            <Button
+              onClick={handleEditProductClick}
+              variant="outline"
+              className="w-full rounded-full py-2 text-sm font-medium border-gray-300 dark:border-gray-700 hover:border-primary hover:text-primary dark:hover:border-primary dark:hover:text-primary transition-colors duration-300"
+            >
+              <Edit className="w-4 h-4 mr-2" />
+              Edit Product
             </Button>
           </div>
         )}
       </div>
     </motion.div>
+    {isEditModalOpen && (
+      <ProductEditModal
+        product={displayProduct}
+        isOpen={isEditModalOpen}
+        onClose={handleCloseEditModal}
+        onSave={handleSaveProductChanges}
+        storeId={storeId}
+        theme={theme}
+      />
+    )}
+    </>
   );
 };
 

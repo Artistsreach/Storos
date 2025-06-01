@@ -213,14 +213,14 @@ const StoreHero = ({ store, isPublishedView = false }) => {
           {/* Text Content */}
           <motion.div
             variants={itemVariants}
-            className="text-center lg:text-left space-y-10 lg:space-y-12"
+            className="text-center lg:text-left space-y-6 lg:space-y-8" // Reduced space-y
           >
             {/* Premium Badge */}
             <motion.div
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.6 }}
-              className="inline-flex items-center gap-3 px-6 py-3 bg-white/10 dark:bg-black/10 backdrop-blur-md border border-white/20 dark:border-white/10 text-sm font-medium text-primary shadow-glass mt-[50px]"
+              className="inline-flex items-center gap-3 px-6 py-3 bg-white/10 dark:bg-black/10 backdrop-blur-md border border-white/20 dark:border-white/10 text-sm font-medium text-primary shadow-glass mt-[80px]" // Increased mt
               style={{
                 color: primaryColor,
                 borderColor: `${primaryColor}30`,
@@ -240,21 +240,22 @@ const StoreHero = ({ store, isPublishedView = false }) => {
             {/* Main Title */}
             <InlineTextEdit
               initialText={title}
-              onSave={updateStoreTextContent}
-              identifier="content.heroTitle"
+              onSave={(newText) => updateStoreTextContent('content.heroTitle', newText)}
+              isAdmin={!isPublishedView}
               as="h1"
-              className="text-6xl sm:text-7xl lg:text-8xl xl:text-9xl font-black leading-[0.85] tracking-tight font-sans"
+              textClassName="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-foreground leading-tight font-heading"
+              className="w-full"
             >
               <motion.span
-                className="bg-gradient-to-r from-foreground via-primary to-foreground bg-clip-text text-transparent"
+                className="bg-clip-text text-transparent"
                 style={{
-                  backgroundImage: `linear-gradient(135deg, currentColor 0%, ${primaryColor} 50%, currentColor 100%)`,
+                  backgroundImage: `linear-gradient(90deg, ${store?.theme?.darkMode ? '#E5E7EB' : '#4B5563'} 30%, ${primaryColor} 50%, ${store?.theme?.darkMode ? '#E5E7EB' : '#4B5563'} 70%)`,
                   backgroundSize: "200% auto",
                 }}
                 animate={{
-                  backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
+                  backgroundPosition: ["200% center", "0% center"],
                 }}
-                transition={{ duration: 8, repeat: Infinity }}
+                transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
               >
                 {title}
               </motion.span>
@@ -263,10 +264,12 @@ const StoreHero = ({ store, isPublishedView = false }) => {
             {/* Subtitle */}
             <InlineTextEdit
               initialText={subtitle}
-              onSave={updateStoreTextContent}
-              identifier="content.heroDescription"
+              onSave={(newText) => updateStoreTextContent('content.heroDescription', newText)}
+              isAdmin={!isPublishedView}
+              useTextarea={true}
               as="p"
-              className="text-xl md:text-2xl lg:text-3xl text-muted-foreground max-w-3xl mx-auto lg:mx-0 leading-relaxed font-inter"
+              textClassName="text-xl md:text-2xl lg:text-3xl text-muted-foreground max-w-3xl mx-auto lg:mx-0 leading-relaxed font-inter"
+              className="w-full"
             >
               {subtitle}
             </InlineTextEdit>
@@ -307,7 +310,7 @@ const StoreHero = ({ store, isPublishedView = false }) => {
 
             {/* CTA Buttons */}
             <motion.div
-              className="flex flex-col sm:flex-row justify-center lg:justify-start gap-6 pt-8"
+              className="flex flex-col sm:flex-row justify-center lg:justify-start gap-6 pt-4" // Reduced pt
               variants={itemVariants}
             >
               <motion.div
@@ -381,7 +384,7 @@ const StoreHero = ({ store, isPublishedView = false }) => {
 
             {/* Social Proof */}
             <motion.div
-              className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-6 pt-8"
+              className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-6 pt-4" // Reduced pt
               variants={itemVariants}
             >
               <div className="flex items-center gap-3">

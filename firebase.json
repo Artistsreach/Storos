@@ -1,4 +1,11 @@
 {
+  "functions": {
+    "codebase": "stripe",
+    "source": "stripe"
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  },
   "hosting": {
     "public": "dist",
     "ignore": [

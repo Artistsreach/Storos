@@ -150,28 +150,60 @@ const StoreTestimonials = ({ store, isPublishedView = false }) => {
   
   const sectionTitle = content?.testimonialsSectionTitle || "What Our Customers Say";
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.15, // Slightly slower stagger for testimonials
+      },
+    },
+  };
+
+  // Individual testimonial card animation will be handled by TestimonialCard's own motion.div
+  // We just need to wrap them in a motion.div for the stagger effect.
+  const itemVariants = { // This variant is for the wrapper div of each card
+    hidden: { opacity: 0, y: 30 },
+    visible: { opacity: 1, y: 0 },
+  };
+
+
   return (
     <section id={`testimonials-${storeId || 'store-testimonials'}`} className="py-16 md:py-24 bg-background">
       <div className="container mx-auto px-4">
-        <h2 className="text-3xl font-bold tracking-tight text-center mb-12 md:mb-16 text-foreground">
+        <motion.h2 
+          className="text-3xl font-bold tracking-tight text-center mb-12 md:mb-16 text-foreground"
+          initial={{ opacity: 0, y: -30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.5 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+        >
           <InlineTextEdit
             initialText={sectionTitle}
             onSave={(newText) => handleSaveText('testimonialsSectionTitle', newText)}
             isAdmin={isAdmin}
             placeholder="Testimonials Section Title"
           />
-        </h2>
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+        </motion.h2>
+        <motion.div 
+          className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.2 }}
+        >
           {testimonialsToDisplay.map((testimonial, index) => (
-            <TestimonialCard
-              key={testimonial.id || testimonial.userName + String(testimonial.createdAt) + index}
-              testimonial={testimonial}
-              isAdmin={isAdmin}
-              onSave={handleSaveText}
-              index={index}
-            />
+            <motion.div key={testimonial.id || testimonial.userName + String(testimonial.createdAt) + index} variants={itemVariants}>
+              <TestimonialCard
+                testimonial={testimonial}
+                isAdmin={isAdmin}
+                onSave={handleSaveText}
+                index={index}
+                // className prop can be used if TestimonialCard needs specific styling from here
+              />
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </div>
     </section>
   );

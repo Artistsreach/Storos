@@ -11,6 +11,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { generateStoreUrl } from "../../../../lib/utils.js"; // Added import
 
 const ProductGrid = ({ store, isPublishedView = false }) => {
   const { products, theme, id: storeId } = store;
@@ -280,11 +281,12 @@ const ProductGrid = ({ store, isPublishedView = false }) => {
                   className={displayMode === "list" ? "w-full" : ""}
                 >
                   <ProductCard
-                    product={product}
-                    theme={theme}
-                    index={index}
-                    storeId={storeId}
-                    isPublishedView={isPublishedView}
+                  product={product}
+                  theme={theme}
+                  index={index}
+                  storeName={generateStoreUrl(store.name)} // Pass generated URL
+                  storeId={storeId}      // Keep storeId (which is store.id)
+                  isPublishedView={isPublishedView}
                     displayMode={displayMode}
                   />
                 </motion.div>

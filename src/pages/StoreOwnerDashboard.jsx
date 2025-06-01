@@ -97,7 +97,7 @@ const StoreOwnerDashboard = () => {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-background"> {/* Changed to use theme's bg-background */}
       <Header />
       
       <motion.div 
@@ -112,11 +112,11 @@ const StoreOwnerDashboard = () => {
           transition={{ duration: 0.5 }}
           className="text-center mb-10"
         >
-          <h1 className={`text-4xl md:text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-gray-500 to-slate-300 dark:from-slate-500 dark:to-gray-500 ${isShimmering ? 'animate-shimmer bg-200%' : 'bg-auto'}`}>
-            Create a Fresh Store
+          <h1 className={`text-4xl md:text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-gray-600 to-gray-200 dark:from-gray-500 dark:to-gray-300 ${isShimmering ? 'animate-shimmer bg-200%' : 'bg-auto'}`}>
+            Start Fresh
           </h1>
-          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            You can create a store 3 ways: Prompt, Steps or Import.
+          <p className="text-lg font-inter text-muted-foreground max-w-3xl mx-auto">
+            You can create a store 3 ways: <br /> Prompt, Steps or Import.
           </p>
         </motion.div>
 
@@ -124,8 +124,14 @@ const StoreOwnerDashboard = () => {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full max-w-3xl mx-auto mb-12">
           <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 mb-6">
-            <TabsTrigger value="ai-prompt">AI Prompt</TabsTrigger>
-            <TabsTrigger value="wizard">Step-by-Step Wizard</TabsTrigger>
+            <TabsTrigger value="ai-prompt">
+              <span className="hidden sm:inline">AI Prompt</span>
+              <span className="sm:hidden">AI Prompt</span>
+            </TabsTrigger>
+            <TabsTrigger value="wizard">
+              <span className="hidden sm:inline">Step-by-Step</span>
+              <span className="sm:hidden">Steps</span>
+            </TabsTrigger>
             <TabsTrigger value="store-import" className="hidden md:inline-flex" onClick={handleOpenImportSelector}>
               Import Store
             </TabsTrigger>
@@ -136,14 +142,13 @@ const StoreOwnerDashboard = () => {
           <TabsContent value="wizard">
             <StoreWizard />
           </TabsContent>
-          <TabsContent value="store-import">
-             <div className="text-center p-8 border rounded-lg bg-card">
-                <p className="text-muted-foreground mb-4">Import data from Shopify or BigCommerce.</p>
-                 <Button onClick={handleOpenImportSelector} variant="default" size="lg">
-                    <ImportIcon className="mr-2 h-5 w-5" />
-                    Select Import Source
-                </Button>
-            </div>
+          <TabsContent value="store-import" className="text-center py-8"> {/* Removed div, added classes here */}
+            {/* Outer div removed */}
+            <p className="text-slate-500 dark:text-slate-400 mb-4">Import data from Shopify or BigCommerce.</p> {/* Adjusted text color for subtlety */}
+            <Button onClick={handleOpenImportSelector} variant="default" size="lg">
+                <ImportIcon className="mr-2 h-5 w-5" />
+                Select Import Source
+            </Button>
           </TabsContent>
         </Tabs>
         
@@ -158,7 +163,7 @@ const StoreOwnerDashboard = () => {
       </motion.div>
       
       <footer className="mt-auto py-6 text-center text-sm text-muted-foreground">
-        <p>© {new Date().getFullYear()} StoreGen AI. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} FreshFront. All rights reserved.</p>
       </footer>
 
       {isImportSelectorOpen && (

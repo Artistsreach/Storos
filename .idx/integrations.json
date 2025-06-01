@@ -1,5 +1,6 @@
 {
   "firebase_hosting": {
     "deploymentHostingUrl": "https://themeforge-hui99.web.app"
-  }
+  },
+  "secrets_manager": {}
 }

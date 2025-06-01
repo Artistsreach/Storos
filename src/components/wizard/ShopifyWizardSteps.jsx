@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useStore } from '@/contexts/StoreContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, AlertTriangle, Sparkles, Image as ImageIcon } from 'lucide-react';
+import { Loader2, AlertTriangle, Sparkles, Image as ImageIcon, Edit3 as EditIcon } from 'lucide-react';
+import ShopifyProductEditModal from './ShopifyProductEditModal';
+import ShopifyCollectionEditModal from './ShopifyCollectionEditModal'; // Import collection edit modal
 
 export const ShopifyMetadataPreview = () => {
   const { shopifyPreviewMetadata, isFetchingShopifyPreviewData, shopifyImportError } = useStore();
@@ -32,6 +34,7 @@ export const ShopifyMetadataPreview = () => {
   }
 
   const { name, description, primaryDomain, brand } = shopifyPreviewMetadata;
+  const logoUrlToShow = brand?.logo?.image?.url || brand?.squareLogo?.image?.url;
 
   return (
     <div className="w-full p-4">
@@ -39,8 +42,12 @@ export const ShopifyMetadataPreview = () => {
       <Card className="mb-4">
         <CardHeader>
           <div className="flex items-center space-x-4">
-            {brand?.logo?.url && (
-              <img src={brand.logo.url} alt={`${name} logo`} className="h-16 w-16 object-contain rounded border" />
+            {logoUrlToShow ? (
+              <img src={logoUrlToShow} alt={`${name} logo`} className="h-16 w-16 object-contain rounded border" />
+            ) : (
+              <div className="h-16 w-16 bg-muted rounded border flex items-center justify-center text-muted-foreground">
+                <ImageIcon size={32} />
+              </div>
             )}
             <div>
               <CardTitle>{name || 'N/A'}</CardTitle>
@@ -59,7 +66,52 @@ export const ShopifyMetadataPreview = () => {
           )}
         </CardContent>
       </Card>
-      {/* TODO: Add display for colors, square logo etc. if available */}
+      {brand?.colors && (
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle className="text-lg">Brand Colors</CardTitle>
+          </CardHeader>
+          <CardContent className="flex space-x-4">
+            {brand.colors.primary?.background && (
+              <div className="text-center">
+                <div 
+                  className="w-16 h-16 rounded border mb-1" 
+                  style={{ backgroundColor: brand.colors.primary.background }}
+                  title={`Primary Background: ${brand.colors.primary.background}`}
+                ></div>
+                <p className="text-xs">Primary BG</p>
+                {brand.colors.primary.foreground && (
+                   <div 
+                    className="w-16 h-8 rounded border mt-1" 
+                    style={{ backgroundColor: brand.colors.primary.foreground }}
+                    title={`Primary Foreground: ${brand.colors.primary.foreground}`}
+                  ></div>
+                )}
+                 {brand.colors.primary.foreground && <p className="text-xs mt-1">Primary FG</p>}
+              </div>
+            )}
+            {brand.colors.secondary?.background && (
+              <div className="text-center">
+                <div 
+                  className="w-16 h-16 rounded border mb-1" 
+                  style={{ backgroundColor: brand.colors.secondary.background }}
+                  title={`Secondary Background: ${brand.colors.secondary.background}`}
+                ></div>
+                <p className="text-xs">Secondary BG</p>
+                {brand.colors.secondary.foreground && (
+                  <div 
+                    className="w-16 h-8 rounded border mt-1" 
+                    style={{ backgroundColor: brand.colors.secondary.foreground }}
+                    title={`Secondary Foreground: ${brand.colors.secondary.foreground}`}
+                  ></div>
+                )}
+                {brand.colors.secondary.foreground && <p className="text-xs mt-1">Secondary FG</p>}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+      {/* TODO: Add display for square logo etc. if available and distinct from main logo */}
     </div>
   );
 };
@@ -73,12 +125,47 @@ export const ShopifyItemsPreview = () => {
     isFetchingShopifyPreviewData,
     shopifyImportError,
     // Logo generation related state and functions
-    shopifyPreviewMetadata, // To get store name for logo prompt
+    shopifyPreviewMetadata,
     generatedLogoImage,
     isGeneratingLogo,
     logoGenerationError,
-    generateShopifyStoreLogo
+    generateShopifyStoreLogo,
+    updateShopifyPreviewProduct,
+    updateShopifyPreviewCollection // Function to update collection in context
   } = useStore();
+
+  const [isProductEditModalOpen, setIsProductEditModalOpen] = useState(false);
+  const [productToEdit, setProductToEdit] = useState(null);
+  const [isCollectionEditModalOpen, setIsCollectionEditModalOpen] = useState(false);
+  const [collectionToEdit, setCollectionToEdit] = useState(null);
+
+  const handleEditProduct = (product) => {
+    setProductToEdit(product);
+    setIsProductEditModalOpen(true);
+  };
+
+  const handleCloseProductEditModal = () => {
+    setIsProductEditModalOpen(false);
+    setProductToEdit(null);
+  };
+
+  const handleSaveProduct = (updatedProduct) => {
+    updateShopifyPreviewProduct(updatedProduct);
+  };
+
+  const handleEditCollection = (collection) => {
+    setCollectionToEdit(collection);
+    setIsCollectionEditModalOpen(true);
+  };
+
+  const handleCloseCollectionEditModal = () => {
+    setIsCollectionEditModalOpen(false);
+    setCollectionToEdit(null);
+  };
+
+  const handleSaveCollection = (updatedCollection) => {
+    updateShopifyPreviewCollection(updatedCollection); // This function needs to be added to StoreContext
+  };
 
   const handleLoadMoreProducts = () => {
     if (shopifyPreviewProducts.pageInfo.hasNextPage) {
@@ -157,10 +244,34 @@ export const ShopifyItemsPreview = () => {
           <ScrollArea className="h-60 border rounded p-2">
             {shopifyPreviewProducts.edges.length === 0 && !isFetchingShopifyPreviewData && <p className="text-muted-foreground text-sm p-2">No products loaded yet or none found.</p>}
             {shopifyPreviewProducts.edges.map(({ node: product }) => (
-              <div key={product.id} className="p-2 border-b text-sm flex items-center">
-                {product.images?.edges[0]?.node?.url && <img src={product.images.edges[0].node.url} alt={product.title} className="h-10 w-10 inline-block mr-3 rounded object-cover"/>}
-                {!product.images?.edges[0]?.node?.url && <div className="h-10 w-10 bg-muted rounded mr-3 flex items-center justify-center text-muted-foreground"><ImageIcon size={16}/></div>}
-                <span>{product.title}</span>
+              <div key={product.id} className="p-3 border-b last:border-b-0">
+                <div className="flex items-start space-x-3">
+                  {product.images?.edges[0]?.node?.url && (
+                    <img src={product.images.edges[0].node.url} alt={product.title} className="h-16 w-16 rounded object-cover border"/>
+                  )}
+                  {!product.images?.edges[0]?.node?.url && (
+                    <div className="h-16 w-16 bg-muted rounded border flex items-center justify-center text-muted-foreground"><ImageIcon size={24}/></div>
+                  )}
+                  <div className="flex-1">
+                    <p className="font-semibold text-sm">{product.title}</p>
+                    {product.variants?.edges[0]?.node?.price && (
+                      <p className="text-xs text-muted-foreground">
+                        Price: {product.variants.edges[0].node.price.amount} {product.variants.edges[0].node.price.currencyCode}
+                      </p>
+                    )}
+                    {product.description && (
+                       <p className="text-xs text-muted-foreground mt-1 truncate" title={product.description}>
+                         Desc: {product.description.substring(0, 50)}{product.description.length > 50 ? '...' : ''}
+                       </p>
+                    )}
+                    {product.tags && product.tags.length > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">Tags: {product.tags.join(', ')}</p>
+                    )}
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => handleEditProduct(product)} className="ml-auto">
+                    <EditIcon className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             ))}
             {isFetchingShopifyPreviewData && shopifyPreviewProducts.pageInfo.hasNextPage && <div className="flex justify-center py-2"><Loader2 className="h-5 w-5 animate-spin" /></div>}
@@ -179,7 +290,12 @@ export const ShopifyItemsPreview = () => {
           <ScrollArea className="h-60 border rounded p-2">
             {shopifyPreviewCollections.edges.length === 0 && !isFetchingShopifyPreviewData && <p className="text-muted-foreground text-sm p-2">No collections loaded yet or none found.</p>}
             {shopifyPreviewCollections.edges.map(({ node: collection }) => (
-              <div key={collection.id} className="p-2 border-b text-sm">{collection.title}</div>
+              <div key={collection.id} className="p-2 border-b text-sm flex justify-between items-center">
+                <span>{collection.title}</span>
+                <Button variant="ghost" size="sm" onClick={() => handleEditCollection(collection)}>
+                  <EditIcon className="h-4 w-4" />
+                </Button>
+              </div>
             ))}
             {isFetchingShopifyPreviewData && shopifyPreviewCollections.pageInfo.hasNextPage && <div className="flex justify-center py-2"><Loader2 className="h-5 w-5 animate-spin" /></div>}
           </ScrollArea>
@@ -191,6 +307,22 @@ export const ShopifyItemsPreview = () => {
           {!shopifyPreviewCollections.pageInfo.hasNextPage && shopifyPreviewCollections.edges.length > 0 && <p className="text-sm text-muted-foreground mt-2 text-center">All collections loaded.</p>}
         </div>
       </div>
+      {productToEdit && (
+        <ShopifyProductEditModal
+          isOpen={isProductEditModalOpen}
+          onClose={handleCloseProductEditModal}
+          product={productToEdit}
+          onSave={handleSaveProduct}
+        />
+      )}
+      {collectionToEdit && (
+        <ShopifyCollectionEditModal
+          isOpen={isCollectionEditModalOpen}
+          onClose={handleCloseCollectionEditModal}
+          collection={collectionToEdit}
+          onSave={handleSaveCollection}
+        />
+      )}
     </div>
   );
 };

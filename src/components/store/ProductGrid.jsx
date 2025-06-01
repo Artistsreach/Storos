@@ -5,6 +5,7 @@ import { Search, Grid, List, Filter } from "lucide-react";
 import { Button } from "../ui/button.jsx";
 import InlineTextEdit from '@/components/ui/InlineTextEdit'; // Added import
 import { useStore } from '@/contexts/StoreContext'; // Added import
+import { generateStoreUrl } from "@/lib/utils.js"; // Added import
 
 const ProductGrid = ({ store, isPublishedView = false }) => {
   const { products, theme, id: storeId, content } = store; // Added content
@@ -107,9 +108,9 @@ const ProductGrid = ({ store, isPublishedView = false }) => {
             onSave={(newText) => handleSaveText('productGridSubtitle', newText)}
             isAdmin={isAdmin}
             placeholder="Section Subtitle"
-            as="p"
+            as="div"
             textClassName="text-muted-foreground max-w-xl mx-auto text-md md:text-lg"
-            className="w-full mt-2" 
+            className="w-full mt-2"
             useTextarea={true}
           />
         </motion.div>
@@ -195,6 +196,7 @@ const ProductGrid = ({ store, isPublishedView = false }) => {
                     product={product}
                     theme={theme}
                     index={index}
+                    storeName={generateStoreUrl(store.name)}
                     storeId={storeId}
                     isPublishedView={isPublishedView}
                     displayMode={displayMode}
@@ -224,34 +226,4 @@ const ProductGrid = ({ store, isPublishedView = false }) => {
   );
 };
 
-// Moved handleSaveText inside the component or ensure it's correctly scoped if passed as prop.
-// For this direct modification, defining it inside ProductGrid:
-// const ProductGrid = ({ store, isPublishedView = false }) => {
-//   ...
-//   const handleSaveText = async (field, value) => {
-//     if (storeId) {
-//       try {
-//         await updateStore(storeId, { content: { ...content, [field]: value } });
-//       } catch (error) {
-//         console.error(`Failed to update product grid text for ${field}:`, error);
-//       }
-//     }
-//   };
-//   ...
-// };
-// Correcting the previous diff by defining handleSaveText within the component scope properly.
-// The previous diff had a conceptual note, this will make it functional.
-// No, the diff should actually modify the component to include the function.
-
 export default ProductGrid;
-// The handleSaveText function should be part of the component, not outside.
-// Let's re-insert it correctly. The previous diff was a bit messy.
-
-// Correct structure:
-// const ProductGrid = (...) => {
-//   ...
-//   const handleSaveText = async (field, value) => { ... };
-//   ...
-//   return (...);
-// }
-// The diff below will place it correctly.

@@ -2,10 +2,27 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ShoppingCart, Heart, Star } from 'lucide-react';
 import { Button } from '../../../ui/button'; // Adjusted path
-// import { useStore } from '../../../../contexts/StoreContext'; // If cart actions are needed
+import { useStore } from '../../../../contexts/StoreContext'; // Import useStore
 
-const QuickView = ({ product, isOpen, onClose }) => {
+const QuickView = ({ product, isOpen, onClose, store: storeProp }) => { // Added storeProp
+  const { store: contextStore } = useStore(); // Get store from context for theme
   // const { addToCart } = useStore(); // Example if needed
+  const store = contextStore || storeProp; // Prioritize contextStore
+
+  const primaryColor = store?.theme?.primaryColor || "#6366F1"; // Default if no theme
+
+    // Helper function to generate a slightly darker shade
+  const getDarkerShade = (color, percent = 20) => {
+    if (!color.startsWith("#")) return color;
+    let num = parseInt(color.slice(1), 16),
+      amt = Math.round(2.55 * percent),
+      R = (num >> 16) - amt,
+      G = (num >> 8 & 0x00FF) - amt,
+      B = (num & 0x0000FF) - amt;
+    R = Math.max(0, R); G = Math.max(0, G); B = Math.max(0, B);
+    return "#" + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+  };
+  const secondaryColor = getDarkerShade(primaryColor, 20);
 
   if (!product) return null;
 
@@ -66,7 +83,7 @@ const QuickView = ({ product, isOpen, onClose }) => {
                   <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">({product.reviewCount || 0} reviews)</span>
                 </div>
 
-                <p className="text-3xl font-semibold text-purple-600 dark:text-purple-400 premium-font-body">
+                <p className="text-3xl font-semibold premium-font-body" style={{ color: primaryColor }}>
                   ${(product.price || 0).toFixed(2)}
                 </p>
                 <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed line-clamp-4 premium-font-body">
@@ -84,7 +101,14 @@ const QuickView = ({ product, isOpen, onClose }) => {
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 pt-3">
-                  <Button onClick={handleAddToCart} size="lg" className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white flex-grow">
+                  <Button
+                    onClick={handleAddToCart}
+                    size="lg"
+                    className="text-white flex-grow"
+                    style={{ background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = `linear-gradient(to right, ${getDarkerShade(primaryColor, -10)}, ${getDarkerShade(secondaryColor, -10)})`}
+                    onMouseLeave={(e) => e.currentTarget.style.background = `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`}
+                  >
                     <ShoppingCart className="mr-2 h-5 w-5" /> Add to Cart
                   </Button>
                   <Button variant="outline" size="lg" className="flex-grow">

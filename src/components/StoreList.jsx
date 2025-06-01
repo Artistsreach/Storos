@@ -1,27 +1,31 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import StoreCard from '@/components/StoreCard';
 import { useStore } from '@/contexts/StoreContext';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext'; // Import useAuth to get the correct user object
 
 const StoreList = () => {
-  const { stores, loadStores, user, isLoadingStores } = useStore();
+  const { stores, loadStores, isLoadingStores } = useStore();
+  const { user } = useAuth(); // Get user from AuthContext
 
   const handleRefreshStores = () => {
     console.log("[StoreList] handleRefreshStores called. User:", user);
-    if (user && user.id) {
-      console.log(`[StoreList] Calling loadStores for user ID: ${user.id}`);
-      loadStores(user.id);
+    if (user && user.uid) {
+      console.log(`[StoreList] Calling loadStores for user UID: ${user.uid}`);
+      loadStores(user.uid);
     } else {
-      console.warn("[StoreList] handleRefreshStores: No user or user.id found, cannot refresh stores.");
+      console.warn("[StoreList] handleRefreshStores: No user or user.uid found, cannot refresh stores.");
     }
   };
 
-  if (stores.length === 0 && !isLoadingStores) { // Also check isLoadingStores to prevent showing "null" during initial load
-    return null;
-  }
+  // Conditional rendering for loading and empty states is handled below,
+  // so no need to return null early if stores.length is 0 initially.
+  // if (stores.length === 0 && !isLoadingStores) { 
+  //   return null;
+  // }
 
   return (
     <motion.div

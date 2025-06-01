@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card"; 
 
-const DashboardLayout = ({ children, activeTab, setActiveTab, storeId }) => { // Added storeId prop
+const DashboardLayout = ({ children, activeTab, setActiveTab, storeId, storeName }) => { // Added storeName prop
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
 
@@ -111,9 +111,9 @@ const DashboardLayout = ({ children, activeTab, setActiveTab, storeId }) => { //
       {/* Sidebar */}
       <div className="w-64 bg-card border-r border-border flex flex-col"> {/* Removed h-full, flex handles height */}
         <div className="p-4 border-b flex items-center gap-2"> {/* Added flex items-center gap-2 */}
-          {storeId && (
+          {storeName && ( // Check for storeName
             <Button asChild variant="outline" size="icon" className="flex-shrink-0">
-              <Link to={`/store/${storeId}`}>
+              <Link to={`/${storeName}`}> {/* Use storeName */}
                 <ArrowLeft className="h-4 w-4" />
                 <span className="sr-only">Back to Store</span>
               </Link>

@@ -3,17 +3,28 @@ import React, { useState } from 'react'; // Keep this one as it includes useStat
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ShoppingCart, Star, Eye, Zap as BuyNowIcon } from 'lucide-react';
+import { ShoppingCart, Star, Eye, Zap as BuyNowIcon, Edit } from 'lucide-react'; // Added Edit icon
 import { useStore } from '@/contexts/StoreContext';
 import { Link } from 'react-router-dom';
 import { stripePromise } from '@/lib/stripe';
 import InlineTextEdit from '@/components/ui/InlineTextEdit'; // Added import
+import ProductEditModal from './ProductEditModal'; // Importing the new modal
+import { useEffect } from 'react'; // Added useEffect
 
-const ProductCard = ({ product, theme, index, storeId, isPublishedView = false }) => {
-  const { name, price, rating, description, image, currencyCode = 'USD', id: rawProductId, stripe_price_id } = product;
-  const { addToCart, updateStore } = useStore(); // Assuming updateStore can handle product updates or a specific updateProduct function exists
+// Changed storeId prop to storeName
+const ProductCard = ({ product, theme, index, storeName, storeId, isPublishedView = false }) => {
+  // Use state for product data to allow local updates
+  const [displayProduct, setDisplayProduct] = useState(product);
+
+  useEffect(() => {
+    setDisplayProduct(product);
+  }, [product]);
+
+  const { name, price, rating, description, image, currencyCode = 'USD', id: rawProductId, stripe_price_id, variants, inventory_count } = displayProduct;
+  const { addToCart, updateStore: updateContextStore, currentStore } = useStore(); // Get updateStore as updateContextStore and currentStore
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false); // State for edit modal
   const isAdmin = !isPublishedView;
 
   // Encode Shopify GIDs for URL safety
@@ -154,10 +165,63 @@ const ProductCard = ({ product, theme, index, storeId, isPublishedView = false }
   // Conditionally render Buy Now button only if product has a stripe_default_price_id
   // This implies it's available for purchase via Stripe.
   // The backend function `create-stripe-checkout-session` will also verify this.
-  const canBuyNow = !!product.stripe_default_price_id || !!stripe_price_id;
+  const canBuyNow = (!!displayProduct.stripe_default_price_id || !!stripe_price_id) && (inventory_count === undefined || inventory_count > 0);
+
+  const handleEditProduct = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsEditModalOpen(true);
+  };
+
+  const handleCloseEditModal = () => {
+    setIsEditModalOpen(false);
+    // Optionally, refresh product data or store data here if needed
+  };
+
+  const handleSaveProductChanges = async (updatedProductData) => {
+    // This function will be passed to the modal to handle saving.
+    // It should call the appropriate updateStore or backend function.
+    if (storeId && rawProductId) {
+      try {
+        console.log(`Saving changes for product ${rawProductId}:`, updatedProductData);
+        // Example: await updateStore(storeId, { products: { [rawProductId]: updatedProductData } });
+        // Or a more specific function: await updateProductDetails(storeId, rawProductId, updatedProductData);
+        // For now, using the fetch call similar to handleSaveProductText, but for multiple fields
+        await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-product`, {
+          method: 'PUT', // Or PATCH
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('supabase.auth.token')}`,
+          },
+          body: JSON.stringify({ store_id: storeId, product_id: rawProductId, ...updatedProductData })
+        });
+        
+        // Update local display state immediately
+        setDisplayProduct(prevDisplayProduct => ({ ...prevDisplayProduct, ...updatedProductData }));
+        
+        // Update StoreContext
+        if (currentStore && currentStore.id === storeId && currentStore.products) {
+          const updatedProductsArray = currentStore.products.map(p =>
+            p.id === rawProductId ? { ...p, ...updatedProductData } : p
+          );
+          updateContextStore(storeId, { products: updatedProductsArray });
+        } else if (currentStore && currentStore.id === storeId && !currentStore.products) {
+          // If products array doesn't exist on currentStore, create it with the updated product
+           updateContextStore(storeId, { products: [{ ...displayProduct, ...updatedProductData }] });
+        }
+
+
+        setIsEditModalOpen(false); // Close modal on successful save
+      } catch (error) {
+        console.error('Failed to save product changes:', error);
+        // Potentially set an error state to display in the modal
+      }
+    }
+  };
 
 
   return (
+    <>
     <motion.div
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
@@ -167,7 +231,7 @@ const ProductCard = ({ product, theme, index, storeId, isPublishedView = false }
     >
       <Card className="h-full overflow-hidden border hover:border-primary/50 transition-all duration-300 flex flex-col group bg-card shadow-sm hover:shadow-lg">
         {/* Removed isPublishedView from state, ProductDetail will get it from context */}
-        <Link to={`/store/${storeId}/product/${productId}`} className="block">
+        <Link to={`/${storeName}/product/${productId}`} className="block"> {/* Use storeName */}
           <div className="aspect-square relative overflow-hidden bg-muted">
             <img 
               alt={imageAlt}
@@ -187,7 +251,7 @@ const ProductCard = ({ product, theme, index, storeId, isPublishedView = false }
         </Link>
         
         <CardContent className="p-4 flex-grow">
-          <Link to={`/store/${storeId}/product/${productId}`} className="block">
+          <Link to={`/${storeName}/product/${productId}`} className="block"> {/* Use storeName */}
             <div className="flex justify-between items-start mb-1.5">
               <h3 className="font-semibold text-md lg:text-lg line-clamp-2 group-hover:text-primary transition-colors" style={{"--hover-color": theme.primaryColor}}>
                 <InlineTextEdit
@@ -221,6 +285,20 @@ const ProductCard = ({ product, theme, index, storeId, isPublishedView = false }
             ))}
             <span className="text-xs text-muted-foreground ml-1">({rating} reviews)</span>
           </div>
+
+          {/* Display Variants */}
+          {variants && variants.length > 0 && (
+            <div className="mt-2.5">
+              {variants.map((variant, vIndex) => (
+                <div key={vIndex} className="mb-1.5 last:mb-0">
+                  <span className="text-xs font-medium text-muted-foreground">{variant.name}: </span>
+                  <span className="text-xs text-foreground">
+                    {variant.values.join(', ')}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
         
         <CardFooter className="p-4 pt-0 mt-auto flex flex-col gap-2">
@@ -228,10 +306,10 @@ const ProductCard = ({ product, theme, index, storeId, isPublishedView = false }
             className="w-full transition-transform duration-200 hover:scale-105"
             style={{ backgroundColor: theme.primaryColor, color: theme.primaryTextColor || 'white' }}
             onClick={handleAddToCart}
-            disabled={isCheckoutLoading}
+            disabled={isCheckoutLoading || (inventory_count !== undefined && inventory_count <= 0)}
           >
             <ShoppingCart className="mr-2 h-4 w-4" />
-            Add to Cart
+            {inventory_count !== undefined && inventory_count <= 0 ? 'Out of Stock' : 'Add to Cart'}
           </Button>
           {canBuyNow && ( 
             <Button 
@@ -245,9 +323,31 @@ const ProductCard = ({ product, theme, index, storeId, isPublishedView = false }
             </Button>
           )}
           {checkoutError && <p className="text-xs text-red-500 mt-1">{checkoutError}</p>}
+          {isAdmin && (
+            <Button 
+              variant="outline"
+              className="w-full transition-transform duration-200 hover:scale-105 mt-2"
+              onClick={handleEditProduct}
+            >
+              <Edit className="mr-2 h-4 w-4" />
+              Edit Product
+            </Button>
+          )}
         </CardFooter>
       </Card>
     </motion.div>
+
+    {isEditModalOpen && (
+      <ProductEditModal
+        product={displayProduct} // Pass displayProduct to modal
+        isOpen={isEditModalOpen}
+        onClose={handleCloseEditModal}
+        onSave={handleSaveProductChanges}
+        storeId={storeId}
+        theme={theme} // Pass theme if modal needs it
+      />
+    )}
+    </>
   );
 };
 

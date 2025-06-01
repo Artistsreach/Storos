@@ -74,11 +74,11 @@ const routes = [
         element: <PricingPage />,
       },
       {
-        path: "store/:storeId",
+        path: ":storeName",
         element: <StorePreview />,
       },
       {
-        path: "store/:storeId/product/:productId",
+        path: ":storeName/product/:productId",
         element: <ProductDetail />,
       },
       {
@@ -90,11 +90,11 @@ const routes = [
         element: <OrderConfirmationPage />,
       },
       {
-        path: "store/:storeId/content-creation", // Changed path
-        element: <ContentCreationPage />, // Will get storeId via useParams
+        path: ":storeName/content-creation", // Changed path
+        element: <ContentCreationPage />, // Will get storeName via useParams
       },
       {
-        path: "store/:storeId/dashboard", // New route for the store dashboard
+        path: ":storeName/dashboard", // New route for the store dashboard
         element: <StoreDashboardPage />,
       },
       {

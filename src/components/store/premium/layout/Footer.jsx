@@ -4,9 +4,12 @@ import { Facebook, Twitter, Instagram, Linkedin, Youtube, MapPin, Phone, Mail } 
 import InlineTextEdit from '../../../ui/InlineTextEdit'; // Adjusted path
 import { useStore } from '../../../../contexts/StoreContext'; // Adjusted path
 
-const Footer = ({ store, isPublishedView = false }) => { // Added isPublishedView
-  const { updateStoreTextContent } = useStore();
+const Footer = ({ store: storeProp, isPublishedView = false }) => { // Renamed store to storeProp to avoid conflict
+  const { updateStoreTextContent, store: contextStore } = useStore(); // Get store from context for theme
   const currentYear = new Date().getFullYear();
+
+  const store = contextStore || storeProp; // Prioritize contextStore
+  const primaryColor = store?.theme?.primaryColor || "#6366F1"; // Default if no theme
 
   const storeName = store?.name || "Premium Store";
   const storeId = store?.id || "premium-store";
@@ -89,7 +92,10 @@ const Footer = ({ store, isPublishedView = false }) => { // Added isPublishedVie
                     isPublishedView={isPublishedView}
                     as="a"
                     href={link.href}
-                    className="hover:text-purple-400 dark:hover:text-purple-300 transition-colors duration-300"
+                    className="transition-colors duration-300"
+                    style={{ '--hover-text-color': primaryColor, '--dark-hover-text-color': primaryColor }}
+                    onMouseEnter={(e) => e.currentTarget.style.color = primaryColor }
+                    onMouseLeave={(e) => e.currentTarget.style.color = ''}
                   />
                 </li>
               ))}
@@ -110,15 +116,15 @@ const Footer = ({ store, isPublishedView = false }) => { // Added isPublishedVie
             </InlineTextEdit>
             <ul className="space-y-3">
               <li className="flex items-start">
-                <MapPin className="w-5 h-5 mr-3 mt-1 text-purple-400 flex-shrink-0" />
+                <MapPin className="w-5 h-5 mr-3 mt-1 flex-shrink-0" style={{ color: primaryColor }} />
                 <InlineTextEdit initialText={contactInfo.address} onSave={updateStoreTextContent} identifier={contactInfo.addressIdentifier} isPublishedView={isPublishedView} as="span" />
               </li>
               <li className="flex items-center">
-                <Phone className="w-5 h-5 mr-3 text-purple-400" />
+                <Phone className="w-5 h-5 mr-3" style={{ color: primaryColor }} />
                 <InlineTextEdit initialText={contactInfo.phone} onSave={updateStoreTextContent} identifier={contactInfo.phoneIdentifier} isPublishedView={isPublishedView} as="a" href={`tel:${contactInfo.phone}`} />
               </li>
               <li className="flex items-center">
-                <Mail className="w-5 h-5 mr-3 text-purple-400" />
+                <Mail className="w-5 h-5 mr-3" style={{ color: primaryColor }} />
                 <InlineTextEdit initialText={contactInfo.email} onSave={updateStoreTextContent} identifier={contactInfo.emailIdentifier} isPublishedView={isPublishedView} as="a" href={`mailto:${contactInfo.email}`} />
               </li>
             </ul>
@@ -146,7 +152,10 @@ const Footer = ({ store, isPublishedView = false }) => { // Added isPublishedVie
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={social.platform}
-                    className="text-gray-400 hover:text-purple-400 dark:hover:text-purple-300 transition-colors duration-300"
+                    className="text-gray-400 transition-colors duration-300"
+                    style={{ '--hover-text-color': primaryColor }}
+                    onMouseEnter={(e) => e.currentTarget.style.color = primaryColor }
+                    onMouseLeave={(e) => e.currentTarget.style.color = ''}
                   >
                     <Icon className="w-6 h-6" />
                   </a>

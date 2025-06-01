@@ -16,14 +16,58 @@ const genAI = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
  * @param {string} storeName - The name of the store.
  * @param {Array<object>} products - An array of existing products in the store.
  * @param {Array<string>} existingCollectionNames - An array of names of already generated collections.
+ * @param {function} updateProgressCallback - Callback to update progress.
+ * @param {number} baseCollectionProgress - Base progress for this specific collection generation.
+ * @param {number} collectionStepProgressIncrement - Total progress allocated for this collection's steps.
  * @returns {Promise<object>} - A promise that resolves to an object containing collection data and image URL.
  */
-export async function generateCollectionWithGemini(productType, storeName, products, existingCollectionNames = []) {
+export async function generateCollectionWithGemini(
+  productType, 
+  storeName, 
+  products, 
+  existingCollectionNames = [],
+  updateProgressCallback = (progress, message) => console.log(`CollectionGen Progress: ${progress}%, Message: ${message || ''}`),
+  baseCollectionProgress = 0,
+  collectionStepProgressIncrement = 5 
+) {
   if (!GEMINI_API_KEY) {
+    // This is a critical configuration error, okay to return an error object.
+    console.error("Gemini API Key not configured. Cannot generate collection.");
+    updateProgressCallback(baseCollectionProgress + collectionStepProgressIncrement, "Collection generation failed (API Key).");
     return { error: "Gemini API Key not configured." };
   }
+
+  const getFallbackCollection = () => {
+    let fallbackProductNames = [];
+    if (products && products.length > 0) {
+      // Try to get up to 4 product names for the fallback
+      fallbackProductNames = products
+        .map(p => p.name)
+        .filter(name => typeof name === 'string' && name.trim() !== '') // Ensure names are valid strings
+        .slice(0, 4);
+    }
+  
+    // If no valid product names could be extracted for fallback, create a very generic collection
+    if (fallbackProductNames.length === 0) {
+      return {
+        name: "Our Special Collection",
+        description: "Discover a range of our finest products, specially selected for you.",
+        imageData: null,
+        product_ids: [],
+        isPlaceholder: true,
+      };
+    }
+  
+    return {
+      name: `${productType ? productType.charAt(0).toUpperCase() + productType.slice(1) : 'Featured'} Selection`,
+      description: `A curated selection of our popular ${productType || 'items'}. Explore customer favorites and top picks.`,
+      imageData: null,
+      product_ids: fallbackProductNames,
+      isPlaceholder: true,
+    };
+  };
  
-  const productList = products.map(p => p.name).join(', ');
+  const productList = products && products.length > 0 ? products.map(p => p.name).filter(name => name).join(', ') : 'various items';
   const existingNamesString = existingCollectionNames.length > 0 ? `Do NOT use any of the following names: ${existingCollectionNames.join(', ')}.` : '';
 
   const prompt = `
@@ -40,6 +84,7 @@ export async function generateCollectionWithGemini(productType, storeName, produ
     Ensure the collection name is concise, unique from the provided list (if any), and the description is appealing.
     The "product_names" array should contain a selection of 2 to 4 relevant product names from the provided product list that fit well within this new collection.
   `;
+  updateProgressCallback(baseCollectionProgress + (collectionStepProgressIncrement * 0.1), `Generating collection details...`);
 
   try {
     const textGenerationResult = await genAI.models.generateContent({
@@ -62,7 +107,8 @@ export async function generateCollectionWithGemini(productType, storeName, produ
     
     if (!text) { 
         console.error("Gemini text generation did not return any text content. Full response:", textGenerationResult);
-        return { error: "Failed to parse AI response for collection data (no text found)." };
+        console.warn("Returning fallback collection due to no text from AI.");
+        return getFallbackCollection();
     }
 
     let collectionData;
@@ -76,7 +122,7 @@ export async function generateCollectionWithGemini(productType, storeName, produ
         try {
             collectionData = JSON.parse(text);
         } catch (e) {
-            console.error("Failed to parse Gemini response as JSON directly, trying to extract from text:", text);
+            console.warn("Failed to parse Gemini response as JSON directly, trying to extract from text:", text);
             // Attempt to extract JSON if it's embedded or has surrounding text
             const firstBrace = text.indexOf('{');
             const lastBrace = text.lastIndexOf('}');
@@ -86,32 +132,76 @@ export async function generateCollectionWithGemini(productType, storeName, produ
                     collectionData = JSON.parse(potentialJson);
                 } catch (finalParseError) {
                     console.error("Final attempt to parse extracted JSON failed:", potentialJson, finalParseError);
-                    throw finalParseError; // Re-throw to be caught by outer try-catch
+                    throw finalParseError; // Re-throw to be caught by outer try-catch, then return fallback
                 }
             } else {
-                 throw new Error("No valid JSON structure found in response.");
+                 throw new Error("No valid JSON structure found in response."); // Caught by outer, then return fallback
             }
         }
       }
     } catch (parseError) {
       console.error("Failed to parse Gemini response as JSON:", text, parseError);
-      return { error: "Failed to parse AI response for collection data." };
+      console.warn("Returning fallback collection due to JSON parsing error.");
+      return getFallbackCollection();
     }
 
-    if (!collectionData || !collectionData.name || !collectionData.description || !Array.isArray(collectionData.product_names)) {
-      console.error("AI did not return valid collection data including product_names array:", collectionData);
-      return { error: "AI did not return valid collection name, description, or product names." };
+    if (!collectionData || !collectionData.name || !collectionData.description || !Array.isArray(collectionData.product_names) || collectionData.product_names.length === 0) {
+      console.error("AI did not return valid collection data (name, description, or non-empty product_names array):", collectionData);
+      console.warn("Returning fallback collection due to invalid/incomplete AI data.");
+      updateProgressCallback(baseCollectionProgress + (collectionStepProgressIncrement * 0.5), `Failed to get valid collection details.`);
+      return getFallbackCollection();
     }
+    updateProgressCallback(baseCollectionProgress + (collectionStepProgressIncrement * 0.5), `Collection details "${collectionData.name}" received.`);
 
-    // Map product names from AI response back to product IDs
+    // Helper function to normalize product names for more robust matching
+    const normalizeProductName = (name) => {
+      if (typeof name !== 'string') return '';
+      let normalized = name.toLowerCase();
+      // Remove common articles
+      normalized = normalized.replace(/\b(a|an|the)\b/g, '');
+      // Basic pluralization removal (e.g., "mugs" -> "mug")
+      if (normalized.endsWith('s') && normalized.length > 3) {
+        // More sophisticated pluralization could be added if needed
+        // For now, simple 's' removal for words longer than 3 chars
+        const singularAttempt = normalized.slice(0, -1);
+        // A very basic check to avoid turning "series" into "serie" if "serie" isn't a word.
+        // This is imperfect. A dictionary or more advanced NLP would be better for production.
+        // For now, we'll accept the simple 's' removal.
+        normalized = singularAttempt;
+      }
+      // Remove non-alphanumeric characters (except spaces) and collapse multiple spaces
+      normalized = normalized.replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+      return normalized;
+    };
+
+    // Map product names from AI response back to product IDs using normalized names
     const productIdsForCollection = [];
     if (collectionData.product_names && products) {
       collectionData.product_names.forEach(aiProductName => {
-        const foundProduct = products.find(p => p.name.toLowerCase() === aiProductName.toLowerCase());
-        if (foundProduct && foundProduct.id) {
-          productIdsForCollection.push(foundProduct.id);
+        const normalizedAiProductName = normalizeProductName(aiProductName);
+        if (!normalizedAiProductName) {
+          console.warn(`AI product name "${aiProductName}" normalized to an empty string. Skipping.`);
+          return;
+        }
+
+        let foundProduct = null;
+        // Try to find an exact match on normalized names first
+        foundProduct = products.find(p => normalizeProductName(p.name) === normalizedAiProductName);
+
+        // If no exact normalized match, try a 'contains' match as a fallback
+        // This is more lenient and might catch cases where AI adds/removes minor words
+        if (!foundProduct) {
+          foundProduct = products.find(p => {
+            const normalizedExistingProductName = normalizeProductName(p.name);
+            return normalizedExistingProductName.includes(normalizedAiProductName) || normalizedAiProductName.includes(normalizedExistingProductName);
+          });
+        }
+
+        if (foundProduct && foundProduct.name) { // Check for foundProduct.name as products in StoreWizard might not have an ID yet
+          productIdsForCollection.push(foundProduct.name); // Push the name, as this is the identifier available at this stage
+          console.log(`Matched AI product "${aiProductName}" (normalized: "${normalizedAiProductName}") to existing product "${foundProduct.name}" (using name as ID)`);
         } else {
-          console.warn(`Product name "${aiProductName}" from AI response not found in provided product list or missing ID.`);
+          console.warn(`Product name "${aiProductName}" (normalized: "${normalizedAiProductName}") from AI response not found in provided product list or missing name after normalization and fallback search.`);
         }
       });
     }
@@ -119,6 +209,7 @@ export async function generateCollectionWithGemini(productType, storeName, produ
     // Now, generate an image using Gemini based on the collection name and description
     const imagePrompt = `A vibrant and appealing e-commerce collection image for "${collectionData.name}", described as "${collectionData.description}", suitable for a store selling ${productType}.`;
     let imageData = null;
+    updateProgressCallback(baseCollectionProgress + (collectionStepProgressIncrement * 0.6), `Generating image for collection "${collectionData.name}"...`);
     try {
       const imageContents = [{ text: imagePrompt }];
       const imageResponse = await genAI.models.generateContent({
@@ -140,12 +231,17 @@ export async function generateCollectionWithGemini(productType, storeName, produ
       }
       if (!imageData) {
          console.warn(`Gemini image generation did not return image data for collection: "${collectionData.name}". Full Response:`, imageResponse);
+         updateProgressCallback(undefined, `Image generation failed for collection "${collectionData.name}".`);
+      } else {
+         updateProgressCallback(undefined, `Image generated for collection "${collectionData.name}".`);
       }
     } // Closing brace for the try block related to image generation
     catch (imgError) {
       console.error(`Error generating image for collection "${collectionData.name}" with Gemini:`, imgError);
+      updateProgressCallback(undefined, `Error generating image for collection "${collectionData.name}".`);
     }
-
+    
+    updateProgressCallback(baseCollectionProgress + collectionStepProgressIncrement, `Collection "${collectionData.name}" processing complete.`);
     return {
       name: collectionData.name,
       description: collectionData.description,
@@ -155,6 +251,8 @@ export async function generateCollectionWithGemini(productType, storeName, produ
 
   } catch (error) {
     console.error("Error generating collection with Gemini:", error);
-    return { error: `Failed to generate collection data: ${error.message}` };
+    console.warn("Returning fallback collection due to an unexpected error in generation process.");
+    updateProgressCallback(baseCollectionProgress + collectionStepProgressIncrement, "Collection generation failed (unexpected error).");
+    return getFallbackCollection();
   }
 }

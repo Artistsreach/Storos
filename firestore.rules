@@ -1,0 +1,43 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /stores/{storeId} {
+      // Public read access for store data
+      allow read: if true;
+
+      // Allow create if user is authenticated and the merchant_id in the new document matches their UID
+      allow create: if request.auth != null && request.resource.data.merchant_id == request.auth.uid;
+      
+      // Allow update and delete if user is authenticated and is the owner of the existing store document
+      allow update, delete: if request.auth != null && resource.data.merchant_id == request.auth.uid;
+
+      // Rules for 'products' subcollection nested under a store
+      match /products/{productId} {
+        // Public read access for products
+        allow read: if true;
+
+        // Allow create, update, delete if user is authenticated and owns the parent store document
+        allow create, update, delete: if request.auth != null && get(/databases/$(database)/documents/stores/$(storeId)).data.merchant_id == request.auth.uid;
+      }
+
+      // Rules for 'collections' subcollection nested under a store
+      match /collections/{collectionId} {
+        // Public read access for collections
+        allow read: if true;
+
+        // Allow create, update, delete if user is authenticated and owns the parent store document
+        allow create, update, delete: if request.auth != null && get(/databases/$(database)/documents/stores/$(storeId)).data.merchant_id == request.auth.uid;
+      }
+    }
+
+    // If you have other top-level collections like 'profiles', define their rules here.
+    // For example:
+    // match /profiles/{userId} {
+    //   allow read, write: if request.auth != null && request.auth.uid == userId;
+    // }
+
+    // The old, potentially incorrect top-level rules for /products and /store_collections are removed.
+    // If you had other, valid top-level collections named 'products' or 'store_collections' (unlikely given the context),
+    // you would need to re-add their specific rules here.
+  }
+}

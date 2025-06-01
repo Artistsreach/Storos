@@ -4,16 +4,60 @@ import CollectionProductsDialog from '@/components/store/CollectionProductsDialo
 import InlineTextEdit from '../../../ui/InlineTextEdit';
 import { useStore } from '../../../../contexts/StoreContext';
 
-const CategoryShowcase = ({ store, isPublishedView = false }) => {
-  const { updateStoreTextContent, viewMode } = useStore();
+const CategoryShowcase = ({ store: storeProp, isPublishedView = false }) => { // Renamed store to storeProp
+  const { updateStoreTextContent, viewMode, store: contextStore, updateStore } = useStore(); // Get store from context for theme, Added updateStore
+  const store = contextStore || storeProp; // Prioritize contextStore
   const collections = store?.collections || [];
   const displayedCollections = collections.slice(0, 4); // Display up to 4 collections
 
+  const primaryColor = store?.theme?.primaryColor || "#6366F1"; // Default if no theme
+
+  // Helper function to generate a slightly darker shade
+  const getDarkerShade = (color, percent = 20) => {
+    if (!color.startsWith("#")) return color;
+    let num = parseInt(color.slice(1), 16),
+      amt = Math.round(2.55 * percent),
+      R = (num >> 16) - amt,
+      G = (num >> 8 & 0x00FF) - amt,
+      B = (num & 0x0000FF) - amt;
+    R = Math.max(0, R); G = Math.max(0, G); B = Math.max(0, B);
+    return "#" + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+  };
+  const secondaryColor = getDarkerShade(primaryColor, 20);
+
   // Content definitions
   const sectionTitle = store?.content?.categoryShowcaseTitle || "Shop by Collection";
-  const getCollectionTitle = (collection, index) => store?.content?.[`categoryShowcaseCollection_${index}_Title`] || collection.title;
   const viewProductsButtonText = store?.content?.categoryShowcaseViewProductsButtonText || "View Products";
 
+  const handleCollectionTitleSave = async (collectionId, newTitle) => {
+    if (!store?.id || (!isPublishedView && viewMode !== 'edit')) return;
+
+    const collectionIndex = store.collections.findIndex(c => c.id === collectionId);
+    if (collectionIndex === -1) {
+      console.error("Collection not found for saving title:", collectionId);
+      return;
+    }
+
+    const updatedCollections = JSON.parse(JSON.stringify(store.collections));
+    updatedCollections[collectionIndex].title = newTitle;
+
+    try {
+      // Assuming updateStore can handle updating the top-level 'collections' array
+      // This might need to be updateStore(store.id, { collections: updatedCollections });
+      // or if a more specific context function exists, use that.
+      // For now, assuming updateStoreTextContent can be (mis)used or a similar function exists.
+      // This part needs to align with how StoreContext's updateStore or a similar function works.
+      // For a robust solution, updateStore(store.id, { collections: updatedCollections }) is preferred.
+      if (updateStore) { // updateStore is now directly from useStore()
+        await updateStore(store.id, { collections: updatedCollections });
+      } else {
+        // Fallback or error if updateStore is not available
+        console.warn("updateStore function from useStore() is not available. Cannot save collection title directly.");
+      }
+    } catch (error) {
+      console.error(`Failed to update collection ${collectionId} title:`, error);
+    }
+  };
 
   const [selectedCollection, setSelectedCollection] = useState(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -48,7 +92,7 @@ const CategoryShowcase = ({ store, isPublishedView = false }) => {
                   {collection.image?.src ? (
                     <img
                       src={collection.image.src}
-                      alt={getCollectionTitle(collection, index)}
+                      alt={collection.title || 'Collection Image'}
                       className="w-full h-full object-cover"
                     />
                   ) : (
@@ -56,8 +100,9 @@ const CategoryShowcase = ({ store, isPublishedView = false }) => {
                   )}
                 </div>
                 <InlineTextEdit
-                  initialText={getCollectionTitle(collection, index)}
-                  onSave={(newText) => updateStoreTextContent(`categoryShowcaseCollection_${index}_Title`, newText)}
+                  initialText={collection.title || ""}
+                  placeholder="Collection Title"
+                  onSave={(newText) => handleCollectionTitleSave(collection.id, newText)}
                   isAdmin={!isPublishedView && viewMode === 'edit'}
                   as="h3"
                   textClassName="text-xl font-semibold text-gray-700 dark:text-white text-center premium-font-body mb-4"
@@ -66,7 +111,10 @@ const CategoryShowcase = ({ store, isPublishedView = false }) => {
                 />
                 <Button
                   onClick={() => handleViewProducts(collection)}
-                  className="mt-auto w-full bg-purple-600 hover:bg-purple-700 text-white premium-font-body"
+                  className="mt-auto w-full text-white premium-font-body"
+                  style={{ background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = `linear-gradient(to right, ${getDarkerShade(primaryColor, -10)}, ${getDarkerShade(secondaryColor, -10)})`}
+                  onMouseLeave={(e) => e.currentTarget.style.background = `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`}
                 >
                   <InlineTextEdit
                     initialText={viewProductsButtonText}

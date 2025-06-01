@@ -50,7 +50,23 @@ const StoreHero = ({ store, isPublishedView = false }) => {
   const primaryCtaLink = `#products-${store?.id || "featured-products"}`;
   const secondaryCtaText = "Watch Story";
   const secondaryCtaLink = `#features-${store?.id || "features"}`;
-  const primaryColor = store?.theme?.primaryColor || "#8B5CF6";
+  
+  const themePrimaryColor = store?.theme?.primaryColor || "#8B5CF6"; // Renamed to avoid conflict with primaryColor variable if any
+
+  // Helper function to generate a slightly darker shade
+  const getDarkerShade = (color, percent = 20) => {
+    if (!color.startsWith("#")) return color;
+    let num = parseInt(color.slice(1), 16),
+      amt = Math.round(2.55 * percent),
+      R = (num >> 16) - amt,
+      G = (num >> 8 & 0x00FF) - amt,
+      B = (num & 0x0000FF) - amt;
+    R = Math.max(0, R); G = Math.max(0, G); B = Math.max(0, B);
+    return "#" + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+  };
+  const primaryColorForGradients = themePrimaryColor; // Use theme's primary color
+  const secondaryColorForGradients = getDarkerShade(themePrimaryColor, 20);
+
 
   // Dynamic background images for rotation
   const backgroundImages = [
@@ -133,11 +149,15 @@ const StoreHero = ({ store, isPublishedView = false }) => {
   };
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-slate-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-purple-950 dark:to-pink-950">
+    <section
+      className="relative min-h-screen flex items-center justify-center overflow-hidden"
+      style={{ background: `linear-gradient(to bottom right, #f8fafc, ${primaryColorForGradients}1A, ${secondaryColorForGradients}1A)` }}
+    >
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden">
         <motion.div
-          className="absolute top-20 left-10 w-96 h-96 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full blur-3xl opacity-20"
+          className="absolute top-20 left-10 w-96 h-96 rounded-full blur-3xl opacity-20"
+          style={{ background: `linear-gradient(to right, ${primaryColorForGradients}, ${secondaryColorForGradients})` }}
           animate={{
             scale: [1, 1.3, 1],
             opacity: [0.2, 0.4, 0.2],
@@ -146,7 +166,8 @@ const StoreHero = ({ store, isPublishedView = false }) => {
           transition={{ duration: 12, repeat: Infinity }}
         />
         <motion.div
-          className="absolute bottom-20 right-10 w-80 h-80 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full blur-3xl opacity-20"
+          className="absolute bottom-20 right-10 w-80 h-80 rounded-full blur-3xl opacity-20"
+          style={{ background: `linear-gradient(to right, ${getDarkerShade(themePrimaryColor, 40)}, ${primaryColorForGradients})` }} // Example: blue to primary
           animate={{
             scale: [1.2, 1, 1.2],
             opacity: [0.15, 0.35, 0.15],
@@ -155,7 +176,8 @@ const StoreHero = ({ store, isPublishedView = false }) => {
           transition={{ duration: 10, repeat: Infinity }}
         />
         <motion.div
-          className="absolute top-1/2 left-1/3 w-64 h-64 bg-gradient-to-r from-pink-400 to-orange-400 rounded-full blur-2xl opacity-15"
+          className="absolute top-1/2 left-1/3 w-64 h-64 rounded-full blur-2xl opacity-15"
+          style={{ background: `linear-gradient(to right, ${secondaryColorForGradients}, ${getDarkerShade(themePrimaryColor, -20)})` }} // Example: secondary to lighter primary
           animate={{
             x: [-30, 30, -30],
             y: [-20, 20, -20],
@@ -167,14 +189,16 @@ const StoreHero = ({ store, isPublishedView = false }) => {
 
       {/* Floating decorative elements */}
       <motion.div
-        className="absolute top-32 right-20 text-purple-400/30"
+        className="absolute top-32 right-20"
+        style={{ color: `${primaryColorForGradients}4D` }}
         variants={floatingVariants}
         animate="animate"
       >
         <Sparkles className="w-12 h-12" />
       </motion.div>
       <motion.div
-        className="absolute bottom-40 left-16 text-pink-400/30"
+        className="absolute bottom-40 left-16"
+        style={{ color: `${secondaryColorForGradients}4D` }}
         variants={floatingVariants}
         animate="animate"
         transition={{ delay: 2 }}
@@ -182,7 +206,8 @@ const StoreHero = ({ store, isPublishedView = false }) => {
         <Star className="w-10 h-10" />
       </motion.div>
       <motion.div
-        className="absolute top-1/3 right-1/4 text-blue-400/30"
+        className="absolute top-1/3 right-1/4"
+        style={{ color: `${getDarkerShade(themePrimaryColor, 30)}4D`}} // Adjusted for variety
         variants={floatingVariants}
         animate="animate"
         transition={{ delay: 4 }}
@@ -190,7 +215,8 @@ const StoreHero = ({ store, isPublishedView = false }) => {
         <Award className="w-8 h-8" />
       </motion.div>
       <motion.div
-        className="absolute bottom-1/3 left-1/4 text-orange-400/30"
+        className="absolute bottom-1/3 left-1/4"
+        style={{ color: `${getDarkerShade(themePrimaryColor, -10)}4D`}} // Adjusted for variety
         variants={floatingVariants}
         animate="animate"
         transition={{ delay: 6 }}
@@ -203,7 +229,7 @@ const StoreHero = ({ store, isPublishedView = false }) => {
         style={{ y, opacity }}
       >
         <motion.div
-          className="grid lg:grid-cols-2 gap-16 lg:gap-20 items-center min-h-[85vh]"
+          className="grid lg:grid-cols-2 gap-16 lg:gap-20 items-center min-h-[95vh]"
           variants={containerVariants}
           initial="hidden"
           animate="visible"
@@ -218,7 +244,12 @@ const StoreHero = ({ store, isPublishedView = false }) => {
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.6 }}
-              className="inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 rounded-full text-sm font-semibold text-purple-700 dark:text-purple-300 border border-purple-200/50 dark:border-purple-700/50 backdrop-blur-sm"
+              className="inline-flex items-center gap-3 px-6 py-3 rounded-full text-sm font-semibold border backdrop-blur-sm"
+              style={{
+                background: `linear-gradient(to right, ${primaryColorForGradients}1A, ${secondaryColorForGradients}1A)`,
+                color: primaryColorForGradients,
+                borderColor: `${primaryColorForGradients}33`,
+              }}
             >
               <motion.div
                 animate={{ rotate: 360 }}
@@ -238,14 +269,15 @@ const StoreHero = ({ store, isPublishedView = false }) => {
               className="text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-black leading-[0.85] tracking-tight premium-font-display"
             >
               <motion.span
-                className="bg-gradient-to-r from-gray-900 via-purple-800 to-pink-800 dark:from-white dark:via-purple-300 dark:to-pink-300 bg-clip-text text-transparent"
+                className="bg-clip-text text-transparent"
+                style={{
+                  backgroundImage: `linear-gradient(to right, ${document.documentElement.classList.contains('dark') ? '#FFFFFF' : '#111827'}, ${primaryColorForGradients}, ${secondaryColorForGradients})`,
+                  backgroundSize: "200% auto",
+                }}
                 animate={{
                   backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
                 }}
                 transition={{ duration: 8, repeat: Infinity }}
-                style={{
-                  backgroundSize: "200% auto",
-                }}
               >
                 {title}
               </motion.span>
@@ -271,7 +303,7 @@ const StoreHero = ({ store, isPublishedView = false }) => {
                 className="flex items-center gap-3 text-gray-600 dark:text-gray-400"
                 whileHover={{ scale: 1.05 }}
               >
-                <div className="w-3 h-3 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full animate-pulse shadow-lg" />
+                <div className="w-3 h-3 rounded-full animate-pulse shadow-lg" style={{ background: `linear-gradient(to right, ${primaryColorForGradients}, ${secondaryColorForGradients})` }} />
                 <span className="premium-font-body font-medium">
                   Free Worldwide Shipping
                 </span>
@@ -280,7 +312,7 @@ const StoreHero = ({ store, isPublishedView = false }) => {
                 className="flex items-center gap-3 text-gray-600 dark:text-gray-400"
                 whileHover={{ scale: 1.05 }}
               >
-                <div className="w-3 h-3 bg-gradient-to-r from-blue-400 to-cyan-500 rounded-full animate-pulse shadow-lg" />
+                <div className="w-3 h-3 rounded-full animate-pulse shadow-lg" style={{ background: `linear-gradient(to right, ${getDarkerShade(primaryColorForGradients, -15)}, ${primaryColorForGradients})` }} />
                 <span className="premium-font-body font-medium">
                   Lifetime Warranty
                 </span>
@@ -289,7 +321,7 @@ const StoreHero = ({ store, isPublishedView = false }) => {
                 className="flex items-center gap-3 text-gray-600 dark:text-gray-400"
                 whileHover={{ scale: 1.05 }}
               >
-                <div className="w-3 h-3 bg-gradient-to-r from-purple-400 to-pink-500 rounded-full animate-pulse shadow-lg" />
+                <div className="w-3 h-3 rounded-full animate-pulse shadow-lg" style={{ background: `linear-gradient(to right, ${secondaryColorForGradients}, ${getDarkerShade(secondaryColorForGradients, -15)})` }} />
                 <span className="premium-font-body font-medium">
                   Exclusive Access
                 </span>
@@ -308,7 +340,10 @@ const StoreHero = ({ store, isPublishedView = false }) => {
                 <Button
                   asChild
                   size="lg"
-                  className="group relative overflow-hidden rounded-full px-10 py-6 text-lg font-bold shadow-2xl transition-all duration-500 bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 hover:from-purple-700 hover:via-pink-700 hover:to-orange-600 text-white border-0"
+                  className="group relative overflow-hidden rounded-full px-10 py-6 text-lg font-bold shadow-2xl transition-all duration-500 text-white border-0"
+                  style={{ background: `linear-gradient(to right, ${primaryColorForGradients}, ${secondaryColorForGradients}, ${getDarkerShade(themePrimaryColor, -20)})` }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = `linear-gradient(to right, ${getDarkerShade(primaryColorForGradients, 10)}, ${getDarkerShade(secondaryColorForGradients, 10)}, ${themePrimaryColor})`}
+                  onMouseLeave={(e) => e.currentTarget.style.background = `linear-gradient(to right, ${primaryColorForGradients}, ${secondaryColorForGradients}, ${getDarkerShade(themePrimaryColor, -20)})`}
                 >
                   <Link
                     to={primaryCtaLink}
@@ -342,7 +377,14 @@ const StoreHero = ({ store, isPublishedView = false }) => {
                   asChild
                   variant="outline"
                   size="lg"
-                  className="group rounded-full px-10 py-6 text-lg font-semibold border-2 border-purple-300 dark:border-purple-600 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all duration-300 backdrop-blur-sm"
+                  className="group rounded-full px-10 py-6 text-lg font-semibold border-2 transition-all duration-300 backdrop-blur-sm"
+                  style={{
+                    borderColor: `${primaryColorForGradients}4D`, // Lighter border
+                    color: primaryColorForGradients,
+                    '--hover-bg-color': `${primaryColorForGradients}1A` // Lighter bg on hover
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${primaryColorForGradients}1A`}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
                   <Link
                     to={secondaryCtaLink}
@@ -372,7 +414,8 @@ const StoreHero = ({ store, isPublishedView = false }) => {
                   {[1, 2, 3, 4, 5].map((i) => (
                     <motion.div
                       key={i}
-                      className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 border-2 border-white dark:border-gray-900 flex items-center justify-center text-white font-bold text-sm"
+                      className="w-10 h-10 rounded-full border-2 border-white dark:border-gray-900 flex items-center justify-center text-white font-bold text-sm"
+                      style={{ background: `linear-gradient(to bottom right, ${primaryColorForGradients}, ${secondaryColorForGradients})` }}
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       transition={{ delay: 1 + i * 0.1 }}
@@ -391,7 +434,7 @@ const StoreHero = ({ store, isPublishedView = false }) => {
                     ))}
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-400 premium-font-body">
-                    <span className="font-semibold">10,000+</span> happy
+                    <span className="font-semibold" style={{color: primaryColorForGradients}}>10,000+</span> happy
                     customers
                   </p>
                 </div>
@@ -478,13 +521,17 @@ const StoreHero = ({ store, isPublishedView = false }) => {
                   </AnimatePresence>
 
                   {/* Image overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-tr from-purple-600/20 via-transparent to-pink-600/20" />
+                  <div
+                    className="absolute inset-0"
+                    style={{ background: `linear-gradient(to top right, ${primaryColorForGradients}33, transparent, ${secondaryColorForGradients}33)`}}
+                  />
                 </div>
               )}
 
               {/* Decorative elements */}
               <motion.div
-                className="absolute -top-6 -right-6 w-32 h-32 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full blur-2xl opacity-30"
+                className="absolute -top-6 -right-6 w-32 h-32 rounded-full blur-2xl opacity-30"
+                style={{ background: `linear-gradient(to right, ${primaryColorForGradients}, ${secondaryColorForGradients})` }}
                 animate={{
                   scale: [1, 1.2, 1],
                   opacity: [0.3, 0.5, 0.3],
@@ -492,7 +539,8 @@ const StoreHero = ({ store, isPublishedView = false }) => {
                 transition={{ duration: 4, repeat: Infinity }}
               />
               <motion.div
-                className="absolute -bottom-8 -left-8 w-40 h-40 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full blur-3xl opacity-20"
+                className="absolute -bottom-8 -left-8 w-40 h-40 rounded-full blur-3xl opacity-20"
+                style={{ background: `linear-gradient(to right, ${getDarkerShade(themePrimaryColor, 40)}, ${primaryColorForGradients})` }}
                 animate={{
                   scale: [1.1, 1, 1.1],
                   opacity: [0.2, 0.4, 0.2],
@@ -503,18 +551,20 @@ const StoreHero = ({ store, isPublishedView = false }) => {
 
             {/* Floating elements around the image */}
             <motion.div
-              className="absolute -top-12 -left-12 w-20 h-20 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/50 dark:to-pink-900/50 rounded-3xl backdrop-blur-sm border border-white/30 dark:border-gray-700/30 flex items-center justify-center shadow-2xl"
+              className="absolute -top-12 -left-12 w-20 h-20 rounded-3xl backdrop-blur-sm border border-white/30 dark:border-gray-700/30 flex items-center justify-center shadow-2xl"
+              style={{ background: `linear-gradient(to right, ${primaryColorForGradients}1A, ${secondaryColorForGradients}1A)` }}
               animate={{
                 y: [-8, 8, -8],
                 rotate: [0, 10, 0],
               }}
               transition={{ duration: 6, repeat: Infinity }}
             >
-              <Sparkles className="w-10 h-10 text-purple-600 dark:text-purple-400" />
+              <Sparkles className="w-10 h-10" style={{ color: primaryColorForGradients }} />
             </motion.div>
 
             <motion.div
-              className="absolute -bottom-6 -right-12 w-24 h-24 bg-gradient-to-r from-pink-100 to-orange-100 dark:from-pink-900/50 dark:to-orange-900/50 rounded-3xl backdrop-blur-sm border border-white/30 dark:border-gray-700/30 flex items-center justify-center shadow-2xl"
+              className="absolute -bottom-6 -right-12 w-24 h-24 rounded-3xl backdrop-blur-sm border border-white/30 dark:border-gray-700/30 flex items-center justify-center shadow-2xl"
+              style={{ background: `linear-gradient(to right, ${secondaryColorForGradients}1A, ${getDarkerShade(themePrimaryColor, -20)}1A)` }}
               animate={{
                 y: [8, -8, 8],
                 rotate: [0, -10, 0],
@@ -525,14 +575,15 @@ const StoreHero = ({ store, isPublishedView = false }) => {
             </motion.div>
 
             <motion.div
-              className="absolute top-1/4 -right-8 w-16 h-16 bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/50 dark:to-purple-900/50 rounded-2xl backdrop-blur-sm border border-white/30 dark:border-gray-700/30 flex items-center justify-center shadow-xl"
+              className="absolute top-1/4 -right-8 w-16 h-16 rounded-2xl backdrop-blur-sm border border-white/30 dark:border-gray-700/30 flex items-center justify-center shadow-xl"
+              style={{ background: `linear-gradient(to right, ${getDarkerShade(themePrimaryColor, 40)}1A, ${primaryColorForGradients}1A)` }}
               animate={{
                 x: [0, 10, 0],
                 y: [-5, 5, -5],
               }}
               transition={{ duration: 5, repeat: Infinity, delay: 2 }}
             >
-              <Award className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+              <Award className="w-8 h-8" style={{ color: getDarkerShade(themePrimaryColor, 40) }} />
             </motion.div>
           </motion.div>
         </motion.div>
@@ -555,11 +606,15 @@ const StoreHero = ({ store, isPublishedView = false }) => {
         animate={{ y: [0, 15, 0] }}
         transition={{ duration: 2.5, repeat: Infinity }}
       >
-        <div className="w-8 h-12 border-2 border-purple-400/50 dark:border-purple-300/50 rounded-full flex justify-center backdrop-blur-sm">
+        <div
+          className="w-8 h-12 border-2 rounded-full flex justify-center items-start pt-2 backdrop-blur-sm" // items-start and pt-2 for positioning
+          style={{ borderColor: `${primaryColorForGradients}80` }}
+        >
           <motion.div
-            className="w-1.5 h-4 bg-gradient-to-b from-purple-600 to-pink-600 rounded-full mt-2"
-            animate={{ y: [0, 16, 0] }}
-            transition={{ duration: 2.5, repeat: Infinity }}
+            className="w-2 h-3 rounded-full" // Changed w-1.5 to w-2, h-4 to h-3 for better proportion
+            style={{ backgroundColor: `${primaryColorForGradients}B3` }} // Solid, slightly opaque color
+            animate={{ y: [0, 12, 0] }} // Adjusted animation range slightly for new height
+            transition={{ duration: 2.0, repeat: Infinity, ease: "easeInOut" }} // Slightly faster, easeInOut
           />
         </div>
       </motion.div>

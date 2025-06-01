@@ -25,6 +25,7 @@ const ProductVisualizer = ({ product: mainProductProp, storeId, isPublishedView 
   const [isLoading, setIsLoading] = useState(false);
   const [customInstructions, setCustomInstructions] = useState('');
   const [selectedProductColor, setSelectedProductColor] = useState('#FFFFFF'); // Default to white
+  const [selectedVisualizerVariants, setSelectedVisualizerVariants] = useState({}); // For selected variants
   const [promptUsedByAI, setPromptUsedByAI] = useState('');
   const [aiCommentary, setAiCommentary] = useState('');
   const [showDebugInfo, setShowDebugInfo] = useState(false);
@@ -91,8 +92,15 @@ const ProductVisualizer = ({ product: mainProductProp, storeId, isPublishedView 
 
     // Combine custom instructions with selected color
     let finalCustomInstructions = customInstructions;
-    if (selectedProductColor && selectedProductColor !== '#FFFFFF') { // Add color if not default white
-      finalCustomInstructions = `${customInstructions}. The main product should be ${selectedProductColor} color`.trim();
+    if (selectedProductColor && selectedProductColor !== '#FFFFFF') { 
+      finalCustomInstructions = `${finalCustomInstructions} The main product's color should be ${selectedProductColor}.`.trim();
+    }
+
+    // Add selected variants to instructions
+    const variantEntries = Object.entries(selectedVisualizerVariants);
+    if (variantEntries.length > 0) {
+      const variantString = variantEntries.map(([key, value]) => `${key}: ${value}`).join(', ');
+      finalCustomInstructions = `${finalCustomInstructions} Apply these product attributes: ${variantString}.`.trim();
     }
 
     try {
@@ -222,8 +230,45 @@ const ProductVisualizer = ({ product: mainProductProp, storeId, isPublishedView 
                 </div>
               </div>
 
+              {/* Variant Selection Section */}
+              {mainProductProp.variants && mainProductProp.variants.length > 0 && (
+                <div>
+                  <Label className="text-md font-medium block mb-1">3. Main Product Variants (Optional)</Label>
+                  <div className="space-y-2">
+                    {mainProductProp.variants.map((variant) => {
+                      if (!variant.name || !variant.values || variant.values.length === 0) return null;
+                      return (
+                        <div key={variant.name}>
+                          <Label htmlFor={`visualizer-variant-${variant.name}`} className="text-sm text-muted-foreground">{variant.name}</Label>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {variant.values.map((value) => (
+                              <Button
+                                key={value}
+                                variant={selectedVisualizerVariants[variant.name] === value ? 'default' : 'outline'}
+                                size="xs" // Smaller buttons for variants
+                                onClick={() =>
+                                  setSelectedVisualizerVariants(prev => ({
+                                    ...prev,
+                                    [variant.name]: value,
+                                  }))
+                                }
+                                className="text-xs px-2 py-1 h-auto"
+                              >
+                                {value}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div>
-                <Label htmlFor="visualizer-custom-prompt" className="text-md font-medium block mb-1">4. Custom Instructions (Optional)</Label>
+                <Label htmlFor="visualizer-custom-prompt" className="text-md font-medium block mb-1">
+                  {mainProductProp.variants && mainProductProp.variants.length > 0 ? '5. Additional Custom Instructions (Optional)' : '4. Custom Instructions (Optional)'}
+                </Label>
                 <Textarea id="visualizer-custom-prompt" placeholder="e.g., 'place the sofa by the window', 'make it a sunny day'" value={customInstructions} onChange={(e) => setCustomInstructions(e.target.value)} rows={2} className="resize-none text-sm" />
               </div>
 

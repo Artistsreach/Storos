@@ -1,4 +1,7 @@
 import { GoogleGenAI, Modality, HarmCategory, HarmBlockThreshold } from "@google/genai";
+import { storage } from '@/lib/firebaseClient'; // Firebase storage instance
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { generateId } from '@/lib/utils'; // For unique IDs
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
@@ -9,7 +12,34 @@ const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
 ];
 
-export async function generateProductWithGemini(productType, storeName, logoImageBase64 = null, logoMimeType = 'image/png', existingProductTitles = []) {
+// Helper to convert data URL to Blob
+const dataURLtoBlob = (dataurl) => {
+  if (!dataurl) return null;
+  const parts = dataurl.split(',');
+  if (parts.length < 2) return null;
+  const mimeMatch = parts[0].match(/:(.*?);/);
+  if (!mimeMatch || mimeMatch.length < 2) return null;
+  const mime = mimeMatch[1];
+  const bstr = atob(parts[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new Blob([u8arr], { type: mime });
+};
+
+export async function generateProductWithGemini(
+  productType,
+  storeName,
+  logoImageBase64 = null,
+  logoMimeType = 'image/png',
+  existingProductTitles = [],
+  updateProgressCallback = (progress, message) => console.log(`ProductGen Progress: ${progress}%, Message: ${message || ''}`),
+  baseProductProgress = 0, // Base progress for this specific product generation call
+  productStepProgressIncrement = 5, // Total progress allocated for this one product's generation steps
+  fullUserPrompt = '' // New parameter for the full user prompt
+) {
   if (!API_KEY) {
     console.error("[geminiProductGeneration Function] VITE_GEMINI_API_KEY is not available.");
     throw new Error("Gemini API key is not configured.");
@@ -21,21 +51,37 @@ export async function generateProductWithGemini(productType, storeName, logoImag
 
   const ai = new GoogleGenAI({ apiKey: API_KEY });
 
-  let basePrompt = `Generate a product for a store named "${storeName}" that sells ${productType}.
+  let basePrompt = `You are an expert product creator for e-commerce stores.
+Generate a product for a store named "${storeName}" that sells ${productType}.
+The overall theme and request for the store is: "${fullUserPrompt}". Use this full prompt to ensure the product aligns well with the user's vision.
+
 The product should include:
 1. A catchy title.
 2. A brief description (15-25 words).
 3. A realistic price (e.g., 29.99, 45.00).
-4. A visually appealing product image.
+4. Relevant product options/variants (e.g., for a shirt: Size [S, M, L, XL], Color [White, Black, Blue]; for a shoe: Size [8, 9, 10], Color [Red, Grey]). Generate 1 to 2 variant types, each with 2 to 5 option values. If no variants are typically applicable for the product type, return an empty array for "variants".
+5. A visually appealing product image.
 
-Return the text details (title, description, price) as a single JSON object in the text part of your response.
-Your entire text response MUST be ONLY the JSON object. Do not include any other words, phrases, or conversational text before or after the JSON object.
+Return the text details (title, description, price, variants) as a single JSON object in the text part of your response.
+Your entire text response MUST be ONLY longed JSON object. Do not include any other words, phrases, or conversational text before or after the JSON object.
 The JSON object should strictly follow this format:
 {
   "title": "Example Product Title",
   "description": "This is a fantastic example product, perfect for your needs and desires.",
-  "price": "19.99"
+  "price": "19.99",
+  "variants": [
+    { "name": "Size", "values": ["S", "M", "L", "XL"] },
+    { "name": "Color", "values": ["White", "Black", "Blue"] }
+  ]
 }
+Or, if no variants apply:
+{
+  "title": "Example Product Title",
+  "description": "This is a fantastic example product, perfect for your needs and desires.",
+  "price": "19.99",
+  "variants": []
+}
+
 
 Generate an image for this product in the image part of your response.`;
   
@@ -97,6 +143,9 @@ Generate an image for this product in the image part of your response.`;
   while (attempts < maxAttempts) {
     attempts++;
     console.log(`[geminiProductGeneration Function] Attempt ${attempts} to generate content...`);
+    // Update progress at the start of each attempt, maybe a small increment within the product's allocated progress
+    const attemptProgress = baseProductProgress + ( (attempts -1) / maxAttempts) * (productStepProgressIncrement * 0.2); // Use 20% of step for attempts
+    updateProgressCallback(attemptProgress, `Generating product (attempt ${attempts}/${maxAttempts})...`);
 
     // Dynamically build prompt and contents for each attempt to incorporate feedback on duplicates
     let currentAttemptPrompt = basePrompt;
@@ -174,8 +223,13 @@ Generate an image for this product in the image part of your response.`;
                 // productTextDetails remains null if no jsonStringToParse
               }
             } catch (e) {
-              // This catch is specifically for JSON.parse errors on a non-null jsonStringToParse
-              console.warn(`[geminiProductGeneration Function] Attempt ${attempts}: Error parsing extracted JSON string. String was: "${jsonStringToParse}". Original text:`, part.text, "Error:", e.message);
+              // This catch is specifically for JSON.parse errors.
+              // jsonStringToParse might be null if the extraction logic itself failed before JSON.parse was called,
+              // or if the error is from somewhere else within the try block before jsonStringToParse is used by JSON.parse.
+              // However, the preceding log indicates jsonStringToParse was likely assigned.
+              // Let's make the logging more robust.
+              const stringToLog = typeof jsonStringToParse === 'string' ? jsonStringToParse : "[jsonStringToParse was not a string or was null]";
+              console.warn(`[geminiProductGeneration Function] Attempt ${attempts}: Error parsing JSON. Attempted to parse: "${stringToLog}". Original text from part:`, part.text, "Error:", e.message);
               productTextDetails = null; // Ensure it's null if parsing fails
             }
           } else if (part.inlineData && part.inlineData.data) {
@@ -188,22 +242,50 @@ Generate an image for this product in the image part of your response.`;
 
       if (productTextDetails && productTextDetails.title) {
         const newTitleLower = productTextDetails.title.toLowerCase();
+        // Before checking for duplicates, update progress to show parsing was successful
+        updateProgressCallback(baseProductProgress + (productStepProgressIncrement * 0.8), `Validating product details for "${productTextDetails.title}"...`);
+
         const isDuplicateExisting = existingProductTitles.some(et => et.toLowerCase() === newTitleLower);
         const isDuplicateThisCall = generatedTitlesInThisCall.some(gt => gt.toLowerCase() === newTitleLower);
 
         if (isDuplicateExisting || isDuplicateThisCall) {
           console.warn(`[geminiProductGeneration Function] Attempt ${attempts}: Generated title "${productTextDetails.title}" is a duplicate. Adding to exclusion list for next attempt.`);
-          generatedTitlesInThisCall.push(productTextDetails.title); // Add original case for prompt
-          productTextDetails = null; // Invalidate this attempt's text details
+          generatedTitlesInThisCall.push(productTextDetails.title); 
+          productTextDetails = null; 
+        } else if (!productTextDetails.price || (typeof productTextDetails.price !== 'string' && typeof productTextDetails.price !== 'number') || String(productTextDetails.price).trim() === "") {
+          // Also check if price is missing or empty after ensuring title is unique
+          console.warn(`[geminiProductGeneration Function] Attempt ${attempts}: Product title "${productTextDetails.title}" is unique, but price is missing or invalid. Price:`, productTextDetails.price);
+          productTextDetails = null; // Invalidate if price is missing
+        } else if (!productTextDetails.variants || !Array.isArray(productTextDetails.variants)) {
+          // Check if variants are missing or not an array
+          console.warn(`[geminiProductGeneration Function] Attempt ${attempts}: Product title "${productTextDetails.title}" is unique and price is valid, but variants are missing or not an array. Variants:`, productTextDetails.variants);
+          productTextDetails = null; // Invalidate if variants are malformed
+        } else {
+          // Validate structure of each variant if variants array exists
+          for (const variant of productTextDetails.variants) {
+            if (!variant.name || typeof variant.name !== 'string' || !Array.isArray(variant.values) || !variant.values.every(v => typeof v === 'string')) {
+              console.warn(`[geminiProductGeneration Function] Attempt ${attempts}: Product title "${productTextDetails.title}" has malformed variant entry. Variant:`, variant);
+              productTextDetails = null; // Invalidate if any variant is malformed
+              break; // Stop checking other variants
+            }
+          }
         }
+        // Description is optional, so no explicit check here to nullify productTextDetails based on it.
       }
 
-      if (productTextDetails && imageData) { // productTextDetails is now confirmed unique or was not nullified
-        console.log(`[geminiProductGeneration Function] Successfully generated unique product on attempt ${attempts}.`);
-        break; // Exit retry loop if successful
+      // Check for successful generation of all required parts for this attempt
+      if (productTextDetails && productTextDetails.title && (productTextDetails.price || productTextDetails.price === 0) && productTextDetails.variants && imageData) {
+        console.log(`[geminiProductGeneration Function] Successfully generated complete and unique product data (including variants) on attempt ${attempts}.`);
+        break; // Exit retry loop
       } else {
         if (!imageData) console.warn(`[geminiProductGeneration Function] Attempt ${attempts} missing image data.`);
-        if (!productTextDetails) console.warn(`[geminiProductGeneration Function] Attempt ${attempts} missing text details (or title was duplicate).`);
+        if (!productTextDetails) {
+            console.warn(`[geminiProductGeneration Function] Attempt ${attempts} missing text details (or title was duplicate/price missing/variants malformed).`);
+        } else {
+            if (!productTextDetails.title) console.warn(`[geminiProductGeneration Function] Attempt ${attempts} text details missing title.`);
+            if (!productTextDetails.price && productTextDetails.price !== 0) console.warn(`[geminiProductGeneration Function] Attempt ${attempts} text details missing price.`);
+            if (!productTextDetails.variants) console.warn(`[geminiProductGeneration Function] Attempt ${attempts} text details missing variants or variants malformed.`);
+        }
         // Loop continues if attempts < maxAttempts
       }
 
@@ -227,15 +309,53 @@ Generate an image for this product in the image part of your response.`;
   }
 
   // Validate parsed details (basic check) - title uniqueness is handled above
-  if (typeof productTextDetails.title !== 'string' || 
+  if (typeof productTextDetails.title !== 'string' ||
       typeof productTextDetails.description !== 'string' ||
-      (typeof productTextDetails.price !== 'string' && typeof productTextDetails.price !== 'number')) {
+      (typeof productTextDetails.price !== 'string' && typeof productTextDetails.price !== 'number') ||
+      !Array.isArray(productTextDetails.variants) ||
+      !productTextDetails.variants.every(variant =>
+          typeof variant.name === 'string' &&
+          Array.isArray(variant.values) &&
+          variant.values.every(v => typeof v === 'string')
+      )
+  ) {
     console.error("[geminiProductGeneration Function] Parsed product details are not in the expected format:", productTextDetails);
-    throw new Error("AI response for product details was not in the expected format (title, description, price).");
+    throw new Error("AI response for product details was not in the expected format (title, description, price, variants).");
   }
   
   productTextDetails.price = String(productTextDetails.price); // Ensure price is a string
 
-  console.log("[geminiProductGeneration Function] Successfully generated product details and image data.");
-  return { ...productTextDetails, imageData };
+  console.log("[geminiProductGeneration Function] Successfully generated product details (including variants) and image data.");
+
+  if (imageData) {
+    const dataUrl = `data:image/png;base64,${imageData}`;
+    const imageBlob = dataURLtoBlob(dataUrl);
+    if (imageBlob) {
+      const uniqueImageId = generateId();
+      const imageName = `${storeName.replace(/\s+/g, '_').toLowerCase()}_${productTextDetails.title.replace(/\s+/g, '_').toLowerCase().substring(0,20)}_${uniqueImageId}.png`;
+      const storagePath = `product_images_generated/${imageName}`;
+      const imageRef = ref(storage, storagePath);
+
+      try {
+        updateProgressCallback(baseProductProgress + (productStepProgressIncrement * 0.9), `Uploading image for "${productTextDetails.title}"...`);
+        await uploadBytes(imageRef, imageBlob);
+        const downloadURL = await getDownloadURL(imageRef);
+        console.log(`[geminiProductGeneration Function] Image uploaded to Firebase Storage: ${downloadURL}`);
+        updateProgressCallback(baseProductProgress + productStepProgressIncrement, `Product "${productTextDetails.title}" generated successfully.`);
+        return { ...productTextDetails, images: [downloadURL] };
+      } catch (uploadError) {
+        console.error("[geminiProductGeneration Function] Error uploading image to Firebase Storage:", uploadError);
+        // Fallback to base64 if upload fails, or throw error
+        // For now, let's throw to indicate the process didn't fully complete as intended.
+        throw new Error(`Failed to upload generated image to Firebase Storage: ${uploadError.message}`);
+      }
+    } else {
+      console.error("[geminiProductGeneration Function] Failed to convert base64 image data to Blob.");
+      throw new Error("Failed to process generated image data for upload.");
+    }
+  } else {
+    // No image data generated, return with empty images array
+    updateProgressCallback(baseProductProgress + productStepProgressIncrement, `Product "${productTextDetails.title}" generated (no image).`);
+    return { ...productTextDetails, images: [] };
+  }
 }

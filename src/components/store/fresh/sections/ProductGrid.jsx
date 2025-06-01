@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import InlineTextEdit from "@/components/ui/InlineTextEdit";
 import { useStore } from "@/contexts/StoreContext";
+import { generateStoreUrl } from "../../../../lib/utils.js"; // Added import
 
 const ProductGrid = ({ store, isPublishedView = false }) => {
   const { products, theme, id: storeId, content } = store;
@@ -15,7 +16,7 @@ const ProductGrid = ({ store, isPublishedView = false }) => {
   const [filteredProducts, setFilteredProducts] = useState(products || []);
   const [isLoading, setIsLoading] = useState(true);
 
-  const sectionTitle = content?.productGridSectionTitle || "Our Latest Collection";
+  const sectionTitle = content?.productGridSectionTitle || "Our Products";
   const sectionSubtitle = content?.productGridSectionSubtitle || "Discover fresh arrivals and top picks, curated just for you.";
   const badgeText = content?.productGridBadgeText || "Handpicked For You";
   const searchPlaceholder = content?.productGridSearchPlaceholder || "Search products...";
@@ -195,7 +196,8 @@ const ProductGrid = ({ store, isPublishedView = false }) => {
                   product={product}
                   theme={theme}
                   index={index}
-                  storeId={storeId}
+                  storeName={generateStoreUrl(store.name)} // Pass generated URL
+                  storeId={storeId}      // Keep storeId (which is store.id)
                   isPublishedView={isPublishedView}
                   displayMode={displayMode}
                 />

@@ -1,18 +1,22 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { stripePromise } from '../lib/stripe';
-import { Button } from './ui/button'; // Assuming you have a Button component
-import { Star } from 'lucide-react'; // Added Star icon
+import { Button } from './ui/button';
+import { Star } from 'lucide-react';
+import { getFunctions, httpsCallable } from 'firebase/functions'; // Import Firebase Functions
 
-const SubscribeButton = ({ onSubscribed, className = '' }) => { // Added className and showIcon props
-  const { session, isAuthenticated } = useAuth();
+// TODO: Ensure this Price ID is correctly configured for your "Pro" plan.
+// This might come from an environment variable or a configuration file.
+const PRO_PLAN_PRICE_ID = import.meta.env.VITE_STRIPE_PRO_PLAN_PRICE_ID || 'price_1RPDinDktew9heHOLkkL3ZDv'; // Fallback, ensure this is correct
+
+const SubscribeButton = ({ onSubscribed, className = '' }) => {
+  const { user, isAuthenticated } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const handleSubscribe = async () => {
-    if (!isAuthenticated || !session?.access_token) {
+    if (!isAuthenticated || !user) {
       setError('You must be logged in to subscribe.');
-      // Optionally, redirect to login or show login modal
       return;
     }
 
@@ -20,51 +24,46 @@ const SubscribeButton = ({ onSubscribed, className = '' }) => { // Added classNa
     setError(null);
 
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-subscription-session`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-            // Supabase Edge Functions might require an API key even for authenticated users
-            // if not configured to use JWT for function invocation auth.
-            // 'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY 
-          },
-          // body: JSON.stringify({}), // No body needed for this specific function
-        }
-      );
+      const functions = getFunctions(); // Get Firebase Functions instance
+      const createStripeCheckoutSession = httpsCallable(functions, 'createStripeCheckoutSession');
 
-      if (!response.ok) {
-        let errorData;
-        try {
-          errorData = await response.json();
-        } catch (e) {
-          // If response is not JSON, use the status text or a generic error
-          throw new Error(response.statusText || `Request failed with status ${response.status}. Edge function might be misconfigured or down.`);
-        }
-        throw new Error(errorData.error || errorData.details || 'Failed to create subscription session.');
+      const successUrl = `${window.location.origin}/dashboard?subscription_success=true`;
+      const cancelUrl = `${window.location.origin}/pricing`;
+
+      const payload = {
+        priceId: PRO_PLAN_PRICE_ID, // Use the configured Price ID
+        quantity: 1,
+        successUrl: successUrl,
+        cancelUrl: cancelUrl,
+      };
+
+      console.log("Calling createStripeCheckoutSession with payload:", payload);
+      const result = await createStripeCheckoutSession(payload);
+      
+      const { sessionId, error: functionError } = result.data;
+
+      if (functionError) {
+        console.error('Firebase function error:', functionError);
+        throw new Error(functionError.message || 'Failed to create subscription session via Firebase function.');
       }
 
-      const data = await response.json(); // Should be safe now if response.ok
-      const { sessionId } = data;
+      if (!sessionId) {
+        console.error('No sessionId returned from Firebase function');
+        throw new Error('Failed to retrieve a session ID from the server.');
+      }
+      
+      console.log("Received sessionId:", sessionId);
       const stripe = await stripePromise;
       const { error: stripeError } = await stripe.redirectToCheckout({ sessionId });
 
       if (stripeError) {
         console.error('Stripe redirect error:', stripeError);
         setError(stripeError.message);
-      } else {
-        // If redirectToCheckout is successful, the user is redirected.
-        // If onSubscribed is provided, it might be called on the success_url page.
-        if (onSubscribed) {
-            // This typically won't be reached if redirect happens,
-            // but good for testing or if redirect fails client-side.
-            onSubscribed();
-        }
+      } else if (onSubscribed) {
+        onSubscribed();
       }
     } catch (err) {
-      console.error('Subscription error:', err);
+      console.error('Subscription error:', err.message, err);
       setError(err.message);
     } finally {
       setLoading(false);

@@ -1,22 +1,27 @@
-import React from 'react';
+import React, { useState } from 'react'; // Added useState
 import { motion } from 'framer-motion';
-import { Button } from '../../../ui/button'; // Corrected path
-import { ArrowRight, CheckSquare } from 'lucide-react';
+import { Button } from '../../../ui/button'; 
+import { ArrowRight, CheckSquare, Edit2Icon, Wand2 as WandIcon } from 'lucide-react'; // Added Edit2Icon, WandIcon
 import { useStore } from '../../../../contexts/StoreContext';
 import InlineTextEdit from '../../../ui/InlineTextEdit';
+import ChangeImageModal from '../../ChangeImageModal'; // Import ChangeImageModal
+import EditImageModal from '../../EditImageModal';   // Import EditImageModal
 
 const ImageRightSection = ({ store, isPublishedView = false }) => {
   const { content, theme, id: storeId } = store;
-  const { updateStoreTextContent, viewMode } = useStore();
+  const { updateStoreTextContent, updateStore, viewMode } = useStore(); // Added updateStore
+
+  const [isChangeImageModalOpen, setIsChangeImageModalOpen] = useState(false);
+  const [isEditImageModalOpen, setIsEditImageModalOpen] = useState(false);
 
   const sectionTitle = content?.imageRightSectionTitle || "Our Commitment to Quality";
   const sectionSubtitle = content?.imageRightSectionSubtitle || "Discover the difference that dedication and precision engineering make in every product we offer.";
   const sectionText = content?.imageRightSectionText || "We meticulously source the best materials and employ advanced manufacturing techniques to ensure every item meets the highest standards. Our quality control is rigorous, because we know you depend on it.";
   const ctaText = content?.imageRightSectionCtaText || "Explore Our Process";
   const ctaLink = content?.imageRightSectionCtaLink || "#"; // Placeholder link
-  const imageUrl = content?.imageRightSectionImageUrl || "https://images.pexels.com/photos/3184418/pexels-photo-3184418.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1"; // Default Pexels image (team working)
+  const imageUrl = content?.imageRightSectionImageUrl || "https://images.pexels.com/photos/3184418/pexels-photo-3184418.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1"; 
   
-  const primaryColor = theme?.primaryColor || "#DC2626"; // Default red-600
+  const primaryColor = theme?.primaryColor || "#2563EB"; // Default blue-600
 
   const listItems = content?.imageRightSectionListItems || [
     "Premium Grade Materials",
@@ -26,7 +31,7 @@ const ImageRightSection = ({ store, isPublishedView = false }) => {
   ];
 
   return (
-    <section id={`image-right-${storeId}`} className="py-16 md:py-24 bg-slate-800/30 text-white">
+    <section id={`image-right-${storeId}`} className="py-16 md:py-24 bg-slate-800/30 text-white overflow-hidden">
       <div className="container mx-auto px-4 sm:px-6">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           <motion.div
@@ -44,7 +49,7 @@ const ImageRightSection = ({ store, isPublishedView = false }) => {
               inputClassName="text-5xl md:text-6xl lg:text-7xl font-black mb-4 tracking-tighter font-mono uppercase bg-transparent"
               className="text-5xl md:text-6xl lg:text-7xl font-black mb-4 tracking-tighter font-mono uppercase" // Updated sizes
             >
-              <span className="bg-gradient-to-r from-slate-100 via-red-400 to-orange-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-slate-100 via-blue-400 to-sky-400 bg-clip-text text-transparent">
                 {sectionTitle}
               </span>
             </InlineTextEdit>
@@ -100,7 +105,7 @@ const ImageRightSection = ({ store, isPublishedView = false }) => {
                 <Button
                   asChild
                   size="lg"
-                  className="group rounded-md px-8 py-3 text-base font-semibold shadow-lg transition-all duration-300 bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-700 hover:to-orange-600 text-white border-0 font-mono uppercase tracking-wider"
+                  className="group rounded-md px-8 py-3 text-base font-semibold shadow-lg transition-all duration-300 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white border-0 font-mono uppercase tracking-wider"
                 >
                   <a href={ctaLink}>
                     <InlineTextEdit
@@ -118,20 +123,80 @@ const ImageRightSection = ({ store, isPublishedView = false }) => {
             )}
           </motion.div>
           <motion.div
-            className="aspect-square lg:aspect-[4/3] rounded-lg overflow-hidden shadow-2xl border-2 border-slate-700/50"
             initial={{ opacity: 0, x: 50 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true, amount: 0.3 }}
             transition={{ duration: 0.7, ease: "easeOut" }}
+            className="aspect-square lg:aspect-[4/3] rounded-lg overflow-hidden shadow-2xl border-2 border-slate-700/50 relative group" // Merged className attributes
           >
             <img
               src={imageUrl}
               alt={sectionTitle || "Section image"}
               className="w-full h-full object-cover"
             />
+            {!isPublishedView && viewMode === 'edit' && (
+              <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-background/70 hover:bg-background/90 text-foreground rounded-md p-2"
+                  onClick={() => setIsChangeImageModalOpen(true)}
+                  title="Change Section Image"
+                >
+                  <Edit2Icon className="h-4 w-4 mr-1" /> Change
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-background/70 hover:bg-background/90 text-foreground rounded-md p-2"
+                  onClick={() => setIsEditImageModalOpen(true)}
+                  title="Edit Section Image with AI"
+                >
+                  <WandIcon className="h-4 w-4 mr-1" /> Edit AI
+                </Button>
+              </div>
+            )}
           </motion.div>
         </div>
       </div>
+
+      {!isPublishedView && viewMode === 'edit' && (
+        <>
+          <ChangeImageModal
+            isOpen={isChangeImageModalOpen}
+            onOpenChange={setIsChangeImageModalOpen}
+            currentImageUrl={imageUrl}
+            onImageSelected={async (newImageUrl) => {
+              await updateStore(storeId, {
+                content: {
+                  ...content,
+                  imageRightSectionImageUrl: newImageUrl,
+                },
+              });
+              setIsChangeImageModalOpen(false);
+            }}
+            imageSearchContext={`image for "${sectionTitle}" section`}
+            modalTitle="Change Section Image"
+            storeName={store.name}
+          />
+          <EditImageModal
+            isOpen={isEditImageModalOpen}
+            onOpenChange={setIsEditImageModalOpen}
+            currentImageUrl={imageUrl}
+            onImageEdited={async (newImageUrl) => {
+              await updateStore(storeId, {
+                content: {
+                  ...content,
+                  imageRightSectionImageUrl: newImageUrl,
+                },
+              });
+              setIsEditImageModalOpen(false);
+            }}
+            imageContext={`image for "${sectionTitle}" section`}
+            modalTitle="Edit Section Image with AI"
+          />
+        </>
+      )}
     </section>
   );
 };

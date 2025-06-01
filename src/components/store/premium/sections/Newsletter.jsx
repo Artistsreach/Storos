@@ -5,9 +5,26 @@ import { Mail } from 'lucide-react';
 import InlineTextEdit from '../../../ui/InlineTextEdit';
 import { useStore } from '../../../../contexts/StoreContext';
 
-const Newsletter = ({ store, isPublishedView = false }) => { // Added isPublishedView
+const Newsletter = ({ store: storeProp, isPublishedView = false }) => { // Renamed store to storeProp
+  const { updateStoreTextContent, viewMode, store: contextStore } = useStore(); // Get store from context for theme
+  const store = contextStore || storeProp; // Prioritize contextStore
   const { content, id: storeId } = store;
-  const { updateStoreTextContent, viewMode } = useStore();
+  
+  const primaryColor = store?.theme?.primaryColor || "#6366F1"; // Default if no theme
+
+  // Helper function to generate a slightly darker shade
+  const getDarkerShade = (color, percent = 20) => {
+    if (!color.startsWith("#")) return color;
+    let num = parseInt(color.slice(1), 16),
+      amt = Math.round(2.55 * percent),
+      R = (num >> 16) - amt,
+      G = (num >> 8 & 0x00FF) - amt,
+      B = (num & 0x0000FF) - amt;
+    R = Math.max(0, R); G = Math.max(0, G); B = Math.max(0, B);
+    return "#" + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+  };
+  const secondaryColor = getDarkerShade(primaryColor, 20);
+
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
 
@@ -28,7 +45,11 @@ const Newsletter = ({ store, isPublishedView = false }) => { // Added isPublishe
   };
 
   return (
-    <section id={`newsletter-${store?.id || 'premium'}`} className="py-12 md:py-20 bg-gradient-to-r from-purple-600 to-pink-600 text-white">
+    <section
+      id={`newsletter-${store?.id || 'premium'}`}
+      className="py-12 md:py-20 text-white"
+      style={{ background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` }}
+    >
       <div className="container mx-auto px-6 text-center">
         <Mail className="h-16 w-16 mx-auto mb-6 opacity-80" />
         <InlineTextEdit
@@ -73,7 +94,10 @@ const Newsletter = ({ store, isPublishedView = false }) => { // Added isPublishe
             />
             <Button
               type="submit"
-              className="h-12 bg-premium-gradient text-white hover:opacity-90 font-semibold text-lg premium-font-body shadow-md hover:shadow-lg transition-all duration-300 rounded-full px-8"
+              className="h-12 text-white hover:opacity-90 font-semibold text-lg premium-font-body shadow-md hover:shadow-lg transition-all duration-300 rounded-full px-8"
+              style={{ background: `linear-gradient(to right, ${getDarkerShade(primaryColor, -10)}, ${getDarkerShade(secondaryColor, -10)})` }} // Slightly lighter for button
+              onMouseEnter={(e) => e.currentTarget.style.background = `linear-gradient(to right, ${getDarkerShade(primaryColor, -15)}, ${getDarkerShade(secondaryColor, -15)})`}
+              onMouseLeave={(e) => e.currentTarget.style.background = `linear-gradient(to right, ${getDarkerShade(primaryColor, -10)}, ${getDarkerShade(secondaryColor, -10)})`}
             >
               <InlineTextEdit
                 initialText={buttonText}

@@ -14,38 +14,48 @@ import {
 import { Button } from "../../../ui/button"; // Corrected path
 import InlineTextEdit from "../../../ui/InlineTextEdit";
 import { useStore } from "../../../../contexts/StoreContext";
+import { generateStoreUrl } from "../../../../lib/utils.js"; // Added import
 
 const ProductGrid = ({ store, isPublishedView = false }) => {
-  const { products, theme, id: storeId, content } = store;
+  // Defensive destructuring with default fallbacks
+  const { 
+    products = [], 
+    theme = {}, 
+    id: storeId, 
+    content = {} 
+  } = store || {}; // Add fallback for store itself if it could be null/undefined initially
+
   const { updateStoreTextContent, viewMode } = useStore();
   const [displayMode, setDisplayMode] = useState("grid");
   const [searchTerm, setSearchTerm] = useState("");
-  const [filteredProducts, setFilteredProducts] = useState(products || []);
+  // Initialize filteredProducts with an empty array if products is initially undefined or null
+  const [filteredProducts, setFilteredProducts] = useState(Array.isArray(products) ? products : []);
   const [isLoading, setIsLoading] = useState(true);
   // const [selectedCategory, setSelectedCategory] = useState("all"); // Category filtering can be added later
 
-  const sectionTitle = content?.productGridSectionTitle || "Our Products";
-  const sectionSubtitle = content?.productGridSectionSubtitle || "Explore our curated selection of high-quality items.";
-  const badgeText = content?.productGridBadgeText || "Featured Products";
-  const searchPlaceholder = content?.productGridSearchPlaceholder || "Search Arsenal...";
-  const noProductsTitle = content?.productGridNoProductsTitle || "No Gear Found";
-  const noProductsSubtitle = content?.productGridNoProductsSubtitle || "Your search for \"{searchTerm}\" yielded no results. Try a different term or clear search.";
-  const clearSearchButtonText = content?.productGridClearSearchButtonText || "Clear Search";
-  const emptyStateTitle = content?.productGridEmptyStateTitle || sectionTitle; // Fallback to sectionTitle
-  const emptyStateSubtitle = content?.productGridEmptyStateSubtitle || "No equipment listed at this time. Stand by for inventory updates.";
+  // Access content properties safely, defaulting if content or specific properties are missing
+  const sectionTitle = content.productGridSectionTitle || "Our Products";
+  const sectionSubtitle = content.productGridSectionSubtitle || "Explore our curated selection of high-quality items.";
+  const badgeText = content.productGridBadgeText || "Featured Products";
+  const searchPlaceholder = content.productGridSearchPlaceholder || "Search Arsenal...";
+  const noProductsTitle = content.productGridNoProductsTitle || "No Gear Found";
+  const noProductsSubtitle = content.productGridNoProductsSubtitle || "Your search for \"{searchTerm}\" yielded no results. Try a different term or clear search.";
+  const clearSearchButtonText = content.productGridClearSearchButtonText || "Clear Search";
+  const emptyStateTitle = content.productGridEmptyStateTitle || sectionTitle; 
+  const emptyStateSubtitle = content.productGridEmptyStateSubtitle || "No equipment listed at this time. Stand by for inventory updates.";
 
 
   useEffect(() => {
     setIsLoading(true);
     const timer = setTimeout(() => {
-      setFilteredProducts(products || []);
+      setFilteredProducts(Array.isArray(products) ? products : []);
       setIsLoading(false);
     }, 500); // Shorter delay
     return () => clearTimeout(timer);
   }, [products]);
 
   useEffect(() => {
-    if (!products) {
+    if (!Array.isArray(products)) {
       setFilteredProducts([]);
       return;
     }
@@ -66,7 +76,7 @@ const ProductGrid = ({ store, isPublishedView = false }) => {
       <div className="p-4 space-y-2">
         <div className="h-4 bg-slate-700 rounded w-3/4" />
         <div className="h-3 bg-slate-700 rounded w-1/2" />
-        <div className="h-5 bg-red-700/50 rounded w-1/3 mt-2" />
+        <div className="h-5 bg-blue-700/50 rounded w-1/3 mt-2" />
       </div>
     </div>
   );
@@ -75,7 +85,7 @@ const ProductGrid = ({ store, isPublishedView = false }) => {
     return (
       <section id={`products-${storeId}`} className="py-16 md:py-24 bg-slate-900 text-white">
         <div className="container mx-auto px-4 sm:px-6 text-center">
-           <Target className="w-12 h-12 text-red-500 mx-auto mb-4" />
+           <Target className="w-12 h-12 text-blue-500 mx-auto mb-4" />
           <InlineTextEdit
             initialText={emptyStateTitle}
             onSave={(newText) => updateStoreTextContent('productGridEmptyStateTitle', newText)}
@@ -112,7 +122,7 @@ const ProductGrid = ({ store, isPublishedView = false }) => {
           className="text-center mb-10 md:mb-12"
         >
           <motion.div
-            className="inline-flex items-center gap-2 px-3 py-1.5 bg-red-800/30 rounded-md text-xs font-semibold text-red-300 mb-4 border border-red-700/50 font-mono uppercase tracking-widest"
+            className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-800/30 rounded-md text-xs font-semibold text-blue-300 mb-4 border border-blue-700/50 font-mono uppercase tracking-widest"
             initial={{ scale: 0.9, opacity: 0 }}
             whileInView={{ scale: 1, opacity: 1 }}
             viewport={{ once: true }}
@@ -137,7 +147,7 @@ const ProductGrid = ({ store, isPublishedView = false }) => {
             inputClassName="text-3xl md:text-5xl font-extrabold tracking-tight font-mono uppercase mb-3 bg-transparent"
             className="text-3xl md:text-5xl font-extrabold tracking-tight font-mono uppercase mb-3"
           >
-            <span className="bg-gradient-to-r from-slate-100 via-red-400 to-orange-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-slate-100 via-blue-400 to-sky-400 bg-clip-text text-transparent">
               {sectionTitle}
             </span>
           </InlineTextEdit>
@@ -165,7 +175,7 @@ const ProductGrid = ({ store, isPublishedView = false }) => {
             <input
               type="text"
               placeholder={searchPlaceholder}
-              className="w-full pl-10 pr-4 py-2.5 text-sm border-2 border-slate-700 rounded-md focus:outline-none focus:border-red-500/70 bg-slate-800 transition-colors text-slate-100 placeholder-slate-500 font-mono"
+              className="w-full pl-10 pr-4 py-2.5 text-sm border-2 border-slate-700 rounded-md focus:outline-none focus:border-blue-500/70 bg-slate-800 transition-colors text-slate-100 placeholder-slate-500 font-mono"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -174,16 +184,16 @@ const ProductGrid = ({ store, isPublishedView = false }) => {
             <div className="flex items-center gap-1 bg-slate-800 rounded-md p-0.5 border border-slate-700">
               <Button
                 variant="ghost" size="icon"
-                className={`h-8 w-8 rounded-sm transition-all duration-200 ${displayMode === "grid" ? "bg-red-600 text-white" : "text-slate-400 hover:text-red-400 hover:bg-slate-700/50"}`}
+                className={`h-8 w-8 rounded-sm transition-all duration-200 ${displayMode === "grid" ? "bg-blue-600 text-white" : "text-slate-400 hover:text-blue-400 hover:bg-slate-700/50"}`}
                 onClick={() => setDisplayMode("grid")}  title="Grid View"
               ><Grid className="h-4 w-4" /></Button>
               <Button
                 variant="ghost" size="icon"
-                className={`h-8 w-8 rounded-sm transition-all duration-200 ${displayMode === "list" ? "bg-red-600 text-white" : "text-slate-400 hover:text-red-400 hover:bg-slate-700/50"}`}
+                className={`h-8 w-8 rounded-sm transition-all duration-200 ${displayMode === "list" ? "bg-blue-600 text-white" : "text-slate-400 hover:text-blue-400 hover:bg-slate-700/50"}`}
                 onClick={() => setDisplayMode("list")} title="List View"
               ><List className="h-4 w-4" /></Button>
             </div>
-            {/* <Button variant="outline" className="h-9 gap-1.5 rounded-md border-slate-700 hover:border-red-500/70 text-slate-300 hover:text-red-400 text-xs font-mono uppercase tracking-wider">
+            {/* <Button variant="outline" className="h-9 gap-1.5 rounded-md border-slate-700 hover:border-blue-500/70 text-slate-300 hover:text-blue-400 text-xs font-mono uppercase tracking-wider">
               <Filter className="h-3.5 w-3.5" /> Filters
             </Button> */}
           </div>
@@ -210,7 +220,8 @@ const ProductGrid = ({ store, isPublishedView = false }) => {
                   product={product}
                   theme={theme} // Pass theme if ProductCard uses it
                   index={index}
-                  storeId={storeId}
+                  storeName={generateStoreUrl(store.name)} // Pass generated URL
+                  storeId={storeId}      // Keep storeId (which is store.id)
                   isPublishedView={isPublishedView}
                   displayMode={displayMode}
                 />
@@ -241,7 +252,7 @@ const ProductGrid = ({ store, isPublishedView = false }) => {
                <Button
                 variant="link"
                 onClick={() => setSearchTerm("")}
-                className="text-red-400 hover:text-red-300 font-mono mt-3 text-sm"
+                className="text-blue-400 hover:text-blue-300 font-mono mt-3 text-sm"
               >
                 <InlineTextEdit
                   initialText={clearSearchButtonText}

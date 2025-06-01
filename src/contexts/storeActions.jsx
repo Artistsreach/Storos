@@ -10,7 +10,15 @@ import {
 import { generateLogoWithGemini } from '@/lib/geminiImageGeneration';
 import { generateProductWithGemini } from '@/lib/geminiProductGeneration';
 import { generateCollectionWithGemini } from '@/lib/geminiCollectionGeneration'; // Import for AI collection generation
-import { generateStoreNameSuggestions, extractExplicitStoreNameFromPrompt } from '@/lib/gemini'; // Import for AI store name generation & extraction
+import { 
+  generateStoreNameSuggestions, 
+  extractExplicitStoreNameFromPrompt, 
+  generateHeroContent, 
+  generateStoreWayContent, 
+  generateStoreFeaturesContent,
+  generateImageRightSectionContent, // Added
+  generateVideoLeftSectionContent  // Added
+} from '@/lib/gemini'; 
 import { 
     fetchShopifyStorefrontAPI, 
     GET_SHOP_METADATA_QUERY, 
@@ -84,45 +92,86 @@ export const generateStoreFromWizardData = async (wizardData, { fetchPexelsImage
     const { productType, storeName, logoUrl, products: wizardProducts, prompt } = wizardData;
 
     let finalProducts = [];
-    if (wizardProducts.source === 'ai') {
+    // Handle 'ai', 'printOnDemand', and 'manual' sources similarly as they populate wizardProducts.items
+    if (wizardProducts.source === 'ai' || wizardProducts.source === 'printOnDemand' || wizardProducts.source === 'manual') {
       finalProducts = wizardProducts.items.map(item => ({
-        id: `product-ai-${generateId()}`,
+        // Use a generic prefix or differentiate if necessary, for now, 'product-wizard-'
+        id: `product-wizard-${generateId()}`, 
         name: item.name,
-        price: parseFloat(item.price), 
-        description: item.description,
-        image: { 
+        price: parseFloat(item.price) || 0,
+        description: item.description || '',
+        // Use the new 'images' array. For the 'image' field, use the first image or a placeholder.
+        // The full 'images' array should be stored with the product for the detail page.
+        images: item.images && item.images.length > 0 ? item.images : [`https://via.placeholder.com/400x400.png?text=${encodeURIComponent(item.name || "Product")}`],
+        image: { // Still provide a primary image structure for compatibility with components expecting it
           id: generateId(), 
-          src: { medium: item.imageUrl }, 
-          alt: item.name,
+          src: { medium: (item.images && item.images.length > 0) ? item.images[0] : `https://via.placeholder.com/400x400.png?text=${encodeURIComponent(item.name || "Product")}` }, 
+          alt: item.name || "Product Image",
         },
         rating: (Math.random() * 1.5 + 3.5).toFixed(1),
         stock: Math.floor(Math.random() * 80) + 20,
-      }));
-    } else if (wizardProducts.source === 'manual') {
-      finalProducts = wizardProducts.items.map(p => ({
-        id: `product-manual-${generateId()}`,
-        name: p.name,
-        price: parseFloat(p.price),
-        description: p.description || generateAIProductDescriptions(productType, p.name),
-        image: {
-          id: generateId(),
-          src: { medium: p.imageUrl || `https://via.placeholder.com/400x400.png?text=${encodeURIComponent(p.name)}` },
-          alt: p.name,
-        },
-        rating: (Math.random() * 1.5 + 3.5).toFixed(1),
-        stock: Math.floor(Math.random() * 50) + 20,
+        isPrintOnDemand: item.isPrintOnDemand || false, 
+        podDetails: item.podDetails || null,
+        variants: item.variants || [], 
       }));
     }
+    // Note: The original 'manual' source specific mapping is now covered by the combined condition.
+    // If 'manual' had truly unique fields not covered by 'item.name, item.price, item.description, item.images',
+    // then a separate block or more complex conditional logic inside the map would be needed.
+    // For now, assuming the structure from wizardStepComponents for manual products aligns.
+    // END OF THE if (wizardProducts.source === 'ai' || wizardProducts.source === 'printOnDemand' || wizardProducts.source === 'manual') BLOCK
     
     const heroSlideShowImagesCount = 3;
     const heroSlideShowImages = await fetchPexelsImages(`${productType} ${storeName} hero slideshow ${prompt}`, heroSlideShowImagesCount, 'landscape');
     const heroMainImage = heroSlideShowImages.length > 0 ? heroSlideShowImages[0] : { src: { large: 'https://via.placeholder.com/1200x800.png?text=Hero+Image' }, alt: 'Placeholder Hero Image' };
 
   const heroVideos = await fetchPexelsVideos(`${productType} ${storeName} store ambiance ${prompt}`, 1, 'landscape'); 
-  const aiContent = generateAIStoreContent(productType, storeName);
+  const baseAiContent = generateAIStoreContent(productType, storeName); // Content from older AI function
     const cardBgImages = await fetchPexelsImages(`${storeName} ${productType} abstract background`, 1, 'landscape'); 
     const cardBackgroundUrl = cardBgImages[0]?.src?.large || cardBgImages[0]?.src?.original || '';
     const templateVersion = 'v1';
+
+    // Merge AI-generated content with content from wizard (hero, storeWay)
+    let finalContent = { // Changed to let
+      ...baseAiContent, 
+      heroSlideshowImages: heroSlideShowImages.map(img => ({ src: img.src.large, alt: img.alt || storeName + " hero image" })),
+      ...(wizardData.content?.hero && { 
+          heroTitle: wizardData.content.hero.heroTitle || baseAiContent.heroTitle, 
+          heroDescription: wizardData.content.hero.heroDescription || baseAiContent.heroDescription 
+      }),
+      ...(wizardData.content?.storeWay && { storeWay: wizardData.content.storeWay }),
+      // Initialize sharp-specific sections
+      imageRightSection: null,
+      videoLeftSection: null,
+    };
+
+    // Generate content for Sharp template sections if applicable
+    // Use wizardData.template_version to determine if it's 'sharp'
+    if (wizardData.template_version === 'sharp') {
+      const productExamples = finalProducts.slice(0, 3).map(p => p.name).join(', ');
+      const storeInfoForSharp = { name: storeName, niche: productType, description: prompt || `A ${productType} store called ${storeName}` };
+      
+      const irsContent = await generateImageRightSectionContent(storeInfoForSharp, productExamples);
+      if (irsContent && !irsContent.error) {
+        const pexelsImageQueryIRS = irsContent.title || `${storeName} craftsmanship`;
+        const pexelsImagesIRS = await fetchPexelsImages(pexelsImageQueryIRS, 1, 'landscape');
+        finalContent.imageRightSection = {
+          ...irsContent,
+          imageUrl: pexelsImagesIRS[0]?.src?.large || `https://images.pexels.com/photos/3184418/pexels-photo-3184418.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1` // Default
+        };
+      }
+
+      const vlsContent = await generateVideoLeftSectionContent(storeInfoForSharp, productExamples);
+      if (vlsContent && !vlsContent.error) {
+        const pexelsVideoQueryVLS = vlsContent.title || `${storeName} product action`;
+        const pexelsVideosVLS = await fetchPexelsVideos(pexelsVideoQueryVLS, 1, 'landscape');
+        finalContent.videoLeftSection = {
+          ...vlsContent,
+          videoUrl: pexelsVideosVLS[0]?.url || null, // Default to null if no video
+          videoPosterUrl: pexelsVideosVLS[0]?.image || null
+        };
+      }
+    }
 
 
     return {
@@ -130,7 +179,8 @@ export const generateStoreFromWizardData = async (wizardData, { fetchPexelsImage
       name: storeName,
       template_version: templateVersion, 
       type: productType,
-      description: aiContent.heroDescription,
+      // Use heroDescription from finalContent if available, otherwise from baseAiContent
+      description: finalContent.heroDescription || baseAiContent.heroDescription, 
       prompt: prompt || `A ${productType} store called ${storeName}`,
       products: finalProducts,
       collections: wizardData.collections.items.map(collection => ({ 
@@ -141,13 +191,12 @@ export const generateStoreFromWizardData = async (wizardData, { fetchPexelsImage
         product_ids: collection.product_ids || [], 
       })),
       hero_image: heroMainImage, 
-      content: { 
-        ...aiContent,
-        heroSlideshowImages: heroSlideShowImages.map(img => ({ src: img.src.large, alt: img.alt || storeName + " hero image" })) 
-      },
+      content: finalContent, // Use the merged finalContent
       hero_video_url: heroVideos[0]?.url || null,
       hero_video_poster_url: heroVideos[0]?.image || null,
-      logo_url: logoUrl || `https://via.placeholder.com/100x100.png?text=${storeName.substring(0,1)}`,
+      logo_url: wizardData.logoUrlDark || wizardData.logoUrlLight || `https://via.placeholder.com/100x100.png?text=${storeName.substring(0,1)}`, // Use dark for light bg by default
+      logo_url_light: wizardData.logoUrlLight || null, // Explicitly pass through
+      logo_url_dark: wizardData.logoUrlDark || null,   // Explicitly pass through
       theme: {
         primaryColor: getRandomColor(),
         secondaryColor: getRandomColor(),
@@ -164,16 +213,27 @@ export const generateStoreFromPromptData = async (
   prompt,
   {
     storeNameOverride = null,
-    productTypeOverride = null,
-    fetchPexelsImages = utilFetchPexelsImages, 
-    generateId = utilGenerateId, 
-  } = {}
+    // productTypeOverride = null, // Will be derived from nicheDetails or prompt
+    nicheDetails = null, // Added nicheDetails
+    fetchPexelsImages = utilFetchPexelsImages,
+    generateId = utilGenerateId,
+  } = {},
+  updateProgressCallback = (progress, message) => { console.log(`Progress: ${progress}%, Message: ${message || '(no message)'}`); } // Default no-op callback
 ) => {
+  updateProgressCallback(0, 'Initializing store generation...');
   const storeId = `store-ai-${generateId()}`;
   const keywords = prompt.toLowerCase().split(' ');
 
-  let storeType = productTypeOverride || 'general';
-  if (!productTypeOverride) {
+  // Determine storeType from nicheDetails if available, otherwise from prompt
+  let storeType = 'general'; // Default
+  if (nicheDetails && nicheDetails.name) {
+    // Map nicheDetails.name to a simplified storeType if needed, or use directly
+    // For now, let's assume nicheDetails.name can be used or mapped to a 'type'
+    // Example: if (nicheDetails.name === "Healthy Food") storeType = "food";
+    // For simplicity, we'll use a generic approach or assume nicheDetails.name is suitable
+    storeType = nicheDetails.name.toLowerCase().replace(/ /g, '-') || 'general';
+  } else {
+    // Fallback to keyword detection if nicheDetails not provided
     if (keywords.some(word => ['clothing', 'fashion', 'apparel', 'wear'].includes(word))) storeType = 'fashion';
     else if (keywords.some(word => ['tech', 'electronics', 'gadget', 'digital'].includes(word))) storeType = 'electronics';
     else if (keywords.some(word => ['food', 'grocery', 'meal', 'organic'].includes(word))) storeType = 'food';
@@ -226,71 +286,120 @@ export const generateStoreFromPromptData = async (
   // Ensure brandName is not too long (this check should be after all assignments)
   if (brandName && brandName.length > 50) brandName = brandName.substring(0, 50);
 
-  let logoImageBase64 = null;
-  let actualLogoUrl = `https://via.placeholder.com/100x100.png?text=${brandName.substring(0, 1)}`;
+  let logoImageBase64ForProductGen = null; // For passing to product generation
+  let finalLogoUrlLight = null;
+  let finalLogoUrlDark = null;
+  let defaultDisplayLogoUrl = `https://via.placeholder.com/100x100.png?text=${brandName.substring(0, 1)}`;
+
   try {
     console.log(`[generateStoreFromPromptData] Generating logo for: ${brandName}`);
-    const logoGenResult = await generateLogoWithGemini(brandName);
-    if (logoGenResult && logoGenResult.imageData) {
-      logoImageBase64 = logoGenResult.imageData;
-      actualLogoUrl = `data:image/png;base64,${logoImageBase64}`;
-      console.log(`[generateStoreFromPromptData] Logo generated successfully for ${brandName}.`);
+    updateProgressCallback(5, `Generating logo for ${brandName}...`);
+    const logoResults = await generateLogoWithGemini(brandName, updateProgressCallback); // Pass callback
+    if (logoResults) {
+      finalLogoUrlLight = logoResults.logoUrlLight;
+      finalLogoUrlDark = logoResults.logoUrlDark;
+      if (finalLogoUrlDark) defaultDisplayLogoUrl = finalLogoUrlDark; // Prefer dark logo for light backgrounds as default
+      else if (finalLogoUrlLight) defaultDisplayLogoUrl = finalLogoUrlLight;
+      
+      // For product generation, pick one of the logos to pass as base64.
+      // Prioritize the one for dark backgrounds (logoUrlLight) if available, as products might have varied backgrounds.
+      const logoToUseForProducts = finalLogoUrlLight || finalLogoUrlDark;
+      if (logoToUseForProducts && logoToUseForProducts.startsWith('data:image/')) {
+        const parts = logoToUseForProducts.split(',');
+        if (parts.length === 2) logoImageBase64ForProductGen = parts[1];
+      }
+      console.log(`[generateStoreFromPromptData] Logos generated for ${brandName}. Light: ${!!finalLogoUrlLight}, Dark: ${!!finalLogoUrlDark}`);
+      updateProgressCallback(20, `${brandName} logo generated.`);
     } else {
-      console.warn(`[generateStoreFromPromptData] Logo generation did not return image data for ${brandName}. Text response: ${logoGenResult?.textResponse}`);
+      console.warn(`[generateStoreFromPromptData] Logo generation did not return expected result for ${brandName}.`);
+      updateProgressCallback(20, `Logo generation issue for ${brandName}.`); // Still advance progress
     }
   } catch (error) {
     console.error(`[generateStoreFromPromptData] Error generating logo for ${brandName}:`, error);
+    updateProgressCallback(20, `Error generating logo for ${brandName}.`); // Still advance
   }
 
+  updateProgressCallback(25, `Generating ${storeType} products...`);
   const generatedProducts = [];
   const generatedProductTitles = []; 
   const numProductsToGenerate = 6;
   const maxTotalAttempts = numProductsToGenerate * 2; 
   let currentAttempts = 0;
+  const productGenerationStartProgress = 25;
+  const productGenerationTotalProgress = 45; // Allocate 45% for product generation (25% to 70%)
 
   console.log(`[generateStoreFromPromptData] Attempting to generate ${numProductsToGenerate} unique products for ${brandName} (type: ${storeType}).`);
 
   while (generatedProducts.length < numProductsToGenerate && currentAttempts < maxTotalAttempts) {
     currentAttempts++;
+    const productProgress = productGenerationStartProgress + Math.floor((generatedProducts.length / numProductsToGenerate) * productGenerationTotalProgress);
+    updateProgressCallback(productProgress, `Generating product ${generatedProducts.length + 1}/${numProductsToGenerate}...`);
+    
     try {
       console.log(`[generateStoreFromPromptData] Generating product attempt ${currentAttempts} (aiming for ${generatedProducts.length + 1}/${numProductsToGenerate} unique products)... Excluding titles: ${generatedProductTitles.join(', ')}`);
       
       const singleProductData = await generateProductWithGemini(
         storeType, 
         brandName, 
-        logoImageBase64, 
-        'image/png',
-        generatedProductTitles 
+        logoImageBase64ForProductGen, // Use the potentially available logo base64
+        'image/png', // Assuming PNG if logo is passed
+        generatedProductTitles,
+        updateProgressCallback, // Pass callback
+        productProgress, // Current base progress for this product
+        productGenerationTotalProgress / numProductsToGenerate, // Progress increment per product step
+        prompt // Pass the full user prompt
       );
       
-      if (singleProductData && singleProductData.imageData && singleProductData.title && singleProductData.price && singleProductData.description) {
+      // generateProductWithGemini now returns productData.images (array)
+      if (singleProductData && 
+          singleProductData.images && singleProductData.images.length > 0 &&
+          singleProductData.title && singleProductData.title.trim() !== "" && 
+          typeof singleProductData.price === 'string' && 
+          typeof singleProductData.description === 'string') {
         const normalizedTitle = singleProductData.title.toLowerCase().trim();
         if (!generatedProductTitles.includes(normalizedTitle)) {
+          let finalProductVariants = singleProductData.variants || [];
+
+          if (storeType === 'fashion') {
+            const hasSizeVariant = finalProductVariants.some(v => v.name.toLowerCase() === 'size');
+            const hasColorVariant = finalProductVariants.some(v => v.name.toLowerCase() === 'color');
+            if (!hasSizeVariant) {
+              finalProductVariants.push({ name: "Size", values: ["S", "M", "L", "XL"] });
+            }
+            if (!hasColorVariant) {
+              finalProductVariants.push({ name: "Color", values: ["White", "Black", "Blue", "Red"] });
+            }
+          }
+
           generatedProducts.push({
             id: `product-gemini-${generateId()}`,
             name: singleProductData.title,
             price: parseFloat(singleProductData.price) || 0,
             description: singleProductData.description,
-            image: {
+            images: singleProductData.images, // Store the full images array
+            image: { // For compatibility: primary image object
               id: generateId(),
-              src: { medium: `data:image/png;base64,${singleProductData.imageData}` }, 
+              src: { medium: singleProductData.images[0] }, 
               alt: singleProductData.title,
             },
             rating: (Math.random() * 1.5 + 3.5).toFixed(1),
             stock: Math.floor(Math.random() * 80) + 20,
+            variants: finalProductVariants,
           });
           generatedProductTitles.push(normalizedTitle);
           console.log(`[generateStoreFromPromptData] Product "${singleProductData.title}" generated successfully and is unique. (${generatedProducts.length}/${numProductsToGenerate})`);
+          updateProgressCallback(productGenerationStartProgress + Math.floor((generatedProducts.length / numProductsToGenerate) * productGenerationTotalProgress), `Product "${singleProductData.title}" generated.`);
         } else {
           console.warn(`[generateStoreFromPromptData] Duplicate product title generated and skipped: "${singleProductData.title}". Attempt ${currentAttempts}/${maxTotalAttempts}.`);
         }
       } else {
-        console.warn(`[generateStoreFromPromptData] Failed to generate complete data for product attempt ${currentAttempts}. Data:`, singleProductData);
+        console.warn(`[generateStoreFromPromptData] Failed to generate complete data (or image) for product attempt ${currentAttempts}. Data:`, singleProductData);
       }
     } catch (error) {
       console.error(`[generateStoreFromPromptData] Error during product generation attempt ${currentAttempts}:`, error);
     }
   }
+  updateProgressCallback(productGenerationStartProgress + productGenerationTotalProgress, `${generatedProducts.length} products generated.`);
 
   if (generatedProducts.length < numProductsToGenerate) {
     console.warn(`[generateStoreFromPromptData] Could only generate ${generatedProducts.length} unique products after ${maxTotalAttempts} total attempts.`);
@@ -298,37 +407,122 @@ export const generateStoreFromPromptData = async (
   if (generatedProducts.length === 0 && numProductsToGenerate > 0) {
     console.warn(`[generateStoreFromPromptData] No products were generated successfully. The store will be created with an empty product list.`);
   }
+  
+  const collectionGenerationStartProgress = 70;
+  const collectionGenerationTotalProgress = 20; // Allocate 20% for collections (70% to 90%)
 
   const heroSlideShowImagesCountPrompt = 3;
   const heroSlideShowImagesPrompt = await fetchPexelsImages(`${storeType} ${brandName} hero slideshow ${prompt}`, heroSlideShowImagesCountPrompt, 'landscape');
   const heroMainImagePrompt = heroSlideShowImagesPrompt.length > 0 ? heroSlideShowImagesPrompt[0] : { src: { large: 'https://via.placeholder.com/1200x800.png?text=Hero+Image' }, alt: 'Placeholder Hero Image' };
   
-  const heroVideos = await fetchPexelsVideos(`${storeType} ${brandName} store ambiance ${prompt}`, 1, 'landscape'); 
-  const aiContent = generateAIStoreContent(storeType, brandName);
-  const cardBgImagesPrompt = await fetchPexelsImages(`${brandName} ${storeType} store background`, 1, 'landscape'); 
+  const heroVideos = await fetchPexelsVideos(`${storeType} ${brandName} store ambiance ${prompt}`, 1, 'landscape');
+  const heroFollowUpVideos = await fetchPexelsVideos(`${brandName} ${storeType} product showcase`, 1, 'landscape');
+  const videoLeftSectionVideos = await fetchPexelsVideos(`${brandName} ${storeType} craftsmanship process`, 1, 'landscape');
+  
+  const storeInfoForContent = {
+    name: brandName,
+    niche: storeType,
+    description: prompt, // Use the main prompt as a basis for description
+    // targetAudience and style could be derived or set to defaults if needed by content functions
+  };
+
+  const generatedHeroContent = await generateHeroContent(storeInfoForContent);
+  const generatedStoreWayContent = await generateStoreWayContent(storeInfoForContent);
+  const generatedStoreFeaturesContent = await generateStoreFeaturesContent(storeInfoForContent);
+  
+  const baseAiContent = generateAIStoreContent(storeType, brandName); 
+  const cardBgImagesPrompt = await fetchPexelsImages(`${brandName} ${storeType} store background`, 1, 'landscape');
   const cardBackgroundUrlPrompt = cardBgImagesPrompt[0]?.src?.large || cardBgImagesPrompt[0]?.src?.original || '';
-  const templateVersion = 'v1'; 
+
+  let templateVersion = 'fresh'; // New Default: 'fresh'
+  if (nicheDetails && nicheDetails.templates && nicheDetails.templates.length > 0) {
+    const hasSharpTemplate = nicheDetails.templates.some(t => t.toLowerCase() === 'sharp');
+    if (storeType === 'technology' && hasSharpTemplate) {
+      templateVersion = 'sharp';
+    } else {
+      const firstTemplate = nicheDetails.templates[0].toLowerCase();
+      if (['classic', 'modern', 'v1'].includes(firstTemplate)) {
+        templateVersion = 'v1';
+      } else if (firstTemplate === 'premium') {
+        templateVersion = 'premium';
+      } else if (firstTemplate === 'sharp') {
+        // This case might be redundant if technology/sharp is handled above,
+        // but good for explicitness if 'sharp' is first for a non-tech niche.
+        templateVersion = 'sharp';
+      } else if (firstTemplate === 'sleek') {
+        templateVersion = 'sleek';
+      }
+      // If firstTemplate is 'fresh', it remains 'fresh' (the default).
+      // If firstTemplate is unrecognized, it also remains 'fresh' (the default/fallback).
+    }
+  } else {
+    // Fallback to prompt-based detection if nicheDetails are insufficient.
+    // 'fresh' is the base default here.
+    if (prompt.toLowerCase().includes('modern')) templateVersion = 'v1'; // modern still maps to v1
+    else if (prompt.toLowerCase().includes('premium')) templateVersion = 'premium';
+    else if (prompt.toLowerCase().includes('sharp')) templateVersion = 'sharp';
+    else if (prompt.toLowerCase().includes('sleek')) templateVersion = 'sleek';
+    // If no keywords match, it remains 'fresh'.
+  }
+  
+  // Normalization for 'modern' to 'v1' (Classic) should still happen if 'modern' was set by prompt.
+  // 'fresh' is a distinct template.
+  if (templateVersion === 'modern') templateVersion = 'v1';
+
+
+  let featuresVideoData = { url: null, poster: null };
+  // Note: The logic for 'v1' and 'v2' for video URLs needs to be mapped to actual template names like 'sharp', 'fresh'
+  // Assuming 'sharp' (which is often 'v1' internally) uses heroFollowUp and videoLeftSection
+  // Assuming 'fresh' (which is often 'v2' internally) uses featuresVideo
+  if (templateVersion === 'v2') { // Assuming 'v2' is 'fresh'
+    const freshFeaturesVideos = await fetchPexelsVideos(`${brandName} ${storeType} customer experience why choose us`, 1, 'landscape');
+    featuresVideoData.url = freshFeaturesVideos[0]?.url || null;
+    featuresVideoData.poster = freshFeaturesVideos[0]?.image || null;
+  }
 
   const generatedCollections = [];
   const numCollectionsToGenerate = 3; 
   const existingCollectionNamesForPrompt = [];
 
   if (generatedProducts.length > 0) { 
+    updateProgressCallback(collectionGenerationStartProgress, `Generating collections for products: ${generatedProductTitles.slice(0,3).join(', ')}...`);
     console.log(`[generateStoreFromPromptData] Attempting to generate ${numCollectionsToGenerate} collections for ${brandName}.`);
     for (let i = 0; i < numCollectionsToGenerate; i++) {
+      const collectionProgress = collectionGenerationStartProgress + Math.floor(((i + 1) / numCollectionsToGenerate) * collectionGenerationTotalProgress);
+      updateProgressCallback(collectionProgress, `Generating collection ${i + 1}/${numCollectionsToGenerate}...`);
       try {
         console.log(`[generateStoreFromPromptData] Generating collection ${i + 1}/${numCollectionsToGenerate}...`);
         const collectionData = await generateCollectionWithGemini(
           storeType,
           brandName,
           generatedProducts, 
-          existingCollectionNamesForPrompt
+          existingCollectionNamesForPrompt,
+          updateProgressCallback, // Pass callback
+          collectionProgress, // Current base progress
+          collectionGenerationTotalProgress / numCollectionsToGenerate // Progress increment per collection step
         );
 
         if (collectionData && !collectionData.error && collectionData.name) {
-          let finalCollectionImageUrl = `https://via.placeholder.com/400x200.png?text=${encodeURIComponent(collectionData.name || "Collection")}`;
+          let finalCollectionImageUrl = '';
           if (collectionData.imageData) {
             finalCollectionImageUrl = `data:image/png;base64,${collectionData.imageData}`;
+            console.log(`[generateStoreFromPromptData] Using Gemini-generated image for collection "${collectionData.name}".`);
+          } else {
+            console.warn(`[generateStoreFromPromptData] Gemini image generation failed for collection "${collectionData.name}". Attempting Pexels fallback.`);
+            const pexelsQuery = `${collectionData.name} ${storeType} collection banner`;
+            try {
+              const pexelsImages = await fetchPexelsImages(pexelsQuery, 1, 'landscape');
+              if (pexelsImages && pexelsImages.length > 0 && pexelsImages[0].src?.large) {
+                finalCollectionImageUrl = pexelsImages[0].src.large;
+                console.log(`[generateStoreFromPromptData] Using Pexels fallback image for collection "${collectionData.name}": ${finalCollectionImageUrl}`);
+              } else {
+                finalCollectionImageUrl = `https://via.placeholder.com/400x200.png?text=${encodeURIComponent(collectionData.name || "Collection")}`;
+                console.warn(`[generateStoreFromPromptData] Pexels fallback also failed for collection "${collectionData.name}". Using placeholder.`);
+              }
+            } catch (pexelsError) {
+              console.error(`[generateStoreFromPromptData] Error fetching Pexels image for collection "${collectionData.name}":`, pexelsError);
+              finalCollectionImageUrl = `https://via.placeholder.com/400x200.png?text=${encodeURIComponent(collectionData.name || "Collection")}`;
+            }
           }
           generatedCollections.push({
             id: `collection-gemini-${generateId()}`, 
@@ -339,6 +533,7 @@ export const generateStoreFromPromptData = async (
           });
           existingCollectionNamesForPrompt.push(collectionData.name);
           console.log(`[generateStoreFromPromptData] Collection "${collectionData.name}" generated with ${collectionData.product_ids?.length || 0} products.`);
+          updateProgressCallback(collectionProgress, `Collection "${collectionData.name}" generated.`);
         } else {
           console.warn(`[generateStoreFromPromptData] Failed to generate complete data for collection ${i + 1}. Error: ${collectionData?.error}`);
         }
@@ -346,36 +541,103 @@ export const generateStoreFromPromptData = async (
         console.error(`[generateStoreFromPromptData] Error during collection generation attempt ${i + 1}:`, error);
       }
     }
+    updateProgressCallback(collectionGenerationStartProgress + collectionGenerationTotalProgress, `${generatedCollections.length} collections generated.`);
   } else {
     console.warn(`[generateStoreFromPromptData] Skipping collection generation as no products were generated for ${brandName}.`);
+    updateProgressCallback(collectionGenerationStartProgress + collectionGenerationTotalProgress, "Skipped collection generation (no products).");
   }
+  
+  updateProgressCallback(95, "Loading storefront...");
 
-  return {
+  // Define storeToReturn in the main scope
+  let storeToReturn = {
     id: storeId,
     name: brandName,
     template_version: templateVersion, 
     type: storeType,
-    description: aiContent.heroDescription,
+    description: (generatedHeroContent && !generatedHeroContent.error ? generatedHeroContent.heroDescription : baseAiContent.heroDescription),
     prompt,
     products: generatedProducts,
     collections: generatedCollections, 
     hero_image: heroMainImagePrompt,
     hero_video_url: heroVideos[0]?.url || null,
     hero_video_poster_url: heroVideos[0]?.image || null,
-    logo_url: actualLogoUrl, 
+    logo_url: defaultDisplayLogoUrl, // Default display logo
+    logo_url_light: finalLogoUrlLight, // Logo for dark backgrounds
+    logo_url_dark: finalLogoUrlDark,   // Logo for light backgrounds
     theme: {
-      primaryColor: getRandomColor(),
-      secondaryColor: getRandomColor(),
-        fontFamily: getRandomFont(),
-        layout: getRandomLayout(),
-      },
-      content: {
-        ...aiContent,
-        heroSlideshowImages: heroSlideShowImagesPrompt.map(img => ({ src: img.src.large, alt: img.alt || brandName + " hero image" }))
-      },
-      data_source: 'ai',
-      card_background_url: cardBackgroundUrlPrompt,
-    };
+      primaryColor: nicheDetails?.primaryColor || getRandomColor(),
+      secondaryColor: nicheDetails?.secondaryColor || getRandomColor(),
+      fontFamily: getRandomFont(), // Font could also be part of nicheDetails if desired
+      layout: getRandomLayout(),   // Layout could also be part of nicheDetails
+    },
+    content: {
+      ...baseAiContent, // Start with base content
+      // Overwrite with more specific hero content if generated successfully
+      ...(generatedHeroContent && !generatedHeroContent.error && { 
+          heroTitle: generatedHeroContent.heroTitle || baseAiContent.heroTitle, 
+          heroDescription: generatedHeroContent.heroDescription || baseAiContent.heroDescription 
+      }),
+      // Add storeWay content if generated successfully
+      ...(generatedStoreWayContent && !generatedStoreWayContent.error && { storeWay: generatedStoreWayContent }),
+      // Add storeFeatures content if generated successfully
+      ...(generatedStoreFeaturesContent && !generatedStoreFeaturesContent.error && { storeFeatures: generatedStoreFeaturesContent }),
+      heroSlideshowImages: heroSlideShowImagesPrompt.map(img => ({ src: img.src.large, alt: img.alt || brandName + " hero image" })),
+      // Initialize sharp-specific sections, will be populated below if template is 'sharp'
+      imageRightSection: null,
+      videoLeftSection: null,
+      // heroFollowUpVideoUrl and videoLeftSectionVideoUrl are now set conditionally based on templateVersion
+    },
+    data_source: 'ai',
+    card_background_url: cardBackgroundUrlPrompt,
+  };
+
+  // Add Sharp-specific content if template is 'sharp'
+  if (templateVersion === 'sharp') {
+    const productExamplesForSharp = generatedProducts.slice(0, 3).map(p => p.name).join(', ');
+    const irsContent = await generateImageRightSectionContent(storeInfoForContent, productExamplesForSharp);
+    if (irsContent && !irsContent.error) {
+      const pexelsImageQueryIRS = irsContent.title || `${brandName} craftsmanship`;
+      const pexelsImagesIRS = await fetchPexelsImages(pexelsImageQueryIRS, 1, 'landscape');
+      storeToReturn.content.imageRightSection = {
+        ...irsContent,
+        imageUrl: pexelsImagesIRS[0]?.src?.large || "https://images.pexels.com/photos/3184418/pexels-photo-3184418.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1"
+      };
+    }
+
+    const vlsContent = await generateVideoLeftSectionContent(storeInfoForContent, productExamplesForSharp);
+    if (vlsContent && !vlsContent.error) {
+      const pexelsVideoQueryVLS = vlsContent.title || `${brandName} product action`;
+      const pexelsVideosVLS = await fetchPexelsVideos(pexelsVideoQueryVLS, 1, 'landscape');
+      storeToReturn.content.videoLeftSection = {
+        ...vlsContent,
+        videoUrl: pexelsVideosVLS[0]?.url || null,
+        videoPosterUrl: pexelsVideosVLS[0]?.image || null
+      };
+    }
+    // Add heroFollowUpVideo and videoLeftSectionVideoUrl for sharp template (these were previously templateVersion === 'v1')
+    storeToReturn.content.heroFollowUpVideoUrl = heroFollowUpVideos[0]?.url || null;
+    storeToReturn.content.heroFollowUpVideoPosterUrl = heroFollowUpVideos[0]?.image || null;
+    // Note: videoLeftSectionVideos was already fetched, its URL is in storeToReturn.content.videoLeftSection.videoUrl
+    // If videoLeftSectionVideoUrl was meant to be a *different* video for sharp, it needs a separate Pexels fetch.
+    // Assuming it's the same as the one in the videoLeftSection content object.
+    
+  } else if (templateVersion === 'fresh') { // Example for 'fresh' (mapped from 'v2')
+     storeToReturn.content.featuresVideoUrl = featuresVideoData.url; // featuresVideoData was populated if templateVersion was 'v2'
+     storeToReturn.content.featuresVideoPosterUrl = featuresVideoData.poster;
+  }
+  // Clear out unused video URLs based on final templateVersion
+  if (templateVersion !== 'sharp') {
+    storeToReturn.content.heroFollowUpVideoUrl = null;
+    storeToReturn.content.heroFollowUpVideoPosterUrl = null;
+    // videoLeftSection is part of content object, so it will be null if not sharp
+  }
+  if (templateVersion !== 'fresh') {
+    storeToReturn.content.featuresVideoUrl = null;
+    storeToReturn.content.featuresVideoPosterUrl = null;
+  }
+
+  return storeToReturn;
 };
 
 export const fetchShopifyStoreMetadata = async (domain, token) => {
@@ -399,66 +661,96 @@ export const fetchShopifyLocalizationInfo = async (domain, token, countryCode = 
 };
 
 export const mapShopifyDataToInternalStore = async (shopifyStore, shopifyProducts, shopifyCollections, domain, { generateId = utilGenerateId } = {}, generatedLogoDataUrl = null) => {
-    const mappedProducts = shopifyProducts.map(p => ({
-      id: p.id, 
-      name: p.title,
-      description: p.description ? p.description.substring(0,250) + (p.description.length > 250 ? "..." : "") : 'No description available.',
-      price: parseFloat(p.variants?.edges[0]?.node.price?.amount || 0),
-      currencyCode: p.variants?.edges[0]?.node.price?.currencyCode || 'USD',
-      image: {
-        id: p.images?.edges[0]?.node.id || generateId(),
-        src: { medium: p.images?.edges[0]?.node.url || p.variants?.edges[0]?.node.image?.url || `https://via.placeholder.com/400x400.png?text=${encodeURIComponent(p.title)}` },
-        alt: p.images?.edges[0]?.node.altText || p.variants?.edges[0]?.node.image?.altText || p.title,
-      },
-      tags: p.tags, 
-      availableForSale: p.variants?.edges[0]?.node.availableForSale,
-      rating: (Math.random() * 1.5 + 3.5).toFixed(1), 
-      stock: Math.floor(Math.random() * 100) + 10, 
-    }));
+    const mappedProducts = shopifyProducts.map(p => {
+      // Get first variant for price and availability, or default
+      const firstVariant = p.variants?.edges[0]?.node;
+      // Get first image, or fallback to variant image, or placeholder
+      const mainImageNode = p.images?.edges[0]?.node;
+      const variantImageNode = firstVariant?.image;
+      const imageUrl = mainImageNode?.url || variantImageNode?.url || `https://via.placeholder.com/400x400.png?text=${encodeURIComponent(p.title || 'Product')}`;
+      const imageAlt = mainImageNode?.altText || variantImageNode?.altText || p.title || 'Product image';
+
+      return {
+        id: p.id, 
+        name: p.title || "Untitled Product",
+        description: p.description ? p.description.substring(0, 500) + (p.description.length > 500 ? "..." : "") : 'No description available.', // Increased substring length
+        price: parseFloat(firstVariant?.price?.amount || 0),
+        currencyCode: firstVariant?.price?.currencyCode || 'USD',
+        image: {
+          id: mainImageNode?.id || variantImageNode?.id || generateId(),
+          src: { medium: imageUrl },
+          alt: imageAlt,
+        },
+        tags: p.tags || [], 
+        availableForSale: firstVariant?.availableForSale || false,
+        // Retain existing random data for rating and stock as Shopify API doesn't provide these directly
+        rating: (Math.random() * 1.5 + 3.5).toFixed(1), 
+        stock: Math.floor(Math.random() * 100) + 10, 
+        // Store all variants if needed by internal model, or simplify as done
+        // For now, keeping it simple based on current usage. If full variant data is needed:
+        // variants: p.variants?.edges.map(vEdge => vEdge.node) || [], 
+      };
+    });
 
     const mappedCollections = shopifyCollections.map(c => ({
         id: c.id,
-        title: c.title,
-        description: c.description,
+        name: c.title || "Untitled Collection", // Changed from title to name for consistency
+        description: c.description || "",
         handle: c.handle,
-        productCount: c.products?.edges?.length || 0, 
+        // productCount: c.products?.edges?.length || 0, // This is from collection query, not always present on product's collection list
+        // If products are directly linked in the collection node from Shopify:
+        product_ids: c.products?.edges?.map(pEdge => pEdge.node.id) || [],
     }));
     
-    const primaryColor = shopifyStore.brand?.colors?.primary?.[0]?.background || getRandomColor();
+    // Corrected color access
+    const primaryBgColor = shopifyStore.brand?.colors?.primary?.background || getRandomColor();
+    const primaryFgColor = shopifyStore.brand?.colors?.primary?.foreground; // May not be used directly in theme if theme only takes BG
+    const secondaryBgColor = shopifyStore.brand?.colors?.secondary?.background || getRandomColor();
+    const secondaryFgColor = shopifyStore.brand?.colors?.secondary?.foreground;
+
     const heroImage = {
         id: generateId(),
-        src: { large: shopifyStore.brand?.coverImage?.image?.url || `https://via.placeholder.com/1200x800.png?text=${encodeURIComponent(shopifyStore.name)}` },
-        alt: shopifyStore.brand?.coverImage?.image?.altText || shopifyStore.name,
+        src: { large: shopifyStore.brand?.coverImage?.image?.url || `https://via.placeholder.com/1200x800.png?text=${encodeURIComponent(shopifyStore.name || 'Store')}` },
+        alt: shopifyStore.brand?.coverImage?.image?.altText || shopifyStore.name || 'Store Cover Image',
     };
+    
+    // Use image.url as per updated GET_SHOP_METADATA_QUERY if it was changed, or keep existing if image.url is correct path
     const shopifyProvidedLogo = shopifyStore.brand?.logo?.image?.url || shopifyStore.brand?.squareLogo?.image?.url;
-    const logoUrl = generatedLogoDataUrl || shopifyProvidedLogo || `https://via.placeholder.com/100x100.png?text=${shopifyStore.name.substring(0,1)}`;
-    const aiContent = generateAIStoreContent('general', shopifyStore.name); 
-    const cardBgImagesShopify = await utilFetchPexelsImages(`${shopifyStore.name} background`, 1, 'landscape');
+    const logoUrl = generatedLogoDataUrl || shopifyProvidedLogo || `https://via.placeholder.com/100x100.png?text=${(shopifyStore.name || "S").substring(0,1)}`;
+    
+    const aiContent = generateAIStoreContent('general', shopifyStore.name || "Imported Store"); 
+    const cardBgImagesShopify = await utilFetchPexelsImages(`${shopifyStore.name || "store"} background`, 1, 'landscape');
     const cardBackgroundUrlShopify = cardBgImagesShopify[0]?.src?.large || cardBgImagesShopify[0]?.src?.original || '';
 
     return {
-      id: `store-shopify-${shopifyStore.primaryDomain.host.replace(/\./g, '-')}-${generateId()}`,
-      name: shopifyStore.name,
+      id: `store-shopify-${(shopifyStore.primaryDomain?.host || domain || generateId()).replace(/\./g, '-')}-${generateId()}`,
+      name: shopifyStore.name || "Imported Shopify Store",
       type: 'shopify-imported',
       description: shopifyStore.description || shopifyStore.brand?.shortDescription || shopifyStore.brand?.slogan || aiContent.heroDescription,
       products: mappedProducts, 
+      collections: mappedCollections, // Added mapped collections
       hero_image: heroImage,
       logo_url: logoUrl,
       theme: {
-        primaryColor: primaryColor,
-        secondaryColor: shopifyStore.brand?.colors?.secondary?.[0]?.background || getRandomColor(),
+        primaryColor: primaryBgColor,
+        secondaryColor: secondaryBgColor,
+        // Store foreground colors if your theme system uses them
+        // primaryForegroundColor: primaryFgColor, 
+        // secondaryForegroundColor: secondaryFgColor,
         fontFamily: getRandomFont(), 
         layout: getRandomLayout(),
       },
       content: {
           ...aiContent, 
-          heroTitle: `Welcome to ${shopifyStore.name}`,
+          heroTitle: `Welcome to ${shopifyStore.name || "Our Store"}`,
           heroDescription: shopifyStore.description || shopifyStore.brand?.shortDescription || shopifyStore.brand?.slogan || aiContent.heroDescription,
           brandSlogan: shopifyStore.brand?.slogan,
           brandShortDescription: shopifyStore.brand?.shortDescription,
       },
       data_source: 'shopify',
-      card_background_url: cardBackgroundUrlShopify
+      card_background_url: cardBackgroundUrlShopify,
+      // Store raw Shopify brand colors if needed for more advanced theming later
+      // shopifyBrandColors: shopifyStore.brand?.colors || null,
     };
 };
 

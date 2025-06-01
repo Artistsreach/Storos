@@ -1,10 +1,26 @@
 import React from 'react';
 import { Button } from '../../../ui/button'; // Adjusted path
 import { Star, ShoppingCart, Heart, Share2 } from 'lucide-react';
+import { useStore } from '../../../../contexts/StoreContext'; // Import useStore
 
-const ProductHero = ({ product, store }) => {
-  // Placeholder for Product Hero section (typically on a product detail page)
-  // This would display detailed information about a single product.
+const ProductHero = ({ product, store: storeProp }) => { // Rename store to storeProp
+  const { store: contextStore } = useStore(); // Get store from context for theme
+  const store = contextStore || storeProp; // Prioritize contextStore
+
+  const primaryColor = store?.theme?.primaryColor || "#6366F1"; // Default if no theme
+
+  // Helper function to generate a slightly darker shade
+  const getDarkerShade = (color, percent = 20) => {
+    if (!color.startsWith("#")) return color;
+    let num = parseInt(color.slice(1), 16),
+      amt = Math.round(2.55 * percent),
+      R = (num >> 16) - amt,
+      G = (num >> 8 & 0x00FF) - amt,
+      B = (num & 0x0000FF) - amt;
+    R = Math.max(0, R); G = Math.max(0, G); B = Math.max(0, B);
+    return "#" + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+  };
+  const secondaryColor = getDarkerShade(primaryColor, 20);
 
   const currentProduct = product || {
     name: "Premium Product Name",
@@ -47,7 +63,7 @@ const ProductHero = ({ product, store }) => {
               </div>
               <span className="text-gray-600 dark:text-gray-400">({currentProduct.reviewCount} reviews)</span>
             </div>
-            <p className="text-2xl font-semibold text-purple-600 dark:text-purple-400 premium-font-body">
+            <p className="text-2xl font-semibold premium-font-body" style={{ color: primaryColor }}>
               ${currentProduct.price.toFixed(2)}
             </p>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed premium-font-body">
@@ -55,14 +71,27 @@ const ProductHero = ({ product, store }) => {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
-              <Button size="lg" className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white text-lg flex-grow">
+              <Button
+                size="lg"
+                className="text-white text-lg flex-grow"
+                style={{ background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` }}
+                onMouseEnter={(e) => e.currentTarget.style.background = `linear-gradient(to right, ${getDarkerShade(primaryColor, -10)}, ${getDarkerShade(secondaryColor, -10)})`}
+                onMouseLeave={(e) => e.currentTarget.style.background = `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`}
+              >
                 <ShoppingCart className="mr-2 h-5 w-5" /> Add to Cart
               </Button>
               <Button variant="outline" size="lg" className="text-lg flex-grow">
                 <Heart className="mr-2 h-5 w-5" /> Add to Wishlist
               </Button>
             </div>
-             <Button variant="ghost" size="sm" className="text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 mt-4">
+             <Button
+              variant="ghost"
+              size="sm"
+              className="text-gray-600 dark:text-gray-400 mt-4"
+              style={{ '--hover-text-color': primaryColor, '--dark-hover-text-color': secondaryColor }}
+              onMouseEnter={(e) => e.currentTarget.style.color = document.documentElement.classList.contains('dark') ? secondaryColor : primaryColor}
+              onMouseLeave={(e) => e.currentTarget.style.color = ''}
+            >
                 <Share2 className="mr-2 h-4 w-4" /> Share
             </Button>
           </div>

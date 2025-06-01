@@ -20,9 +20,10 @@ import {
   useTransform,
   AnimatePresence,
 } from "framer-motion";
-import ReplaceVideoModal from "../../premium/ReplaceVideoModal"; // Corrected path to premium component
+import ReplaceVideoModal from "../ReplaceVideoModal";
 import { useStore } from "../../../../contexts/StoreContext"; // Corrected path
 import InlineTextEdit from "../../../ui/InlineTextEdit"; // Corrected path
+import { searchPexelsVideos } from "../../../../lib/pexels"; // Added import
 import { Badge } from "../../../ui/badge"; // Corrected path
 
 const StoreHero = ({ store, isPublishedView = false }) => {
@@ -30,6 +31,13 @@ const StoreHero = ({ store, isPublishedView = false }) => {
   const [isReplaceModalOpen, setIsReplaceModalOpen] = useState(false);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [displayVideoUrl, setDisplayVideoUrl] = useState(store?.hero_video_url || "");
+  const [displayImageUrl, setDisplayImageUrl] = useState(
+    store?.heroImage?.src?.large ||
+    store?.heroImage?.url ||
+    store?.hero_video_poster_url ||
+    "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=1200&q=80"
+  );
   const { scrollY } = useScroll();
 
   // Parallax effects
@@ -48,34 +56,38 @@ const StoreHero = ({ store, isPublishedView = false }) => {
   const feature3Text = store?.content?.heroFeature3Text || "Fast Shipping";
   const primaryCtaText = store?.content?.heroPrimaryCtaText || "Shop Now";
   const secondaryCtaText = store?.content?.heroSecondaryCtaText || "Learn More";
-
-  const videoUrl = store?.hero_video_url || "https://videos.pexels.com/video-files/4691532/4691532-hd_1280_720_30fps.mp4"; // General placeholder video
-  const imageUrl =
-    store?.heroImage?.src?.large ||
-    store?.heroImage?.url ||
-    store?.hero_video_poster_url ||
-    "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=1200&q=80"; // General product placeholder image
+  
   const primaryCtaLink = `#products-${store?.id || "featured-products"}`;
   const secondaryCtaLink = `#features-${store?.id || "features"}`;
-  // const primaryColor = store?.theme?.primaryColor || "#DC2626";
+  
+  const fallbackImageUrl = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=1200&q=80";
 
-  // General background images
+  // displayVideoUrl and displayImageUrl are initialized from props directly or fallbacks.
+  // The store generation step is now responsible for populating these from Pexels if needed.
+  useEffect(() => {
+    setDisplayVideoUrl(store?.hero_video_url || ""); // Use pre-populated URL or empty
+    setDisplayImageUrl(
+      store?.hero_video_poster_url || // Prioritize video poster from generation
+      store?.heroImage?.src?.large ||
+      store?.heroImage?.url ||
+      fallbackImageUrl
+    );
+  }, [store?.hero_video_url, store?.hero_video_poster_url, store?.heroImage?.src?.large, store?.heroImage?.url]);
+
   const backgroundImages = [
-    imageUrl,
+    displayImageUrl, // This will be the poster or hero image
     "https://images.unsplash.com/photo-1481437156560-3205f6a85705?w=1200&q=80",
     "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=1200&q=80",
-    "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=1200&q=80",
-  ];
+  ].filter(Boolean);
 
-  // Rotate background images every 6 seconds
   useEffect(() => {
-    if (!videoUrl) {
+    if (!displayVideoUrl && backgroundImages.length > 0) {
       const interval = setInterval(() => {
         setCurrentImageIndex((prev) => (prev + 1) % backgroundImages.length);
       }, 6000);
       return () => clearInterval(interval);
     }
-  }, [videoUrl, backgroundImages.length]);
+  }, [displayVideoUrl, backgroundImages]);
 
   const handleScrollTo = (event, targetId) => {
     event.preventDefault();
@@ -94,7 +106,7 @@ const StoreHero = ({ store, isPublishedView = false }) => {
       try {
         await updateStore(storeId, {
           hero_video_url: newVideoUrl,
-          hero_video_poster_url: "",
+          hero_video_poster_url: "", 
         });
       } catch (error) {
         console.error("Failed to update store with new video URL:", error);
@@ -102,7 +114,6 @@ const StoreHero = ({ store, isPublishedView = false }) => {
     }
   };
 
-  // Animation variants
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -130,9 +141,9 @@ const StoreHero = ({ store, isPublishedView = false }) => {
   const floatingVariants = {
     animate: {
       y: [-10, 10, -10],
-      rotate: [0, 2, 0, -2, 0], // Reduced rotation for a sharper feel
+      rotate: [0, 2, 0, -2, 0],
       transition: {
-        duration: 10, // Slower, more subtle
+        duration: 10,
         repeat: Infinity,
         ease: "easeInOut",
       },
@@ -140,11 +151,10 @@ const StoreHero = ({ store, isPublishedView = false }) => {
   };
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-red-950 text-white">
-      {/* Animated background elements - more subtle for sharp theme */}
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-blue-950 text-white">
       <div className="absolute inset-0 overflow-hidden">
         <motion.div
-          className="absolute top-1/4 left-1/4 w-96 h-96 bg-red-700/10 rounded-full blur-3xl opacity-50"
+          className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-700/10 rounded-full blur-3xl opacity-50"
           animate={{
             scale: [1, 1.1, 1],
             opacity: [0.1, 0.2, 0.1],
@@ -152,7 +162,7 @@ const StoreHero = ({ store, isPublishedView = false }) => {
           transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
         />
         <motion.div
-          className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-orange-600/10 rounded-full blur-3xl opacity-40"
+          className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-blue-600/10 rounded-full blur-3xl opacity-40"
           animate={{
             scale: [1.1, 1, 1.1],
             opacity: [0.05, 0.15, 0.05],
@@ -161,16 +171,15 @@ const StoreHero = ({ store, isPublishedView = false }) => {
         />
       </div>
 
-      {/* Floating decorative elements - more tactical */}
       <motion.div
-        className="absolute top-1/4 left-10 text-red-500/20"
+        className="absolute top-1/4 left-10 text-blue-500/20"
         variants={floatingVariants}
         animate="animate"
       >
         <Shield className="w-10 h-10" />
       </motion.div>
       <motion.div
-        className="absolute bottom-1/3 right-10 text-orange-500/20"
+        className="absolute bottom-1/3 right-10 text-blue-500/20"
         variants={floatingVariants}
         animate="animate"
         transition={{ delay: 3 }}
@@ -178,7 +187,7 @@ const StoreHero = ({ store, isPublishedView = false }) => {
         <Target className="w-8 h-8" />
       </motion.div>
       <motion.div
-        className="absolute top-2/3 left-1/3 text-yellow-500/10" // Very subtle
+        className="absolute top-2/3 left-1/3 text-yellow-500/10"
         variants={floatingVariants}
         animate="animate"
         transition={{ delay: 6 }}
@@ -187,21 +196,19 @@ const StoreHero = ({ store, isPublishedView = false }) => {
       </motion.div>
 
       <motion.div
-        className="container mx-auto px-6 relative z-10"
+        className="container mx-auto px-6 relative z-10 pt-[55px]"
         style={{ y, opacity }}
       >
         <motion.div
-          className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center min-h-[80vh]" // Slightly less than full screen
+          className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center min-h-[80vh]"
           variants={containerVariants}
           initial="hidden"
           animate="visible"
         >
-          {/* Text Content */}
           <motion.div
             variants={itemVariants}
-            className="text-center lg:text-left space-y-8" // Reduced spacing
+            className="text-center lg:text-left space-y-8"
           >
-            {/* Mission Badge */}
             <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -209,7 +216,7 @@ const StoreHero = ({ store, isPublishedView = false }) => {
             >
               <Badge
                 variant="outline"
-                className="px-4 py-2 bg-red-900/40 text-red-300 border-red-700/60 font-mono uppercase tracking-widest text-xs"
+                className="px-4 py-2 bg-blue-900/40 text-blue-300 border-blue-700/60 font-mono uppercase tracking-widest text-xs"
               >
                 <Star className="w-4 h-4 mr-2" />
                 <InlineTextEdit
@@ -217,13 +224,12 @@ const StoreHero = ({ store, isPublishedView = false }) => {
                   onSave={(newText) => updateStoreTextContent('heroBadgeText', newText)}
                   isAdmin={!isPublishedView && viewMode === 'edit'}
                   as="span"
-                  textClassName="" // Inherits from Badge
+                  textClassName=""
                   inputClassName="bg-transparent"
                 />
               </Badge>
             </motion.div>
 
-            {/* Main Title */}
             <InlineTextEdit
               initialText={title}
               onSave={(newText) => updateStoreTextContent('heroTitle', newText)}
@@ -231,12 +237,12 @@ const StoreHero = ({ store, isPublishedView = false }) => {
               as="h1"
               textClassName="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-extrabold leading-tight tracking-tighter font-mono uppercase"
               inputClassName="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-extrabold leading-tight tracking-tighter font-mono uppercase bg-transparent"
-              className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-extrabold leading-tight tracking-tighter font-mono uppercase" // Adjusted sizes and tracking
+              className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-extrabold leading-tight tracking-tighter font-mono uppercase"
             >
               <motion.span
-                className="bg-gradient-to-r from-slate-100 via-red-400 to-orange-400 bg-clip-text text-transparent"
+                className="bg-gradient-to-r from-slate-100 via-blue-400 to-sky-400 bg-clip-text text-transparent"
                 animate={{
-                  backgroundPosition: ["0% 50%", "200% 50%"], // Faster animation
+                  backgroundPosition: ["0% 50%", "200% 50%"],
                 }}
                 transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
                 style={{
@@ -247,7 +253,6 @@ const StoreHero = ({ store, isPublishedView = false }) => {
               </motion.span>
             </InlineTextEdit>
 
-            {/* Subtitle */}
             <InlineTextEdit
               initialText={subtitle}
               onSave={(newText) => updateStoreTextContent('heroDescription', newText)}
@@ -255,11 +260,10 @@ const StoreHero = ({ store, isPublishedView = false }) => {
               as="p"
               textClassName="text-lg md:text-xl text-slate-300 max-w-xl mx-auto lg:mx-0 leading-relaxed"
               inputClassName="text-lg md:text-xl text-slate-300 max-w-xl mx-auto lg:mx-0 leading-relaxed bg-transparent"
-              className="text-lg md:text-xl text-slate-300 max-w-xl mx-auto lg:mx-0 leading-relaxed" // Max width for readability
+              className="text-lg md:text-xl text-slate-300 max-w-xl mx-auto lg:mx-0 leading-relaxed"
               useTextarea={true}
             />
 
-            {/* Mission Features */}
             <motion.div
               className="flex flex-wrap justify-center lg:justify-start gap-x-6 gap-y-3 text-xs"
               variants={itemVariants}
@@ -272,9 +276,9 @@ const StoreHero = ({ store, isPublishedView = false }) => {
                 <motion.div
                   key={idx}
                   className="flex items-center gap-2 text-slate-400"
-                  whileHover={{ scale: 1.05, color: store?.theme?.primaryColor || "#f87171" }}
+                  whileHover={{ scale: 1.05, color: store?.theme?.primaryColor || "#60A5FA" }} // blue-400
                 >
-                  <feature.icon className="w-4 h-4" style={{color: store?.theme?.primaryColor || "#DC2626"}} />
+                  <feature.icon className="w-4 h-4" style={{color: store?.theme?.primaryColor || "#2563EB"}} /> {/* blue-600 */}
                   <InlineTextEdit
                     initialText={feature.text}
                     onSave={(newText) => updateStoreTextContent(feature.identifier, newText)}
@@ -287,16 +291,15 @@ const StoreHero = ({ store, isPublishedView = false }) => {
               ))}
             </motion.div>
 
-            {/* CTA Buttons */}
             <motion.div
-              className="flex flex-col sm:flex-row justify-center lg:justify-start gap-4 pt-6" // Reduced gap
+              className="flex flex-col sm:flex-row justify-center lg:justify-start gap-4 pt-6"
               variants={itemVariants}
             >
               <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
                 <Button
                   asChild
                   size="lg"
-                  className="group relative overflow-hidden rounded-md px-8 py-3 text-base font-semibold shadow-lg transition-all duration-300 bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-700 hover:to-orange-600 text-white border-0 font-mono uppercase tracking-wider"
+                  className="group relative overflow-hidden rounded-md px-8 py-3 text-base font-semibold shadow-lg transition-all duration-300 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white border-0 font-mono uppercase tracking-wider"
                 >
                   <Link
                     to={primaryCtaLink}
@@ -324,7 +327,7 @@ const StoreHero = ({ store, isPublishedView = false }) => {
                   asChild
                   variant="outline"
                   size="lg"
-                  className="group rounded-md px-8 py-3 text-base font-semibold border-2 border-red-600/70 text-red-400 hover:bg-red-600/10 hover:border-red-500 transition-all duration-300 backdrop-blur-sm font-mono uppercase tracking-wider"
+                  className="group rounded-md px-8 py-3 text-base font-semibold border-2 border-blue-600/70 text-blue-400 hover:bg-blue-600/10 hover:border-blue-500 transition-all duration-300 backdrop-blur-sm font-mono uppercase tracking-wider"
                 >
                   <Link
                     to={secondaryCtaLink}
@@ -347,13 +350,12 @@ const StoreHero = ({ store, isPublishedView = false }) => {
             </motion.div>
           </motion.div>
 
-          {/* Visual Content */}
           <motion.div
             variants={itemVariants}
-            className="relative aspect-video lg:aspect-[16/10] max-w-2xl mx-auto" // Adjusted aspect ratio
+            className="relative aspect-video lg:aspect-[16/10] max-w-2xl mx-auto"
           >
             <div className="relative w-full h-full rounded-lg overflow-hidden shadow-2xl border-2 border-slate-700/50">
-              {!isPublishedView && (videoUrl || imageUrl) && (
+              {!isPublishedView && (displayVideoUrl || displayImageUrl) && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -362,7 +364,7 @@ const StoreHero = ({ store, isPublishedView = false }) => {
                   <Button
                     variant="outline"
                     size="icon"
-                    className="absolute top-3 right-3 z-20 bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-red-400 backdrop-blur-sm border-slate-600 rounded-md shadow-md"
+                    className="absolute top-3 right-3 z-20 bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-blue-400 backdrop-blur-sm border-slate-600 rounded-md shadow-md"
                     onClick={handleOpenReplaceModal}
                     title="Replace Media"
                   >
@@ -371,12 +373,12 @@ const StoreHero = ({ store, isPublishedView = false }) => {
                 </motion.div>
               )}
 
-              {videoUrl ? (
+              {displayVideoUrl ? (
                 <div className="relative w-full h-full group">
                   <video
-                    key={videoUrl}
-                    src={videoUrl}
-                    poster={imageUrl}
+                    key={displayVideoUrl}
+                    src={displayVideoUrl}
+                    poster={displayImageUrl}
                     autoPlay
                     loop
                     muted
@@ -394,7 +396,7 @@ const StoreHero = ({ store, isPublishedView = false }) => {
                         exit={{ opacity: 0, scale: 0.7 }}
                         className="absolute inset-0 flex items-center justify-center"
                       >
-                        <div className="w-16 h-16 bg-red-600/70 backdrop-blur-sm rounded-full flex items-center justify-center border border-red-500/60 shadow-xl">
+                        <div className="w-16 h-16 bg-blue-600/70 backdrop-blur-sm rounded-full flex items-center justify-center border border-blue-500/60 shadow-xl">
                           <Play className="w-6 h-6 text-white ml-0.5" />
                         </div>
                       </motion.div>
@@ -402,21 +404,23 @@ const StoreHero = ({ store, isPublishedView = false }) => {
                   </AnimatePresence>
                 </div>
               ) : (
-                <div className="relative w-full h-full">
-                  <AnimatePresence mode="sync">
-                    <motion.img
-                      key={currentImageIndex}
-                      src={backgroundImages[currentImageIndex]}
-                      alt="Tactical Gear"
-                      className="absolute inset-0 w-full h-full object-cover"
-                      initial={{ opacity: 0.7, filter: "blur(4px)" }}
-                      animate={{ opacity: 1, filter: "blur(0px)" }}
-                      exit={{ opacity: 0.7, filter: "blur(4px)" }}
-                      transition={{ duration: 1 }}
-                    />
-                  </AnimatePresence>
-                  <div className="absolute inset-0 bg-gradient-to-br from-red-900/20 via-transparent to-orange-900/20" />
-                </div>
+                backgroundImages.length > 0 && (
+                  <div className="relative w-full h-full">
+                    <AnimatePresence mode="sync">
+                      <motion.img
+                        key={currentImageIndex}
+                        src={backgroundImages[currentImageIndex]}
+                        alt="Store hero background"
+                        className="absolute inset-0 w-full h-full object-cover"
+                        initial={{ opacity: 0.7, filter: "blur(4px)" }}
+                        animate={{ opacity: 1, filter: "blur(0px)" }}
+                        exit={{ opacity: 0.7, filter: "blur(4px)" }}
+                        transition={{ duration: 1 }}
+                      />
+                    </AnimatePresence>
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-transparent to-sky-900/20" />
+                  </div>
+                )
               )}
             </div>
           </motion.div>
@@ -428,7 +432,7 @@ const StoreHero = ({ store, isPublishedView = false }) => {
           open={isReplaceModalOpen}
           onOpenChange={setIsReplaceModalOpen}
           storeId={storeId}
-          currentVideoUrl={videoUrl}
+          currentVideoUrl={displayVideoUrl}
           onVideoReplaced={handleVideoReplaced}
         />
       )}

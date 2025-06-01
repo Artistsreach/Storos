@@ -3,9 +3,26 @@ import { Star, Users, MessageSquare } from 'lucide-react';
 import InlineTextEdit from '../../../ui/InlineTextEdit';
 import { useStore } from '../../../../contexts/StoreContext';
 
-const SocialProof = ({ store, isPublishedView = false }) => {
+const SocialProof = ({ store: storeProp, isPublishedView = false }) => { // Renamed store to storeProp
+  const { updateStoreTextContent, viewMode, store: contextStore } = useStore(); // Get store from context for theme
+  const store = contextStore || storeProp; // Prioritize contextStore
   const { content, id: storeId } = store;
-  const { updateStoreTextContent, viewMode } = useStore();
+
+  const primaryColor = store?.theme?.primaryColor || "#6366F1"; // Default if no theme
+
+  // Helper function to generate a slightly darker shade
+  const getDarkerShade = (color, percent = 20) => {
+    if (!color.startsWith("#")) return color;
+    let num = parseInt(color.slice(1), 16),
+      amt = Math.round(2.55 * percent),
+      R = (num >> 16) - amt,
+      G = (num >> 8 & 0x00FF) - amt,
+      B = (num & 0x0000FF) - amt;
+    R = Math.max(0, R); G = Math.max(0, G); B = Math.max(0, B);
+    return "#" + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+  };
+  const secondaryColor = getDarkerShade(primaryColor, 20);
+
 
   const sectionTitle = content?.socialProofSectionTitle || "Trusted by Thousands";
   const defaultTestimonials = [
@@ -28,7 +45,7 @@ const SocialProof = ({ store, isPublishedView = false }) => {
     identifierAuthor: `content.socialProofTestimonials.${i}.author`,
   }));
 
-  const ctaText = content?.socialProofCtaText || `Join over <span class="font-bold text-purple-600 dark:text-purple-400">10,000+</span> happy customers!`;
+  const ctaText = content?.socialProofCtaText || `Join over <span class="font-bold" style="color: ${primaryColor}">10,000+</span> happy customers!`;
 
 
   return (
@@ -63,11 +80,14 @@ const SocialProof = ({ store, isPublishedView = false }) => {
                 inputClassName="text-gray-600 dark:text-gray-300 mb-6 italic premium-font-body bg-transparent"
                 className="text-gray-600 dark:text-gray-300 mb-6 italic premium-font-body"
                 useTextarea={true}
-              >
-                "{testimonial.quote}"
+                >
+                  "{testimonial.quote}"
               </InlineTextEdit>
               <div className="flex items-center">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold mr-3">
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold mr-3"
+                  style={{ background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` }}
+                >
                   {(testimonial.author || "A").substring(0, 1)}
                 </div>
                 <InlineTextEdit

@@ -58,10 +58,10 @@ const ShopifyConnectForm = ({ open, onOpenChange, onSuccessfulConnect }) => { //
         onOpenChange(isOpen);
       }
     }}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] sm:rounded-xl"> {/* Added sm:rounded-xl */}
         <DialogHeader>
           <DialogTitle>Connect to Shopify</DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-slate-500 dark:text-slate-400"> {/* Adjusted text color */}
             Enter your Shopify store domain and Storefront Access Token to begin importing.
           </DialogDescription>
         </DialogHeader>

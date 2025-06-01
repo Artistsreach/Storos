@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useStore } from '@/contexts/StoreContext';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { storage } from '@/lib/firebaseClient'; 
+import { ref, uploadString, getDownloadURL, uploadBytes } from 'firebase/storage'; 
 import StoreHeader from '@/components/store/StoreHeader';
 import StoreFooter from '@/components/store/StoreFooter';
 import { Button } from '@/components/ui/button';
@@ -9,21 +12,22 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { fetchPexelsImages, generateImageWithGemini, generateId } from '@/lib/utils';
-import { editImageWithGemini } from '@/lib/geminiImageGeneration';
-import { ShoppingCart, Star, ImageDown as ImageUp, Wand, Loader2, ArrowLeft, Replace, Edit3, VideoIcon, UploadCloud } from 'lucide-react';
+import { editImageWithGemini, generateDifferentAnglesFromImage } from '@/lib/geminiImageGeneration'; 
+import { ShoppingCart, Star, ImageDown as ImageUp, Wand, Loader2, ArrowLeft, Replace, Edit3, VideoIcon, UploadCloud, Box, Layers, Trash2 as DeleteIcon } from 'lucide-react'; 
 import { motion } from 'framer-motion';
 import { useToast } from '@/components/ui/use-toast';
 import GenerateProductVideoModal from '@/components/product/GenerateProductVideoModal';
+import Generate3DModelModal from '@/components/product/Generate3DModelModal';
+import Model3DViewer from '@/components/product/Model3DViewer';
 import ProductVisualizer from '@/components/product/ProductVisualizer';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { ReactCompareSlider, ReactCompareSliderImage } from 'react-compare-slider'; 
 
 const ProductDetail = () => {
   const params = useParams();
-  const storeId = params.storeId;
+  const storeName = params.storeName; 
   
-  // Helper to check if a string is likely Base64
-  // A simple check: Base64 encoded GIDs will be longer and won't contain '://'
   const isBase64 = (str) => {
     if (typeof str !== 'string' || str.includes('://')) return false;
     try {
@@ -40,20 +44,21 @@ const ProductDetail = () => {
       decodedProductId = atob(productIdFromUrl);
     } catch (e) {
       console.error("Failed to decode Base64 productId:", productIdFromUrl, e);
-      // Keep original if decoding fails, though this shouldn't happen if isBase64 passed
     }
   }
-  const productId = decodedProductId; // Use the decoded ID for fetching
+  const productId = decodedProductId; 
 
-  // const location = useLocation(); // No longer needed for isPublishedView
-  const { getStoreById, getProductById, addToCart, updateProductImage, updateStore, isLoadingStores, viewMode } = useStore();
+  const { getStoreByName, getProductById, updateProductImage, updateStore, isLoadingStores, viewMode, updateProductImagesArray } = useStore(); 
   const isPublishedView = viewMode === 'published';
   const { toast } = useToast();
   const navigate = useNavigate();
+  const functions = getFunctions(); 
 
   const [store, setStore] = useState(null);
   const [product, setProduct] = useState(null);
   const [quantity, setQuantity] = useState(1);
+  const [selectedVariants, setSelectedVariants] = useState({});
+  const [currentResolvedSku, setCurrentResolvedSku] = useState(null); 
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [imageSearchQuery, setImageSearchQuery] = useState('');
   const [searchedImages, setSearchedImages] = useState([]);
@@ -65,6 +70,94 @@ const ProductDetail = () => {
 
   const [isProductVideoModalOpen, setIsProductVideoModalOpen] = useState(false);
   const [currentProductVideoUrl, setCurrentProductVideoUrl] = useState('');
+  
+  const [is3DModelModalOpen, setIs3DModelModalOpen] = useState(false);
+  const [current3DModelUrl, setCurrent3DModelUrl] = useState('');
+  const [current3DThumbnailUrl, setCurrent3DThumbnailUrl] = useState('');
+
+  const [activeImageUrl, setActiveImageUrl] = useState('');
+  const [imageGallery, setImageGallery] = useState([]);
+  const [isVisualizingVariant, setIsVisualizingVariant] = useState(false);
+  const [visualizationError, setVisualizationError] = useState(null);
+  const [visualizedVariantThumbnailUrl, setVisualizedVariantThumbnailUrl] = useState('');
+  const [originalImageForComparison, setOriginalImageForComparison] = useState(''); 
+  const [isGeneratingAnglesOnDetail, setIsGeneratingAnglesOnDetail] = useState(false);
+  const [isCreatingCheckout, setIsCreatingCheckout] = useState(false); 
+
+  // Helper to convert data URL to Blob
+  const dataURLtoBlob = (dataurl) => {
+    let arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+        bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+    while(n--){
+        u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], {type:mime});
+  }
+
+  const handleGenerateAnglesOnDetail = async () => {
+    if (!activeImageUrl || !product || !store) {
+      toast({ title: "Missing data", description: "Cannot generate angles without an active image, product, or store context.", variant: "destructive" });
+      return;
+    }
+    setIsGeneratingAnglesOnDetail(true);
+    try {
+      const { base64ImageData, mimeType } = await convertImageSrcToBasics(activeImageUrl);
+      const newAngleImageUrls = await generateDifferentAnglesFromImage(base64ImageData, mimeType, product.name || "Product");
+
+      if (newAngleImageUrls && newAngleImageUrls.length > 0) {
+        const uploadedAngleUrls = [];
+        for (const dataUrl of newAngleImageUrls) {
+          if (dataUrl.startsWith('data:')) {
+            const blob = dataURLtoBlob(dataUrl);
+            const imageName = `angle-${Date.now()}-${Math.random().toString(36).substring(2, 15)}.png`;
+            const storagePath = `products/${store.id}/${product.id}/angles/${imageName}`;
+            const imageRef = ref(storage, storagePath);
+            await uploadBytes(imageRef, blob);
+            const downloadURL = await getDownloadURL(imageRef);
+            uploadedAngleUrls.push(downloadURL);
+          } else {
+            uploadedAngleUrls.push(dataUrl); // If it's already a URL
+          }
+        }
+        
+        const newGalleryImages = uploadedAngleUrls.map((url, index) => ({
+          id: `angle-${product.id}-${imageGallery.length + index}-${generateId()}`,
+          src: { medium: url, large: url },
+          alt: `${product.name} - Angle ${imageGallery.length + index + 1}`
+        }));
+        
+        const updatedImageGallery = [...imageGallery, ...newGalleryImages];
+        setImageGallery(updatedImageGallery);
+        const allImageUrlsForProduct = updatedImageGallery.map(img => img.src.large || img.src.medium);
+        await updateProductImagesArray(store.id, product.id, allImageUrlsForProduct);
+        toast({ title: "Angles Generated & Stored", description: `${uploadedAngleUrls.length} new angle images added to gallery and storage.` });
+      } else {
+        toast({ title: "No Angles Generated", description: "The AI did not return any new angle images.", variant: "default" });
+      }
+    } catch (error) {
+      console.error("Error generating or storing angles on detail page:", error);
+      toast({ title: "Angle Generation/Storage Failed", description: error.message, variant: "destructive" });
+    }
+    setIsGeneratingAnglesOnDetail(false);
+  };
+
+  const handleDeleteImageFromGallery = async (imageIdToDelete) => {
+    if (!store || !product) return;
+    const updatedGallery = imageGallery.filter(img => img.id !== imageIdToDelete);
+    if (updatedGallery.length === 0) {
+      const placeholderUrl = `https://via.placeholder.com/600x600.png?text=${encodeURIComponent(product.name || 'Product')}`;
+      setImageGallery([{ id: `placeholder-${product.id}`, src: { medium: placeholderUrl, large: placeholderUrl }, alt: product.name || 'Product image' }]);
+      setActiveImageUrl(placeholderUrl);
+    } else {
+      setImageGallery(updatedGallery);
+      if (activeImageUrl === imageGallery.find(img => img.id === imageIdToDelete)?.src.large || activeImageUrl === imageGallery.find(img => img.id === imageIdToDelete)?.src.medium) {
+        setActiveImageUrl(updatedGallery[0].src.large || updatedGallery[0].src.medium);
+      }
+    }
+    const allImageUrlsForProduct = updatedGallery.map(img => img.src.large || img.src.medium).filter(url => !url.includes('via.placeholder.com'));
+    await updateProductImagesArray(store.id, product.id, allImageUrlsForProduct);
+    toast({ title: "Image Deleted", description: "Image removed from gallery.", variant: "destructive" });
+  };
 
   const convertImageSrcToBasics = useCallback((imageSrc) => {
     return new Promise((resolve, reject) => {
@@ -114,72 +207,202 @@ const ProductDetail = () => {
   }, []);
 
   const handleImageEditSave = useCallback(async () => {
-    if (!imageEditPrompt.trim() || !product || !product.image?.src?.medium) {
-      toast({ title: "Missing data", description: "Original image or edit prompt is missing.", variant: "destructive" });
+    if (!imageEditPrompt.trim() || !activeImageUrl || !product || !store) {
+      toast({ title: "Missing data", description: "Active image, edit prompt, product, or store context is missing.", variant: "destructive" });
       return;
     }
     setIsEditingImage(true);
     try {
-      const currentImageSrc = product.image.src.medium; 
-      const { base64ImageData, mimeType } = await convertImageSrcToBasics(currentImageSrc);
-      
+      const { base64ImageData, mimeType } = await convertImageSrcToBasics(activeImageUrl);
       const result = await editImageWithGemini(base64ImageData, mimeType, imageEditPrompt);
       
-      if (result && result.editedImageData) {
-        const newImageDataUrl = `data:${result.newMimeType};base64,${result.editedImageData}`;
+      if (result && result.editedImageData && result.newMimeType) {
+        const editedDataUrl = `data:${result.newMimeType};base64,${result.editedImageData}`;
+        const blob = dataURLtoBlob(editedDataUrl);
+        const imageName = `edited-${Date.now()}.png`;
+        const storagePath = `products/${store.id}/${product.id}/images/${imageName}`;
+        const imageRef = ref(storage, storagePath);
+        await uploadBytes(imageRef, blob);
+        const downloadURL = await getDownloadURL(imageRef);
+
         const newImageObject = {
           id: generateId(), 
-          src: { medium: newImageDataUrl, large: newImageDataUrl }, 
+          src: { medium: downloadURL, large: downloadURL }, 
           alt: `${product.name} (edited: ${imageEditPrompt.substring(0,20)}...)`, 
-          photographer: "Edited with Gemini AI" 
+          photographer: "Edited with Gemini AI via Firebase Storage" 
         };
-        updateProductImage(storeId, productId, newImageObject);
-        toast({ title: "Image Edited", description: "Product image updated with AI edit." });
+        
+        await updateProductImage(store.id, productId, newImageObject); 
+        
+        const updatedGallery = imageGallery.map(img => 
+          (img.src.medium === activeImageUrl || img.src.large === activeImageUrl) ? newImageObject : img
+        );
+        if (!imageGallery.some(img => img.src.medium === activeImageUrl || img.src.large === activeImageUrl)) {
+            updatedGallery.push(newImageObject);
+        }
+        setImageGallery(updatedGallery);
+        setActiveImageUrl(downloadURL);
+
+        toast({ title: "Image Edited & Stored", description: "Product image updated and saved to storage." });
         setIsEditModalOpen(false);
         setImageEditPrompt('');
       } else {
-        throw new Error("AI did not return an edited image.");
+        throw new Error("AI did not return valid edited image data.");
       }
     } catch (error) {
-      console.error("Error editing image:", error);
+      console.error("Error editing image or uploading to storage:", error);
       toast({ title: "Image Edit Failed", description: error.message, variant: "destructive" });
     }
     setIsEditingImage(false);
-  }, [product, imageEditPrompt, storeId, productId, updateProductImage, toast, convertImageSrcToBasics, setIsEditModalOpen, setImageEditPrompt, setIsEditingImage]);
+  }, [activeImageUrl, imageEditPrompt, product, store, productId, updateProductImage, imageGallery, toast, convertImageSrcToBasics, dataURLtoBlob]);
+
 
   useEffect(() => {
     if (isLoadingStores) {
-      // Wait for stores to be loaded from context
       return;
     }
-    console.log(`[ProductDetail] Attempting to load product. Store ID: ${storeId}, Product ID from URL: ${productId}`);
-    const currentStore = getStoreById(storeId);
+    const currentStore = getStoreByName(storeName); 
     if (currentStore) {
       setStore(currentStore);
-      console.log("[ProductDetail] Store found:", currentStore.name);
-      const currentProduct = getProductById(storeId, productId);
-      console.log("[ProductDetail] Product from getProductById:", currentProduct ? currentProduct.name : 'NOT FOUND', currentProduct);
+      const currentProduct = getProductById(currentStore.id, productId); 
       if (currentProduct) {
         setProduct(currentProduct);
         setImageSearchQuery(currentProduct.name); 
-        setCurrentProductVideoUrl(currentProduct.video_url || ''); 
+        setCurrentProductVideoUrl(currentProduct.video_url || '');
+        setCurrent3DModelUrl(currentProduct.model_3d_url || '');
+        setCurrent3DThumbnailUrl(currentProduct.model_3d_thumbnail_url || '');
+        
+        let gallerySource = [];
+        if (currentProduct.images && Array.isArray(currentProduct.images) && currentProduct.images.length > 0) {
+          gallerySource = currentProduct.images.map((imgUrl, index) => ({
+            id: `gallery-img-${currentProduct.id}-${index}-${generateId()}`,
+            src: { medium: imgUrl, large: imgUrl }, 
+            alt: `${currentProduct.name || 'Product'} image ${index + 1}`
+          }));
+        } else if (currentProduct.image && currentProduct.image.src) { 
+          gallerySource = [{
+            id: currentProduct.image.id || `gallery-img-${currentProduct.id}-0-${generateId()}`,
+            src: currentProduct.image.src,
+            alt: currentProduct.image.alt || `${currentProduct.name || 'Product'} image`
+          }];
+        } else { 
+          gallerySource = [{
+            id: `placeholder-${currentProduct.id || generateId()}`,
+            src: { 
+              medium: `https://via.placeholder.com/600x600.png?text=${encodeURIComponent(currentProduct.name || 'Product')}`, 
+              large: `https://via.placeholder.com/600x600.png?text=${encodeURIComponent(currentProduct.name || 'Product')}` 
+            }, 
+            alt: currentProduct.name || 'Product image'
+          }];
+        }
+        setImageGallery(gallerySource);
+        setActiveImageUrl(gallerySource[0]?.src?.large || gallerySource[0]?.src?.medium || '');
+        
+        let variantDefinitions = [];
+        if (currentProduct.options && Array.isArray(currentProduct.options)) { 
+          variantDefinitions = currentProduct.options;
+        } else if (currentProduct.variants && Array.isArray(currentProduct.variants)) {
+          if (currentProduct.variants.length > 0 && currentProduct.variants[0].name && currentProduct.variants[0].values) {
+            variantDefinitions = currentProduct.variants;
+          }
+        }
+        if (variantDefinitions.length > 0) {
+          const initialSelections = {};
+          variantDefinitions.forEach(variant => {
+            if (variant.values && variant.values.length > 0) {
+              initialSelections[variant.name] = variant.values[0];
+            }
+          });
+          setSelectedVariants(initialSelections);
+        }
       } else {
-        toast({ title: "Product not found in store", description: `Product ID ${productId} not found in store ${currentStore.name}.`, variant: "destructive" });
-        navigate(`/store/${storeId}`); 
+        toast({ title: "Product not found", description: `Product ID ${productId} not found in store ${currentStore.name}.`, variant: "destructive" });
+        navigate(`/${storeName}`); 
       }
     } else {
-      toast({ title: "Store not found", description: `Could not find store with ID: ${storeId}`, variant: "destructive" });
+      toast({ title: "Store not found", description: `Could not find store: ${storeName}`, variant: "destructive" });
       navigate('/'); 
     }
-  }, [storeId, productId, getStoreById, getProductById, navigate, toast, isLoadingStores]); // isPublishedView removed from deps as it's from context now
+  }, [storeName, productId, getStoreByName, getProductById, navigate, toast, isLoadingStores]);
+
+  useEffect(() => {
+    if (product && Object.keys(selectedVariants).length > 0) {
+      if (product.variants?.edges?.length > 0) {
+        const matchedSkuNode = product.variants.edges.find(edge => {
+          if (!edge.node || !edge.node.selectedOptions) return false;
+          return edge.node.selectedOptions.every(option => {
+            return selectedVariants[option.name] === option.value;
+          });
+        })?.node;
+        if (matchedSkuNode) {
+          setCurrentResolvedSku(matchedSkuNode);
+          return;
+        }
+      }
+    } else if (product) {
+      if (product.variants?.edges?.length > 0 && !Object.keys(selectedVariants).length) {
+      } else {
+      }
+    }
+  }, [product, selectedVariants]);
 
   const handleQuantityChange = (e) => {
     const val = parseInt(e.target.value);
     if (val > 0) setQuantity(val);
   };
 
-  const handleAddToCart = () => {
-    addToCart({ ...product, quantity }, storeId);
+  const handleProceedToCheckout = async () => {
+    if (!store || !product || !displayImageUrl || displayPrice === undefined || !displayCurrencyCode) {
+      toast({ title: "Error", description: "Product or store data is incomplete for checkout.", variant: "destructive" });
+      return;
+    }
+    setIsCreatingCheckout(true);
+    try {
+      const galleryImageUrls = imageGallery
+        .map(img => img.src.large || img.src.medium)
+        .filter(url => url && !url.includes('via.placeholder.com') && !url.startsWith('data:')) 
+        .slice(0, 8); 
+      const productPageUrl = `${window.location.origin}/${storeName}/product/${productIdFromUrl}`; 
+      const createStripeProductAndPriceFunction = httpsCallable(functions, 'createStripeProductAndPrice');
+      const result = await createStripeProductAndPriceFunction({
+        productName: product.name,
+        description: product.description || `High-quality ${product.name}`,
+        images: galleryImageUrls.length > 0 ? galleryImageUrls : (displayImageUrl && !displayImageUrl.includes('via.placeholder.com') && !displayImageUrl.startsWith('data:') ? [displayImageUrl] : []),
+        unitAmount: Math.round(displayPrice * 100), 
+        currency: displayCurrencyCode.toLowerCase(),
+        url: productPageUrl, 
+        metadata: { 
+          productId: product.id, 
+          storeId: store.id,
+          storeName: store.name,
+        }
+      });
+      const { stripeProductId, stripePriceId, error: functionError } = result.data;
+      if (functionError) {
+        throw new Error(functionError.message || 'Failed to create Stripe product/price.');
+      }
+      if (!stripeProductId || !stripePriceId) {
+        throw new Error('Stripe Product ID or Price ID not received.');
+      }
+      navigate('/checkout', { 
+        state: {
+          stripeProductId,
+          stripePriceId,
+          productName: product.name,
+          productImage: { src: { medium: displayImageUrl.startsWith('data:') ? null : displayImageUrl } }, 
+          quantity,
+          unitAmount: Math.round(displayPrice * 100),
+          currency: displayCurrencyCode.toLowerCase(),
+          storeId: store.id,
+          storeName: store.name,
+        } 
+      });
+    } catch (error) {
+      console.error("Error creating Stripe product/price or navigating:", error);
+      toast({ title: "Checkout Setup Failed", description: error.message || "Could not prepare for checkout.", variant: "destructive" });
+    } finally {
+      setIsCreatingCheckout(false);
+    }
   };
 
   const handlePexelsSearch = async () => {
@@ -187,7 +410,7 @@ const ProductDetail = () => {
     setIsImageLoading(true);
     try {
       const images = await fetchPexelsImages(imageSearchQuery, 5, 'square');
-      setSearchedImages(images);
+      setSearchedImages(images); 
     } catch (error) {
       toast({ title: "Image search failed", description: error.message, variant: "destructive" });
     }
@@ -195,40 +418,70 @@ const ProductDetail = () => {
   };
   
   const handleGeminiGenerate = async () => {
-    if (!imageSearchQuery.trim()) return;
+    if (!imageSearchQuery.trim() || !store || !product) {
+        toast({ title: "Missing context", description: "Store or product context is missing for image generation.", variant: "destructive" });
+        return;
+    }
     setIsImageLoading(true);
     try {
       const geminiPrompt = `Product image for: ${imageSearchQuery}, ${product?.type || store?.type || 'item'}`;
-      const newImage = await generateImageWithGemini(geminiPrompt);
-      setSearchedImages(prev => [{ id: Date.now().toString(), src: { medium: newImage.url, large: newImage.url }, alt: newImage.alt, photographer: "Gemini AI" }, ...prev.slice(0,4)]);
-      toast({title: "Image Generated", description: "Gemini AI generated an image."});
+      const generatedImage = await generateImageWithGemini(geminiPrompt); 
+      if (!generatedImage || !generatedImage.url || !generatedImage.url.startsWith('data:')) {
+        throw new Error("AI did not return a valid base64 image data URL.");
+      }
+      const imageName = `gemini-${Date.now()}.png`;
+      const storagePath = `products/${store.id}/${product.id}/images/${imageName}`;
+      const imageRef = ref(storage, storagePath);
+      const fetchRes = await fetch(generatedImage.url);
+      const blob = await fetchRes.blob();
+      await uploadBytes(imageRef, blob);
+      const downloadURL = await getDownloadURL(imageRef);
+      const newImageForSelection = { 
+        id: Date.now().toString(), 
+        src: { medium: downloadURL, large: downloadURL }, 
+        alt: generatedImage.alt || imageSearchQuery, 
+        photographer: "Gemini AI via Firebase Storage" 
+      };
+      setSearchedImages(prev => [newImageForSelection, ...prev.slice(0,4)]);
+      toast({title: "Image Generated & Stored", description: "Gemini AI generated an image, and it has been uploaded to storage."});
     } catch (error) {
-      toast({ title: "Gemini image generation failed", description: error.message, variant: "destructive" });
+      console.error("Gemini image generation or storage upload failed:", error);
+      toast({ title: "Gemini Process Failed", description: error.message, variant: "destructive" });
     }
     setIsImageLoading(false);
   };
 
   const handleImageUpload = (event) => {
     const file = event.target.files[0];
-    if (file) {
+    if (file && store && product) {
       setIsImageLoading(true);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const newImage = {
-          id: generateId(),
-          src: { medium: reader.result, large: reader.result },
-          alt: file.name,
-          photographer: "Uploaded by user" 
-        };
-        selectImage(newImage);
-        toast({ title: "Image Uploaded", description: `${file.name} has been set as the product image.` });
-        setIsImageLoading(false);
-      };
-      reader.onerror = () => {
-        toast({ title: "Upload Failed", description: "Could not read the selected file.", variant: "destructive" });
-        setIsImageLoading(false);
-      };
-      reader.readAsDataURL(file);
+      const imageName = `uploaded-${Date.now()}-${file.name}`;
+      const storagePath = `products/${store.id}/${product.id}/images/${imageName}`;
+      const imageRef = ref(storage, storagePath);
+      uploadBytes(imageRef, file)
+        .then(() => getDownloadURL(imageRef))
+        .then(downloadURL => {
+          const newImageForSelection = {
+            id: generateId(),
+            src: { medium: downloadURL, large: downloadURL },
+            alt: file.name,
+            photographer: "Uploaded by user via Firebase Storage"
+          };
+          setSearchedImages(prev => [newImageForSelection, ...prev.slice(0,4)]);
+          toast({ title: "Image Uploaded & Stored", description: `${file.name} uploaded. Select it from the results to use.` });
+        })
+        .catch(uploadError => {
+          console.error("Error uploading image to Firebase Storage:", uploadError);
+          toast({ title: "Storage Upload Failed", description: uploadError.message, variant: "destructive" });
+        })
+        .finally(() => {
+          setIsImageLoading(false);
+        });
+    } else if (!file) {
+      // No file selected
+    } else {
+      toast({ title: "Missing context", description: "Store or product context is missing for image upload.", variant: "destructive" });
+      setIsImageLoading(false); 
     }
   };
 
@@ -238,22 +491,77 @@ const ProductDetail = () => {
       p.id === productId ? { ...p, video_url: newVideoUrl } : p
     );
     try {
-      await updateStore(storeId, { products: updatedProducts });
-      setCurrentProductVideoUrl(newVideoUrl); 
-      toast({ title: "Product Video Generated", description: "The video has been added to the product." });
+      if (store && store.id) {
+        await updateStore(store.id, { products: updatedProducts });
+        setCurrentProductVideoUrl(newVideoUrl); 
+        toast({ title: "Product Video Generated", description: "The video has been added to the product." });
+      } else {
+        toast({ title: "Error", description: "Store ID not available for video update.", variant: "destructive" });
+      }
     } catch (error) {
       console.error("Failed to update store with product video:", error);
       toast({ title: "Update Failed", description: "Could not save the product video.", variant: "destructive" });
     }
   };
 
+  const handle3DModelGenerated = async (modelUrl) => {
+    if (!store || !product) return;
+    const updatedProducts = store.products.map(p =>
+      p.id === productId ? { 
+        ...p, 
+        model_3d_url: modelUrl,
+        model_3d_thumbnail_url: modelUrl 
+      } : p
+    );
+    try {
+      if (store && store.id) {
+        await updateStore(store.id, { products: updatedProducts });
+        setCurrent3DModelUrl(modelUrl);
+        setCurrent3DThumbnailUrl(modelUrl);
+        toast({ title: "3D Model Generated", description: "The 3D model has been added to the product." });
+      } else {
+        toast({ title: "Error", description: "Store ID not available for 3D model update.", variant: "destructive" });
+      }
+    } catch (error) {
+      console.error("Failed to update store with 3D model:", error);
+      toast({ title: "Update Failed", description: "Could not save the 3D model.", variant: "destructive" });
+    }
+  };
+
   const selectImage = (selectedImg) => {
-    updateProductImage(storeId, productId, selectedImg);
+    if (store && store.id && product && selectedImg && selectedImg.src && (selectedImg.src.medium || selectedImg.src.large)) {
+      const imageUrlToSave = selectedImg.src.large || selectedImg.src.medium;
+      if (imageUrlToSave.startsWith('https://firebasestorage.googleapis.com') || imageUrlToSave.startsWith('http://localhost:') || imageUrlToSave.startsWith('https://images.pexels.com')) { // Allow Pexels URLs too
+        const newImageObject = {
+            id: selectedImg.id || generateId(),
+            src: { medium: imageUrlToSave, large: imageUrlToSave }, 
+            alt: selectedImg.alt || product.name,
+            photographer: selectedImg.photographer || "User"
+        };
+        updateProductImage(store.id, productId, newImageObject); 
+        
+        const existingInGallery = imageGallery.find(img => (img.src.medium === imageUrlToSave || img.src.large === imageUrlToSave));
+        if (!existingInGallery) {
+            const newGalleryEntry = { ...newImageObject, id: newImageObject.id || generateId() };
+            setImageGallery(prev => {
+                const filtered = prev.filter(pImg => !pImg.src.medium.includes('via.placeholder.com'));
+                return [newGalleryEntry, ...filtered.filter(pImg => pImg.src.medium !== imageUrlToSave)];
+            });
+        }
+        setActiveImageUrl(imageUrlToSave);
+        toast({ title: "Image Selected", description: "Product image updated." });
+
+      } else {
+         toast({ title: "Invalid Image URL", description: "Selected image does not have a valid storage or Pexels URL.", variant: "destructive" });
+      }
+    } else {
+      toast({ title: "Error", description: "Cannot select image. Store, product, or image data missing.", variant: "destructive" });
+    }
     setIsImageModalOpen(false);
     setSearchedImages([]);
   };
 
-  if (isLoadingStores || !store || !product) { // Added isLoadingStores to condition
+  if (isLoadingStores || !store || !product) { 
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -262,13 +570,78 @@ const ProductDetail = () => {
     );
   }
 
-  const imageUrl = product.image?.src?.large || product.image?.src?.medium || `https://via.placeholder.com/600x600.png?text=${encodeURIComponent(product.name)}`;
-  const imageAlt = product.image?.alt || product.name;
-
-  // Define productStock and themePrimaryColor
-  const firstVariant = product.variants?.edges?.[0]?.node; // For Shopify products
-  const productStock = firstVariant?.quantityAvailable ?? product.stock ?? (product.availableForSale ? 1 : 0);
+  const currentActiveGalleryImage = imageGallery.find(img => img.src.large === activeImageUrl || img.src.medium === activeImageUrl);
+  const displayImageUrl = activeImageUrl || product.image?.src?.large || product.image?.src?.medium || `https://via.placeholder.com/600x600.png?text=${encodeURIComponent(product.name)}`;
+  const displayImageAlt = currentActiveGalleryImage?.alt || product.image?.alt || product.name;
+  const displayPrice = currentResolvedSku?.price?.amount !== undefined ? parseFloat(currentResolvedSku.price.amount) : product.price;
+  const displayCurrencyCode = currentResolvedSku?.price?.currencyCode || product.currencyCode || 'USD';
+  
+  // Prioritize inventory_count, then stock, then availableForSale
+  let productStock;
+  if (product.inventory_count !== undefined) {
+    productStock = product.inventory_count;
+  } else if (product.stock !== undefined) {
+    productStock = product.stock;
+  } else {
+    productStock = product.availableForSale ? 1 : 0; 
+  }
+  
   const themePrimaryColor = store?.theme?.primaryColor || '#000000';
+
+  let displayableVariants = [];
+  if (product) {
+    if (product.options && Array.isArray(product.options)) { 
+      displayableVariants = product.options.map(opt => ({ ...opt, name: opt.name, values: opt.values }));
+    } else if (product.variants && Array.isArray(product.variants)) {
+      if (product.variants.length > 0 && product.variants[0].name && product.variants[0].values) {
+        displayableVariants = product.variants.map(v => ({ ...v, name: v.name, values: v.values }));
+      }
+    }
+  }
+
+  const handleVisualizeVariant = async () => {
+    if (!product || !activeImageUrl || Object.keys(selectedVariants).length === 0) {
+      toast({ title: "Cannot Visualize", description: "Product data, main image, or selected variants missing.", variant: "destructive" });
+      return;
+    }
+    setIsVisualizingVariant(true);
+    setVisualizationError(null);
+    setOriginalImageForComparison(activeImageUrl); 
+    try {
+      const { base64ImageData, mimeType } = await convertImageSrcToBasics(activeImageUrl);
+      let promptParts = [];
+      for (const key in selectedVariants) {
+        promptParts.push(`${key}: ${selectedVariants[key]}`);
+      }
+      const variantDescription = promptParts.join(', ');
+      const visualizationPrompt = `Visualize the product "${product.name}" with the following attributes: ${variantDescription}. Apply these changes to the provided image.`;
+      const result = await editImageWithGemini(base64ImageData, mimeType, visualizationPrompt);
+      if (result && result.editedImageData && result.newMimeType && typeof result.newMimeType === 'string' && result.newMimeType.includes('/')) {
+        const newImageDataUrl = `data:${result.newMimeType};base64,${result.editedImageData}`;
+        const newImageObject = {
+          id: `visualized-${generateId()}`,
+          src: { medium: newImageDataUrl, large: newImageDataUrl },
+          alt: `${product.name} visualized with ${variantDescription}`,
+          photographer: "Variant Visualization by Gemini AI"
+        };
+        setImageGallery(prevGallery => [newImageObject, ...prevGallery]);
+        setVisualizedVariantThumbnailUrl(newImageObject.src.medium || newImageObject.src.large); 
+        toast({ title: "Variant Visualized", description: "Comparison slider generated below." });
+      } else {
+        let errorMsg = "AI image generation failed: ";
+        if (!result) errorMsg += "No result from AI.";
+        else if (!result.editedImageData) errorMsg += "Missing image data from AI.";
+        else if (!result.newMimeType) errorMsg += "Missing MIME type from AI.";
+        else errorMsg += `Invalid MIME type from AI ('${result.newMimeType}').`;
+        throw new Error(errorMsg);
+      }
+    } catch (error) {
+      console.error("Error visualizing variant:", error);
+      setVisualizationError(error.message);
+      toast({ title: "Visualization Failed", description: error.message, variant: "destructive" });
+    }
+    setIsVisualizingVariant(false);
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -279,8 +652,7 @@ const ProductDetail = () => {
         transition={{ duration: 0.5 }}
         className="container mx-auto px-4 py-8 md:py-12 flex-grow"
       >
-        {/* "Back to Store" button now always navigates to the single store route */}
-        <Button variant="outline" onClick={() => navigate(`/store/${storeId}`)} className="mb-6">
+        <Button variant="outline" onClick={() => navigate(`/${storeName}`)} className="mb-6">
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to Store
         </Button>
         <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
@@ -288,135 +660,286 @@ const ProductDetail = () => {
             initial={{ opacity: 0, x: -50 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="relative group"
+            className="flex flex-col items-center" 
           >
-            <img
-              src={imageUrl}
-              alt={imageAlt}
-              className="w-full h-auto aspect-square object-cover rounded-xl shadow-lg border"
-            />
-            {!isPublishedView && (
-              <>
-                <Button 
-                  variant="secondary" 
-                  onClick={() => setIsImageModalOpen(true)}
-                  className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-md"
-                >
-                  <Replace className="mr-2 h-4 w-4" /> Change Image
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setIsEditModalOpen(true)}
-                  className="absolute top-16 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-md"
-                >
-                  <Edit3 className="mr-2 h-4 w-4" /> Edit Image
-                </Button>
-                 <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setIsProductVideoModalOpen(true)}
-                  className="absolute top-28 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-md"
-                >
-                  <VideoIcon className="mr-2 h-4 w-4" /> Gen Video
-                </Button>
-              </>
-            )}
-          </motion.div>
-          
-          {currentProductVideoUrl && (
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-              className="md:col-span-2 lg:col-span-1 aspect-video rounded-xl overflow-hidden shadow-lg border relative mt-4 md:mt-0"
-            >
-              <video
-                key={currentProductVideoUrl} 
-                src={currentProductVideoUrl}
-                controls
-                autoPlay={false} 
-                loop
-                playsInline
-                className="w-full h-full object-cover"
-                poster={imageUrl} 
+            <div className="relative group w-full">
+              <img
+                key={activeImageUrl} 
+                src={displayImageUrl} 
+                alt={displayImageAlt}
+                className="w-full h-auto aspect-square object-cover rounded-xl shadow-lg border"
+              />
+              {!isPublishedView && (
+                <>
+                  <Button 
+                    variant="secondary" 
+                    onClick={() => setIsImageModalOpen(true)}
+                    className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-md"
+                  >
+                    <Replace className="mr-2 h-4 w-4" /> Change Image
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setIsEditModalOpen(true)}
+                    className="absolute top-16 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-md"
+                  >
+                    <Edit3 className="mr-2 h-4 w-4" /> Edit Image
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setIsProductVideoModalOpen(true)}
+                    className="absolute top-28 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-md"
+                  >
+                    <VideoIcon className="mr-2 h-4 w-4" /> Gen Video
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setIs3DModelModalOpen(true)}
+                    className="absolute top-40 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-md"
+                  >
+                    <Box className="mr-2 h-4 w-4" /> Gen 3D
+                  </Button>
+                </>
+              )}
+            </div> 
+
+            {imageGallery.length > 0 && ( 
+              <motion.div 
+                className="mt-4" 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2, duration: 0.5 }}
               >
-                Your browser does not support the video tag.
-              </video>
-            </motion.div>
-          )}
-
-          <motion.div 
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="space-y-6"
-          >
-            <h1 className="text-3xl lg:text-4xl font-bold tracking-tight text-foreground">{product.name}</h1>
-            
-            <div className="flex items-center space-x-2">
-              <div className="flex items-center">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className={`h-5 w-5 ${i < Math.floor(product.rating) ? 'text-amber-400 fill-amber-400' : 'text-muted-foreground/30'}`} />
-                ))}
-              </div>
-              <span className="text-sm text-muted-foreground">({product.rating} reviews)</span>
-              <Separator orientation="vertical" className="h-5"/>
-              <Badge variant="outline" style={{borderColor: store.theme.primaryColor, color: store.theme.primaryColor}}>{product.stock > 0 ? `${product.stock} in stock` : "Out of Stock"}</Badge>
-            </div>
-
-            <p className="text-2xl lg:text-3xl font-semibold" style={{ color: store.theme.primaryColor }}>
-              {product.currencyCode || 'USD'} {product.price.toFixed(2)}
-            </p>
-            
-            <div className="prose prose-sm sm:prose dark:prose-invert max-w-none text-muted-foreground">
-              <p>{product.description}</p>
-            </div>
-
-            {product.tags && product.tags.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                    {product.tags.map(tag => (
-                        <Badge key={tag} variant="secondary">{tag}</Badge>
-                    ))}
+                <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2">
+                  {imageGallery.map((img, index) => (
+                    <motion.div
+                      key={img.id || `gallery-${index}`}
+                      className="relative group" 
+                      whileHover={{ scale: 1.05 }}
+                    >
+                      <div
+                        className={`aspect-square rounded-md overflow-hidden cursor-pointer border-2 transition-all hover:opacity-80
+                                    ${(img.src.large === activeImageUrl || img.src.medium === activeImageUrl) ? 'border-primary shadow-sm' : 'border-transparent'}`}
+                        onClick={() => setActiveImageUrl(img.src.large || img.src.medium)}
+                      >
+                        <img 
+                          src={img.src.medium || img.src.large} 
+                          alt={img.alt || `Product image ${index + 1}`}
+                          className="w-full h-full object-cover" 
+                        />
+                      </div>
+                      {!isPublishedView && imageGallery.length > 1 && !img.src.medium.includes('via.placeholder.com') && ( 
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          className="absolute -top-2 -right-2 h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                          onClick={(e) => { e.stopPropagation(); handleDeleteImageFromGallery(img.id); }}
+                          aria-label="Delete image"
+                        >
+                          <DeleteIcon className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </motion.div>
+                  ))}
                 </div>
+                {!isPublishedView && activeImageUrl && !activeImageUrl.includes('via.placeholder.com') && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-3 w-full" 
+                    onClick={handleGenerateAnglesOnDetail}
+                    disabled={isGeneratingAnglesOnDetail}
+                  >
+                    {isGeneratingAnglesOnDetail ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Layers className="mr-2 h-4 w-4" />}
+                    Generate More Angles from Active Image
+                  </Button>
+                )}
+              </motion.div>
             )}
-            
-            <Separator />
+          </motion.div> 
+  
+  {currentProductVideoUrl && (
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.3 }}
+      className="md:col-span-2 lg:col-span-1 aspect-video rounded-xl overflow-hidden shadow-lg border relative mt-4 md:mt-0"
+    >
+      <video
+        key={currentProductVideoUrl} 
+        src={currentProductVideoUrl}
+        controls
+        autoPlay={false} 
+        loop
+        playsInline
+        className="w-full h-full object-cover"
+        poster={displayImageUrl} 
+      >
+        Your browser does not support the video tag.
+      </video>
+    </motion.div>
+  )}
 
-            {/* Moved Add to Cart section above ProductVisualizer */}
-            <div className="flex items-end gap-4 pt-4"> {/* Added pt-4 for spacing */}
-              <div className="space-y-1">
-                <Label htmlFor="quantity" className="text-sm">Quantity</Label>
-                <Input 
-                  id="quantity" 
-                  type="number" 
-                  value={quantity} 
-                  onChange={handleQuantityChange} 
-                  min="1" 
-                  max={productStock}
-                  className="w-20 h-10 text-center" 
-                  disabled={productStock === 0}
+  <motion.div 
+    initial={{ opacity: 0, x: 50 }}
+    animate={{ opacity: 1, x: 0 }}
+    transition={{ duration: 0.5, delay: 0.2 }}
+    className="space-y-6"
+  >
+    <h1 className="text-3xl lg:text-4xl font-bold tracking-tight text-foreground">{product.name}</h1>
+    
+    <div className="flex items-center space-x-2">
+      <div className="flex items-center">
+        {[...Array(5)].map((_, i) => (
+          <Star key={i} className={`h-5 w-5 ${i < Math.floor(product.rating) ? 'text-amber-400 fill-amber-400' : 'text-muted-foreground/30'}`} />
+        ))}
+      </div>
+      <span className="text-sm text-muted-foreground">({product.rating} reviews)</span>
+      <Separator orientation="vertical" className="h-5"/>
+      {/* Updated Stock Badge to use productStock and show count */}
+      <Badge variant="outline" style={{borderColor: store.theme.primaryColor, color: store.theme.primaryColor}}>
+        {productStock > 0 ? "In Stock" : "Out of Stock"}
+      </Badge>
+    </div>
+
+    <p className="text-2xl lg:text-3xl font-semibold" style={{ color: store.theme.primaryColor }}>
+      {displayCurrencyCode} {displayPrice.toFixed(2)}
+    </p>
+
+    {displayableVariants.length > 0 && (
+      <div className="space-y-4 pt-4"> 
+        {displayableVariants.map((variant) => (
+          <div key={variant.name}>
+            <Label className="text-sm font-medium text-foreground">
+              {variant.name}: 
+              <span className="text-muted-foreground font-normal ml-1">
+                {selectedVariants[variant.name] || ""}
+              </span>
+            </Label>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {variant.values.map((value) => (
+                <Button
+                  key={value}
+                  variant={selectedVariants[variant.name] === value ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    setSelectedVariants(prev => ({ ...prev, [variant.name]: value }));
+                  }}
+                  style={
+                    selectedVariants[variant.name] === value
+                      ? { backgroundColor: themePrimaryColor, color: 'white', borderColor: themePrimaryColor }
+                      : { 
+                          borderColor: (store.theme.secondaryColor || '#cccccc'), 
+                          color: (store.theme.secondaryColor || '#333333')
+                        }
+                  }
+                >
+                  {value}
+                </Button>
+              ))}
+            </div>
+          </div>
+        ))}
+        {displayableVariants.length > 0 && Object.keys(selectedVariants).length > 0 && (
+          <div className="mt-4 w-full">
+            {visualizedVariantThumbnailUrl && originalImageForComparison && (
+              <div className="mb-3 flex justify-center">
+                <ReactCompareSlider
+                  itemOne={<ReactCompareSliderImage src={originalImageForComparison} alt="Original Image" />}
+                  itemTwo={<ReactCompareSliderImage src={visualizedVariantThumbnailUrl} alt="Visualized Variant" />}
+                  className="w-full max-w-md h-auto aspect-square rounded-md border shadow-md" 
                 />
               </div>
-              <Button 
-                size="lg" 
-                onClick={handleAddToCart} 
-                className="flex-1 h-10"
-                style={{ backgroundColor: themePrimaryColor, color: 'white' }}
-                disabled={productStock === 0}
-              >
-                <ShoppingCart className="mr-2 h-5 w-5" />
-                {productStock === 0 ? "Out of Stock" : "Add to Cart"}
-              </Button>
-            </div>
-
-            {product && storeId && (
-              <ProductVisualizer product={product} storeId={storeId} isPublishedView={isPublishedView} />
             )}
-            {/* End Product Visualizer Component */}
+            <Button 
+              onClick={handleVisualizeVariant} 
+              disabled={isVisualizingVariant}
+              className="w-full"
+              variant="outline"
+            >
+              {isVisualizingVariant ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand className="mr-2 h-4 w-4" />}
+              Visualize Variant
+            </Button>
+            {visualizationError && <p className="text-red-500 text-xs mt-2">{visualizationError}</p>}
+          </div>
+        )}
+      </div>
+    )}
+    
+    <div className="prose prose-sm sm:prose dark:prose-invert max-w-none text-muted-foreground pt-4"> 
+      <p>{product.description}</p>
+    </div>
 
+    {product.tags && product.tags.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-4"> 
+            {product.tags.map(tag => (
+                <Badge key={tag} variant="secondary">{tag}</Badge>
+            ))}
+        </div>
+    )}
+    
+    <Separator className="my-6" /> 
+    
+    <div className="flex items-end gap-4 pt-4"> 
+      <div className="space-y-1">
+        <Label htmlFor="quantity" className="text-sm">Quantity</Label>
+        <Input 
+          id="quantity" 
+          type="number" 
+          value={quantity} 
+          onChange={handleQuantityChange} 
+          min="1" 
+          max={productStock}
+          className="w-20 h-10 text-center" 
+          disabled={productStock === 0}
+        />
+      </div>
+      <Button 
+        size="lg" 
+        onClick={handleProceedToCheckout} 
+        className="flex-1 h-10"
+        style={{ backgroundColor: themePrimaryColor, color: 'white' }}
+        disabled={productStock === 0}
+      >
+        <ShoppingCart className="mr-2 h-5 w-5" />
+        {isCreatingCheckout ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+        {productStock === 0 ? "Out of Stock" : (isCreatingCheckout ? "Processing..." : "Proceed to Checkout")}
+      </Button>
+    </div>
           </motion.div>
         </div>
+
+        {current3DModelUrl && (
+          <motion.div 
+            className="mt-8"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6, duration: 0.5 }}
+          >
+            <h3 className="text-lg font-semibold mb-3 text-foreground">3D Model</h3>
+            <Model3DViewer 
+              modelUrl={current3DModelUrl}
+              thumbnailUrl={current3DThumbnailUrl}
+              productName={product.name}
+              height="500px"
+              className="w-full"
+            />
+          </motion.div>
+        )}
+
+        {product && store && store.id && ( 
+          <motion.div 
+            className="mt-8"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.7, duration: 0.5 }}
+          >
+            <ProductVisualizer product={product} storeId={store.id} isPublishedView={isPublishedView} />
+          </motion.div>
+        )}
       </motion.main>
       <StoreFooter store={store} isPublishedView={isPublishedView} />
 
@@ -488,9 +1011,9 @@ const ProductDetail = () => {
                 <DialogTitle>Edit Product Image</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 py-4">
-                {product && product.image && (
+                {product && activeImageUrl && ( // Use activeImageUrl for preview
                   <div className="flex items-center space-x-2 mb-4">
-                    <img src={imageUrl} alt="Current product to edit" className="h-20 w-20 object-cover rounded border"/>
+                    <img src={activeImageUrl} alt="Current product to edit" className="h-20 w-20 object-cover rounded border"/>
                     <p className="text-sm text-muted-foreground">Editing: {product.name}</p>
                   </div>
                 )}
@@ -522,6 +1045,15 @@ const ProductDetail = () => {
               onOpenChange={setIsProductVideoModalOpen}
               product={product}
               onVideoGenerated={handleProductVideoGenerated}
+            />
+          )}
+          {product && (
+            <Generate3DModelModal
+              open={is3DModelModalOpen}
+              onOpenChange={setIs3DModelModalOpen}
+              product={product}
+              onModelGenerated={handle3DModelGenerated}
+              storeId={store?.id}
             />
           )}
         </>
