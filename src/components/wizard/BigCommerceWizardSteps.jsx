@@ -1,8 +1,8 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { useStore } from '@/contexts/StoreContext'; // Import useStore
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { useStore } from '../../contexts/StoreContext'; // Import useStore
 
 export const BigCommerceMetadataPreview = () => {
   const { bigCommercePreviewSettings, isFetchingBigCommercePreviewData, bigCommerceImportError } = useStore();

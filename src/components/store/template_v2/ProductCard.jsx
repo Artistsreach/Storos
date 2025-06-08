@@ -29,7 +29,7 @@ const ProductCard = ({ product, theme, index, storeId, isPublishedView = false }
   const isShopifyGid = (id) => typeof id === 'string' && id.startsWith('gid://shopify/');
   const productId = isShopifyGid(rawProductId) ? btoa(rawProductId) : rawProductId;
 
-  const imageUrl = image?.src?.medium || image?.url || `https://via.placeholder.com/400x400.png?text=${encodeURIComponent(name)}`;
+  const imageUrl = image?.src?.medium || image?.url || (Array.isArray(displayProduct.images) && displayProduct.images.length > 0 ? displayProduct.images[0] : `https://via.placeholder.com/400x400.png?text=${encodeURIComponent(name)}`);
   const imageAlt = image?.alt || `${name} product image`;
   
   const handleSaveProductText = async (field, value) => {

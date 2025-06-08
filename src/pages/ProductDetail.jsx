@@ -1,27 +1,27 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useStore } from '@/contexts/StoreContext';
+import { useStore } from '../contexts/StoreContext';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { storage } from '@/lib/firebaseClient'; 
+import { storage } from '../lib/firebaseClient'; 
 import { ref, uploadString, getDownloadURL, uploadBytes } from 'firebase/storage'; 
-import StoreHeader from '@/components/store/StoreHeader';
-import StoreFooter from '@/components/store/StoreFooter';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { fetchPexelsImages, generateImageWithGemini, generateId } from '@/lib/utils';
-import { editImageWithGemini, generateDifferentAnglesFromImage } from '@/lib/geminiImageGeneration'; 
+import StoreHeader from '../components/store/StoreHeader';
+import StoreFooter from '../components/store/StoreFooter';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Textarea } from '../components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '../components/ui/dialog';
+import { fetchPexelsImages, generateImageWithGemini, generateId } from '../lib/utils';
+import { editImageWithGemini, generateDifferentAnglesFromImage } from '../lib/geminiImageGeneration'; 
 import { ShoppingCart, Star, ImageDown as ImageUp, Wand, Loader2, ArrowLeft, Replace, Edit3, VideoIcon, UploadCloud, Box, Layers, Trash2 as DeleteIcon } from 'lucide-react'; 
 import { motion } from 'framer-motion';
-import { useToast } from '@/components/ui/use-toast';
-import GenerateProductVideoModal from '@/components/product/GenerateProductVideoModal';
-import Generate3DModelModal from '@/components/product/Generate3DModelModal';
-import Model3DViewer from '@/components/product/Model3DViewer';
-import ProductVisualizer from '@/components/product/ProductVisualizer';
-import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
+import { useToast } from '../components/ui/use-toast';
+import GenerateProductVideoModal from '../components/product/GenerateProductVideoModal';
+import Generate3DModelModal from '../components/product/Generate3DModelModal';
+import Model3DViewer from '../components/product/Model3DViewer';
+import ProductVisualizer from '../components/product/ProductVisualizer';
+import { Separator } from '../components/ui/separator';
+import { Badge } from '../components/ui/badge';
 import { ReactCompareSlider, ReactCompareSliderImage } from 'react-compare-slider'; 
 
 const ProductDetail = () => {
@@ -360,45 +360,42 @@ const ProductDetail = () => {
     try {
       const galleryImageUrls = imageGallery
         .map(img => img.src.large || img.src.medium)
-        .filter(url => url && !url.includes('via.placeholder.com') && !url.startsWith('data:')) 
-        .slice(0, 8); 
-      const productPageUrl = `${window.location.origin}/${storeName}/product/${productIdFromUrl}`; 
-      const createStripeProductAndPriceFunction = httpsCallable(functions, 'createStripeProductAndPrice');
-      const result = await createStripeProductAndPriceFunction({
+        .filter(url => url && !url.includes('via.placeholder.com') && !url.startsWith('data:'))
+        .slice(0, 8);
+      
+      const productPageUrl = `${window.location.origin}/${storeName}/product/${productIdFromUrl}`;
+      
+      const createStripePaymentLinkFunction = httpsCallable(functions, 'createStripePaymentLink');
+      
+      const params = {
         productName: product.name,
         description: product.description || `High-quality ${product.name}`,
         images: galleryImageUrls.length > 0 ? galleryImageUrls : (displayImageUrl && !displayImageUrl.includes('via.placeholder.com') && !displayImageUrl.startsWith('data:') ? [displayImageUrl] : []),
-        unitAmount: Math.round(displayPrice * 100), 
+        unitAmount: Math.round(displayPrice * 100),
         currency: displayCurrencyCode.toLowerCase(),
-        url: productPageUrl, 
-        metadata: { 
-          productId: product.id, 
+        productUrl: productPageUrl,
+        productMetadata: {
+          productId: product.id,
           storeId: store.id,
           storeName: store.name,
-        }
-      });
-      const { stripeProductId, stripePriceId, error: functionError } = result.data;
+        },
+        quantity: quantity,
+        successUrl: `${window.location.origin}/order-confirmation?storeId=${store.id}&source=paymentlink&product_id=${product.id}`,
+      };
+
+      const result = await createStripePaymentLinkFunction(params);
+      const { paymentLinkUrl, error: functionError } = result.data;
+
       if (functionError) {
-        throw new Error(functionError.message || 'Failed to create Stripe product/price.');
+        throw new Error(functionError.message || 'Failed to create Stripe Payment Link.');
       }
-      if (!stripeProductId || !stripePriceId) {
-        throw new Error('Stripe Product ID or Price ID not received.');
+      if (!paymentLinkUrl) {
+        throw new Error('Stripe Payment Link URL not received.');
       }
-      navigate('/checkout', { 
-        state: {
-          stripeProductId,
-          stripePriceId,
-          productName: product.name,
-          productImage: { src: { medium: displayImageUrl.startsWith('data:') ? null : displayImageUrl } }, 
-          quantity,
-          unitAmount: Math.round(displayPrice * 100),
-          currency: displayCurrencyCode.toLowerCase(),
-          storeId: store.id,
-          storeName: store.name,
-        } 
-      });
+
+      window.location.href = paymentLinkUrl;
     } catch (error) {
-      console.error("Error creating Stripe product/price or navigating:", error);
+      console.error("Error creating Stripe Payment Link or redirecting:", error);
       toast({ title: "Checkout Setup Failed", description: error.message || "Could not prepare for checkout.", variant: "destructive" });
     } finally {
       setIsCreatingCheckout(false);
@@ -645,7 +642,7 @@ const ProductDetail = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <StoreHeader store={store} isPublishedView={isPublishedView} />
+      <StoreHeader store={store} isPublishedView={isPublishedView} productName={product.name} />
       <motion.main 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}

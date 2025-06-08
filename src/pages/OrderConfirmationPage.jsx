@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { stripePromise } from '@/lib/stripe'; // To potentially retrieve session client-side
+import { stripePromise } from '../lib/stripe'; // To potentially retrieve session client-side
 
 // Helper to parse query params
 function useQuery() {

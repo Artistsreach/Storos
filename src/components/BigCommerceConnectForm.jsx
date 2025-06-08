@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
-import { useStore } from '@/contexts/StoreContext'; // Assuming context will handle BC connection
-import { fetchStoreSettings } from '@/lib/bigcommerce'; // For initial validation
+import { useStore } from '../contexts/StoreContext'; // Assuming context will handle BC connection
+import { fetchStoreSettings } from '../lib/bigcommerce'; // For initial validation
 
 const BigCommerceConnectForm = ({ open, onOpenChange, onSuccessfulConnect }) => {
   const [storeDomain, setStoreDomain] = useState('');

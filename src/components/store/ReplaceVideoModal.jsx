@@ -6,13 +6,13 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { generateVideoWithVeo } from '@/lib/geminiVideoGeneration';
-import { searchPexelsVideos } from '@/lib/pexels';
+} from '../../components/ui/dialog';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import { generateVideoWithVeo } from '../../lib/geminiVideoGeneration';
+import { searchPexelsVideos } from '../../lib/pexels';
 import { UploadCloud } from 'lucide-react'; // Added UploadCloud icon
 
 const ReplaceVideoModal = ({ open, onOpenChange, storeId, currentVideoUrl, onVideoReplaced }) => {

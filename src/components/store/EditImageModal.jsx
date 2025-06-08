@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '../../components/ui/dialog';
+import { Button } from '../../components/ui/button';
+import { Label } from '../../components/ui/label';
+import { Textarea } from '../../components/ui/textarea';
 import { Loader2, Wand2 as WandIcon } from 'lucide-react';
 import { useToast } from "@/components/ui/use-toast";
-import { editImageWithGemini } from '@/lib/geminiImageGeneration'; // Assuming this is the correct path
+import { editImageWithGemini } from '../../lib/geminiImageGeneration'; // Assuming this is the correct path
 
 // Helper function (can be moved to utils)
 const imageSrcToBasics = (imageSrc) => {

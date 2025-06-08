@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '../components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -9,12 +9,12 @@ import {
   DialogDescription,
   DialogFooter,
   DialogClose,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useStore } from '@/contexts/StoreContext';
+} from '../components/ui/dialog';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { useStore } from '../contexts/StoreContext';
 import { Loader2 } from 'lucide-react';
-import { SHOPIFY_STORE_DOMAIN_PLACEHOLDER, SHOPIFY_STOREFRONT_ACCESS_TOKEN_PLACEHOLDER } from '@/lib/utils';
+import { SHOPIFY_STORE_DOMAIN_PLACEHOLDER, SHOPIFY_STOREFRONT_ACCESS_TOKEN_PLACEHOLDER } from '../lib/utils';
 
 const ShopifyConnectForm = ({ open, onOpenChange, onSuccessfulConnect }) => { // Added onSuccessfulConnect
   const [domainInput, setDomainInput] = useState(''); // Renamed to avoid conflict with context's domain

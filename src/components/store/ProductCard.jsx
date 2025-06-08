@@ -1,13 +1,13 @@
 
 import React, { useState } from 'react'; // Keep this one as it includes useState
 import { motion } from 'framer-motion';
-import { Card, CardContent, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardFooter } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
 import { ShoppingCart, Star, Eye, Zap as BuyNowIcon, Edit } from 'lucide-react'; // Added Edit icon
-import { useStore } from '@/contexts/StoreContext';
+import { useStore } from '../../contexts/StoreContext';
 import { Link } from 'react-router-dom';
-import { stripePromise } from '@/lib/stripe';
-import InlineTextEdit from '@/components/ui/InlineTextEdit'; // Added import
+import { stripePromise } from '../../lib/stripe';
+import InlineTextEdit from '../../components/ui/InlineTextEdit'; // Added import
 import ProductEditModal from './ProductEditModal'; // Importing the new modal
 import { useEffect } from 'react'; // Added useEffect
 
@@ -31,7 +31,7 @@ const ProductCard = ({ product, theme, index, storeName, storeId, isPublishedVie
   const isShopifyGid = (id) => typeof id === 'string' && id.startsWith('gid://shopify/');
   const productId = isShopifyGid(rawProductId) ? btoa(rawProductId) : rawProductId;
 
-  const imageUrl = image?.src?.medium || image?.url || `https://via.placeholder.com/400x400.png?text=${encodeURIComponent(name)}`;
+  const imageUrl = image?.src?.medium || image?.url || (Array.isArray(displayProduct.images) && displayProduct.images.length > 0 ? displayProduct.images[0] : `https://via.placeholder.com/400x400.png?text=${encodeURIComponent(name)}`);
   const imageAlt = image?.alt || `${name} product image`;
   
   const handleSaveProductText = async (field, value) => {
@@ -293,7 +293,7 @@ const ProductCard = ({ product, theme, index, storeName, storeId, isPublishedVie
                 <div key={vIndex} className="mb-1.5 last:mb-0">
                   <span className="text-xs font-medium text-muted-foreground">{variant.name}: </span>
                   <span className="text-xs text-foreground">
-                    {variant.values.join(', ')}
+                    {variant.values && Array.isArray(variant.values) ? variant.values.join(', ') : ''}
                   </span>
                 </div>
               ))}

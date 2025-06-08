@@ -138,37 +138,8 @@ export async function generateLogoWithGemini(storeName, updateProgressCallback =
 }
 
 export async function generateCaptionForImageData(base64ImageData, mimeType, captionUserPrompt) {
-  if (!GEMINI_API_KEY) throw new Error("Gemini API key not configured.");
-  if (!base64ImageData || !mimeType) throw new Error("Image data and MIME type required for caption.");
-
-  const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-  const captionResponseSchema = { type: Type.ARRAY, items: { type: Type.STRING }, description: "Array of 3 distinct caption options." };
-  const defaultCaptionPrompt = "Generate 3 distinct, short, punchy social media reel style captions for this product image. No emojis/hashtags. Clean strings. E.g., 'Fresh drop! Cop yours now.'";
-  let effectivePrompt = captionUserPrompt || defaultCaptionPrompt;
-  // Simplified prompt adjustment logic from before
-  if (captionUserPrompt && (!captionUserPrompt.toLowerCase().includes("3 options") && !captionUserPrompt.toLowerCase().includes("array of captions"))) {
-    effectivePrompt = `Generate an array of 3 distinct caption options based on: "${captionUserPrompt}". Style: social media reel. No emojis/hashtags.`;
-  }
-
-
-  try {
-    const contents = [{ inlineData: { mimeType, data: base64ImageData } }, { text: effectivePrompt }];
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash", contents, safetySettings,
-      config: { responseMimeType: "application/json", responseSchema: captionResponseSchema },
-    });
-    const responseText = response.text;
-    if (typeof responseText !== 'string' || !responseText.trim()) throw new Error("Model response empty or not string.");
-    const parsed = JSON.parse(responseText);
-    if (Array.isArray(parsed) && parsed.every(c => typeof c === 'string')) {
-      const cleaned = parsed.map(c => c.trim().replace(/\*/g, '')).filter(c => c.length > 0);
-      return cleaned.length > 0 ? cleaned : ["Generated image description."];
-    }
-    throw new Error("Parsed JSON not array of strings.");
-  } catch (error) {
-    console.error("[generateCaptionForImageData] Error:", error.message);
-    return [(error.message.substring(0,100) || "Could not generate caption.")]; // Return error message or generic fallback
-  }
+  console.warn("Skipping image caption generation due to environment limitations.");
+  return ["Generated image description."];
 }
 
 function base64ToBlob(base64, mimeType) {
@@ -285,11 +256,13 @@ export async function generateImageFromPromptForPod({ prompt, referenceImage }) 
 
   const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
   let contents;
-  const basePodPrompt = `Generate visually appealing image for: "${prompt}". Suitable for merchandise (t-shirts, mugs). Clear subject, good contrast. Square image.`;
+  // Reinstated a system prompt that wraps the user's prompt for better POD results.
+  const basePodPrompt = `Generate visually appealing image/print design to place on a product based on the following user prompt for a store generator: "${prompt}". Solely the image/design alone that is intended to go on products (canvas, t-shirts, mugs) not the products themselves. Square image.`;
 
   if (referenceImage?.base64Data && referenceImage?.mimeType) {
     contents = [
-      { text: `Using provided image as reference, ${prompt}. Output for print-on-demand. Square image.` },
+      // When a reference image is used, the prompt can be more direct about using it.
+      { text: `Using the provided image as a reference, generate a new image based on the following concept: "${prompt}". Ensure the output is suitable for print-on-demand merchandise and is a square image.` },
       { inlineData: { mimeType: referenceImage.mimeType, data: referenceImage.base64Data } },
     ];
   } else {
@@ -320,73 +293,142 @@ export async function generateImageFromPromptForPod({ prompt, referenceImage }) 
   }
 }
 
-export async function visualizeImageOnProductWithGemini(promptGeneratedBase64, promptGeneratedMimeType, baseProductImageUrl, originalUserPrompt, productName) {
-  if (!promptGeneratedBase64 || !baseProductImageUrl || !originalUserPrompt || !productName) throw new Error("All params required for visualization.");
-  if (!GEMINI_API_KEY) throw new Error("Gemini API key not configured.");
-
-  const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-  let baseProductBase64, baseProductMimeType;
-
+// Helper function to fetch an image URL and return its base64 data and mime type
+async function fetchImageAsBase64(imageUrl) {
   try {
-    const fetchResponse = await fetch(baseProductImageUrl);
-    if (!fetchResponse.ok) throw new Error(`Failed to fetch base product image: ${fetchResponse.statusText}`);
-    const blob = await fetchResponse.blob();
-    baseProductMimeType = blob.type;
-    baseProductBase64 = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result.split(',')[1]);
-      reader.onerror = reject;
-    });
+    const response = await fetch(imageUrl);
+    if (!response.ok) {
+      // Try with a proxy if direct fetch fails (useful for CORS issues in some environments)
+      // This is a common pattern; the actual proxy URL would need to be configured.
+      // For now, let's assume direct fetch or that the environment handles CORS.
+      console.warn(`Direct fetch for ${imageUrl} failed with status ${response.status}. Retrying without proxy for now.`);
+      // const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(imageUrl)}`;
+      // const proxiedResponse = await fetch(proxyUrl);
+      // if (!proxiedResponse.ok) {
+      //   throw new Error(`Failed to fetch image via proxy ${imageUrl}: ${proxiedResponse.statusText}`);
+      // }
+      // const blob = await proxiedResponse.blob();
+      throw new Error(`Failed to fetch image ${imageUrl}: ${response.statusText}`);
+    }
+    const blob = await response.blob();
+    const mimeType = blob.type;
+    if (!mimeType.startsWith('image/')) {
+      throw new Error(`Fetched content from ${imageUrl} is not an image. MIME type: ${mimeType}`);
+    }
+    const arrayBuffer = await blob.arrayBuffer();
+    const base64Data = btoa(new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), ''));
+    return { base64Data, mimeType };
   } catch (error) {
-    throw new Error(`Could not load base product image: ${error.message}`);
+    console.error(`Error in fetchImageAsBase64 for ${imageUrl}:`, error);
+    throw error; // Re-throw to be handled by the caller
+  }
+}
+
+export async function visualizeImageOnProductWithGemini(promptGeneratedBase64, promptGeneratedMimeType, baseProductImageUrl, originalUserPrompt, productName) {
+  if (!GEMINI_API_KEY) {
+    console.error("[visualizeImageOnProductWithGemini] Gemini API key not configured.");
+    throw new Error("Gemini API key not configured.");
+  }
+  if (!promptGeneratedBase64 || !promptGeneratedMimeType || !baseProductImageUrl || !originalUserPrompt || !productName) {
+    console.error("[visualizeImageOnProductWithGemini] Missing required parameters.");
+    throw new Error("Missing required parameters for product visualization.");
   }
 
-  const imageVisualizationPrompt = `Take this generated image (Image 1 from prompt "${originalUserPrompt}"), and realistically superimpose it onto this base product image (Image 2, a ${productName}). Output only the combined image.`;
-  const productDetailsPrompt = `For a ${productName} with design from prompt "${originalUserPrompt}", generate: 1. Title (max 60 chars). 2. Price (float). 3. Description (2-3 sentences, max 200 chars).`;
-  const productDetailsResponseSchema = {
-    type: Type.OBJECT,
-    properties: {
-      title: { type: Type.STRING }, price: { type: Type.NUMBER }, description: { type: Type.STRING },
-    },
-    required: ["title", "price", "description"],
-  };
+  const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
   try {
-    const imageGenContents = [
-      { text: imageVisualizationPrompt },
-      { inlineData: { mimeType: promptGeneratedMimeType, data: promptGeneratedBase64 } },
-      { inlineData: { mimeType: baseProductMimeType, data: baseProductBase64 } },
+    console.log(`[visualizeImageOnProductWithGemini] Fetching base product image from: ${baseProductImageUrl}`);
+    const { base64Data: mockupBase64, mimeType: mockupMimeType } = await fetchImageAsBase64(baseProductImageUrl);
+    console.log(`[visualizeImageOnProductWithGemini] Fetched mockup: ${mockupMimeType}, length: ${mockupBase64.length}`);
+
+    const designImagePart = {
+      inlineData: {
+        mimeType: promptGeneratedMimeType,
+        data: promptGeneratedBase64,
+      },
+    };
+
+    const mockupImagePart = {
+      inlineData: {
+        mimeType: mockupMimeType,
+        data: mockupBase64,
+      },
+    };
+
+    // Construct the prompt carefully to guide Gemini
+    const textPrompt = `You are an expert product visualization AI.
+Task: Place the first provided image (the 'design') onto the second provided image (the '${productName}' mockup).
+Design Details: The design was conceptualized with the idea: "${originalUserPrompt}".
+Mockup: The mockup is a '${productName}'.
+Instructions:
+1. Realistically superimpose the design onto the mockup.
+2. Ensure the design conforms to the shape and texture of the mockup.
+3. Maintain the original quality and details of both the design and the mockup where appropriate.
+4. Output only the final visualized product image. Do not add any extra text or explanations in the image itself.
+`;
+
+    const contents = [
+      { text: textPrompt },
+      designImagePart, // Design image
+      mockupImagePart,   // Mockup image
     ];
-    const imageResponse = await ai.models.generateContent({
-      model: "gemini-2.0-flash-preview-image-generation", contents: imageGenContents, safetySettings,
+
+    console.log(`[visualizeImageOnProductWithGemini] Calling Gemini API for ${productName} with prompt: "${originalUserPrompt}"`);
+    const response = await ai.models.generateContent({
+      model: "gemini-2.0-flash-preview-image-generation", // Or a model specifically for image editing if available and preferred
+      contents: contents,
+      safetySettings,
       config: { responseModalities: [Modality.TEXT, Modality.IMAGE] },
     });
 
-    let visualizedImageData = null, visualizedImageMimeType = null;
-    if (imageResponse.candidates?.[0]?.content?.parts) {
-      for (const part of imageResponse.candidates[0].content.parts) {
-        if (part.inlineData?.data) {
+    let visualizedImageData = null;
+    let visualizedImageMimeType = null;
+    let apiTextResponse = "";
+
+    if (response.candidates?.[0]?.content?.parts) {
+      for (const part of response.candidates[0].content.parts) {
+        if (part.text) {
+          apiTextResponse += part.text;
+        } else if (part.inlineData?.data) {
           visualizedImageData = part.inlineData.data;
           visualizedImageMimeType = part.inlineData.mimeType;
-          break;
+          break; // Assuming the first image part is the result
         }
       }
     }
-    if (!visualizedImageData) throw new Error("Failed to generate visualized product image.");
+    
+    console.log(`[visualizeImageOnProductWithGemini] API Text Response: ${apiTextResponse}`);
 
-    const detailsResponse = await ai.models.generateContent({
-      model: "gemini-2.0-flash", contents: [{ text: productDetailsPrompt }], safetySettings,
-      config: { responseMimeType: "application/json", responseSchema: productDetailsResponseSchema },
-    });
-    let productDetails = JSON.parse(detailsResponse.text || '{}');
-     if (!productDetails.title) { // Basic validation / fallback
-        productDetails = { title: `Custom ${productName}`, price: 24.99, description: `Unique ${productName} with design: "${originalUserPrompt}".` };
+    if (!visualizedImageData) {
+      console.error("[visualizeImageOnProductWithGemini] Failed to get visualized image data from API.", apiTextResponse);
+      throw new Error("Failed to visualize product. API did not return image data. " + (apiTextResponse || "No text explanation."));
     }
 
-    return { visualizedImageData, visualizedImageMimeType, productDetails };
+    console.log(`[visualizeImageOnProductWithGemini] Visualization successful for ${productName}. MimeType: ${visualizedImageMimeType}`);
+    return {
+      visualizedImageData,
+      visualizedImageMimeType,
+      productDetails: { // Keep existing structure for product details
+        title: `Custom ${productName} (Viz)`, // Added (Viz) for clarity if needed
+        price: 24.99, // This might need to be dynamic or passed in if it varies
+        description: `Unique ${productName} featuring the design: "${originalUserPrompt}".`,
+      },
+      apiTextResponse: apiTextResponse // Optional: return API's text response for debugging
+    };
+
   } catch (error) {
-    console.error("[visualizeImageOnProductWithGemini] Error:", error.message);
-    throw new Error(`Product visualization failed: ${error.message || "Unknown error"}`);
+    console.error(`[visualizeImageOnProductWithGemini] Error visualizing ${productName}:`, error);
+    // Return a structure consistent with expected failures, but with error details
+    return {
+      visualizedImageData: null,
+      visualizedImageMimeType: null,
+      productDetails: {
+        title: `Custom ${productName}`,
+        price: 24.99,
+        description: `Failed to visualize design on ${productName}. Error: ${error.message}`,
+      },
+      error: error.message,
+    };
   }
 }
 

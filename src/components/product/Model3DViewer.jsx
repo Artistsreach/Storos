@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
 import { RotateCcw, Maximize2, Download } from 'lucide-react';
 
 const Model3DViewer = ({ 

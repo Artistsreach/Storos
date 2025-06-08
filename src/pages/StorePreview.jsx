@@ -1,22 +1,22 @@
 
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useParams } from 'react-router-dom'; // useSearchParams no longer needed for 'edit'
-import { useStore } from '@/contexts/StoreContext';
-// import StoreHeader from '@/components/store/StoreHeader';
-// import StoreHero from '@/components/store/StoreHero';
-// import ProductGrid from '@/components/store/ProductGrid';
-// import StoreFeatures from '@/components/store/StoreFeatures';
-// import StoreNewsletter from '@/components/store/StoreNewsletter';
-// import StoreFooter from '@/components/store/StoreFooter';
-import PreviewControls from '@/components/PreviewControls';
-import EditStoreForm from '@/components/EditStoreForm';
-import { useToast } from '@/components/ui/use-toast';
-import RealtimeChatbot from '@/components/store/RealtimeChatbot';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { useStore } from '../contexts/StoreContext';
+// import StoreHeader from '../components/store/StoreHeader';
+// import StoreHero from '../components/store/StoreHero';
+// import ProductGrid from '../components/store/ProductGrid';
+// import StoreFeatures from '../components/store/StoreFeatures';
+// import StoreNewsletter from '../components/store/StoreNewsletter';
+// import StoreFooter from '../components/store/StoreFooter';
+import PreviewControls from '../components/PreviewControls';
+import EditStoreForm from '../components/EditStoreForm';
+import { useToast } from '../components/ui/use-toast';
+import RealtimeChatbot from '../components/store/RealtimeChatbot';
+import { Input } from '../components/ui/input';
+import { Button } from '../components/ui/button';
 import { Lock, Unlock } from 'lucide-react';
-import StoreWaySection from '@/components/store/StoreWaySection.jsx';
-import ModernStoreFeatures from '@/components/store/modern/sections/StoreFeatures.jsx'; // Using modern as the base for now
+import StoreWaySection from '../components/store/StoreWaySection.jsx';
+import ModernStoreFeatures from '../components/store/modern/sections/StoreFeatures.jsx'; // Using modern as the base for now
 
 const StorePreview = () => {
   console.log('[StorePreview] Component mounted.');
@@ -68,6 +68,7 @@ const StorePreview = () => {
   const [FreshFeatures, setFreshFeatures] = useState(null);
   const [FreshProductGrid, setFreshProductGrid] = useState(null);
   const [FreshStoreCollectionsComponent, setFreshStoreCollectionsComponent] = useState(null); // Renamed and will hold the new Fresh-specific collections component
+  const [FreshTestimonials, setFreshTestimonials] = useState(null);
   const [FreshNewsletter, setFreshNewsletter] = useState(null);
   const [FreshFooter, setFreshFooter] = useState(null);
   // Add other Fresh components here as they are created
@@ -81,6 +82,7 @@ const StorePreview = () => {
   const [SleekNewsletter, setSleekNewsletter] = useState(null);
   const [SleekFooter, setSleekFooter] = useState(null);
   const [SleekCollections, setSleekCollections] = useState(null); // Added
+  const [SleekStoreWay, setSleekStoreWay] = useState(null);
 
   // Generic sections like StoreWaySection
   const [StoreWay, setStoreWay] = useState(null);
@@ -288,8 +290,8 @@ const StorePreview = () => {
       setModernHeader(null); setModernHero(null); setModernFeatures(null); setModernCollections(null); setModernProductGrid(null); setModernFooter(null);
       setPHeader(null); setPHero(null); setPFeaturedProducts(null); setPCategoryShowcase(null); setPSocialProof(null); setPNewsletter(null); setPFooter(null);
       setSharpHeader(null); setSharpHero(null); setSharpFeatures(null); setSharpProductGrid(null); setSharpTestimonials(null); setSharpImageRightSection(null); setSharpVideoLeftSection(null); setSharpHeroFollowUpVideo(null); setSharpNewsletter(null); setSharpFooter(null);
-      setFreshHeader(null); setFreshHero(null); setFreshFeatures(null); setFreshProductGrid(null); setFreshStoreCollectionsComponent(null); setFreshNewsletter(null); setFreshFooter(null);
-      setSleekHeader(null); setSleekHero(null); setSleekProductGrid(null); setSleekFeatures(null); setSleekTestimonials(null); setSleekNewsletter(null); setSleekFooter(null); setSleekCollections(null);
+      setFreshHeader(null); setFreshHero(null); setFreshFeatures(null); setFreshProductGrid(null); setFreshStoreCollectionsComponent(null); setFreshTestimonials(null); setFreshNewsletter(null); setFreshFooter(null);
+      setSleekHeader(null); setSleekHero(null); setSleekProductGrid(null); setSleekFeatures(null); setSleekTestimonials(null); setSleekNewsletter(null); setSleekFooter(null); setSleekCollections(null); setSleekStoreWay(null);
       setStoreWay(null); 
       setStoreFeaturesComponent(null); // Reset StoreFeaturesComponent
 
@@ -338,6 +340,7 @@ const StorePreview = () => {
         setFreshFeatures(() => lazy(() => import('@/components/store/fresh/sections/StoreFeatures.jsx')));
         setFreshProductGrid(() => lazy(() => import('@/components/store/fresh/sections/ProductGrid.jsx')));
         setFreshStoreCollectionsComponent(() => lazy(() => import('@/components/store/fresh/sections/StoreCollections.jsx'))); // Use new Fresh-specific collections
+        setFreshTestimonials(() => lazy(() => import('@/components/store/fresh/sections/Testimonials.jsx')));
         setFreshNewsletter(() => lazy(() => import('@/components/store/fresh/sections/Newsletter.jsx')));
         setFreshFooter(() => lazy(() => import('@/components/store/fresh/layout/Footer.jsx')));
       } else if (templateVersionToLoad === 'sleek') {
@@ -349,6 +352,7 @@ const StorePreview = () => {
         setSleekNewsletter(() => lazy(() => import('@/components/store/sleek/sections/Newsletter.jsx')));
         setSleekFooter(() => lazy(() => import('@/components/store/sleek/layout/Footer.jsx')));
         setSleekCollections(() => lazy(() => import('@/components/store/sleek/sections/StoreCollections.jsx')));
+        setSleekStoreWay(() => lazy(() => import('@/components/store/sleek/sections/StoreWaySection.jsx')));
       }
     }
   }, [store?.id, previewTemplateVersion]); // Depends on store.id and previewTemplateVersion
@@ -585,6 +589,7 @@ const StorePreview = () => {
             {FreshStoreCollectionsComponent && <FreshStoreCollectionsComponent store={store} isPublishedView={isPublished} />} {/* This is "Shop by Collection" */}
             {/* FreshFeatures is loaded specifically, if not, use generic */}
             {FreshFeatures ? <FreshFeatures store={store} isPublishedView={isPublished} /> : (StoreFeaturesComponent && <StoreFeaturesComponent store={store} isPublishedView={isPublished} />)}
+            {FreshTestimonials && <FreshTestimonials store={store} isPublishedView={isPublished} />}
             {StoreWay && <StoreWay store={store} isPublishedView={isPublished} />}
             {FreshNewsletter && <FreshNewsletter store={store} />}
             {FreshFooter && <FreshFooter store={store} />}
@@ -597,7 +602,7 @@ const StorePreview = () => {
             {SleekCollections && <SleekCollections store={store} isPublishedView={isPublished} />}
             {/* SleekFeatures is loaded specifically, if not, use generic */}
             {SleekFeatures ? <SleekFeatures store={store} isPublishedView={isPublished} /> : (StoreFeaturesComponent && <StoreFeaturesComponent store={store} isPublishedView={isPublished} />)}
-            {StoreWay && <StoreWay store={store} isPublishedView={isPublished} />}
+            {SleekStoreWay ? <SleekStoreWay store={store} isPublishedView={isPublished} /> : (StoreWay && <StoreWay store={store} isPublishedView={isPublished} />)}
             {SleekTestimonials && <SleekTestimonials store={store} isPublishedView={isPublished} />}
             {SleekNewsletter && <SleekNewsletter store={store} isPublishedView={isPublished} />}
             {SleekFooter && <SleekFooter store={store} isPublishedView={isPublished} />}

@@ -1,18 +1,19 @@
 
 import React, { useState, useEffect } from 'react'; // Added useEffect
 import { motion } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge'; // Added Badge
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { Textarea } from '../../components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import { Card } from '../../components/ui/card';
+import { Badge } from '../../components/ui/badge'; // Added Badge
 import { Loader2, Wand2, Sparkles, PlusCircle, Trash2, UploadCloud, AlertTriangle, CheckCircle, X, Edit3 } from 'lucide-react'; // Added Edit3, CheckCircle, X
-import ManageCollectionProductsModal from '@/components/store/ManageCollectionProductsModal'; // Import the modal
+import ManageCollectionProductsModal from '../../components/store/ManageCollectionProductsModal'; // Import the modal
 import EditAiProductModal from './EditAiProductModal'; // Import the new modal
-import { generateImageFromPromptForPod, visualizeImageOnProductWithGemini } from '@/lib/geminiImageGeneration'; // Import the new functions
+import { generateImageFromPromptForPod, visualizeImageOnProductWithGemini } from '../../lib/geminiImageGeneration'; // Import the new functions
 import { useToast } from "@/components/ui/use-toast"; // For showing errors
+import { podProductsList, productTypeOptions as ptoFromConstants } from '../../lib/constants'; // Import from constants
 
 // Helper function to convert file to data URL
 const fileToBase64 = (file) => {
@@ -24,18 +25,7 @@ const fileToBase64 = (file) => {
   });
 };
 
-export const productTypeOptions = [
-  { value: "fashion", label: "Fashion & Apparel" },
-  { value: "electronics", label: "Electronics & Gadgets" },
-  { value: "food", label: "Food & Beverage" },
-  { value: "jewelry", label: "Jewelry & Accessories" },
-  { value: "homedecor", label: "Home Decor & Furnishings" },
-  { value: "beauty", label: "Beauty & Personal Care" },
-  { value: "books", label: "Books & Media" },
-  { value: "sports", label: "Sports & Outdoors" },
-  { value: "toys", label: "Toys & Games" },
-  { value: "general", label: "General Merchandise" },
-];
+// productTypeOptions is now imported as ptoFromConstants
 
 export const renderWizardStepContent = (step, props) => {
   const {
@@ -49,7 +39,7 @@ export const renderWizardStepContent = (step, props) => {
     productImageGenerationError, 
     isGeneratingAnglesForIndex, // Added for angle generation
     angleGenerationError, // Added for angle generation
-    productTypeOptions: pto, 
+    // productTypeOptions: pto, // This will now come from the imported ptoFromConstants
     storeNameSuggestions, handleSuggestionClick, suggestionError,
     // Props for "Start from Product Photos"
     handleInitialImportMethodChange, // New handler for import method
@@ -228,15 +218,7 @@ export const renderWizardStepContent = (step, props) => {
   };
 
 
-  const podProductsList = [
-    { name: "T-shirt", imageUrl: "https://uwbrgokfgelgxeonoqah.supabase.co/storage/v1/object/public/images//Shirt.webp" },
-    { name: "Hoodie", imageUrl: "https://uwbrgokfgelgxeonoqah.supabase.co/storage/v1/object/public/images//Hoodie.jpeg" },
-    { name: "Baseball Cap", imageUrl: "https://uwbrgokfgelgxeonoqah.supabase.co/storage/v1/object/public/images//Hat.jpeg" },
-    { name: "Mug", imageUrl: "https://uwbrgokfgelgxeonoqah.supabase.co/storage/v1/object/public/images//Mug.png" },
-    { name: "Pillow", imageUrl: "https://uwbrgokfgelgxeonoqah.supabase.co/storage/v1/object/public/images//Pillow.webp" },
-    { name: "Blanket", imageUrl: "https://uwbrgokfgelgxeonoqah.supabase.co/storage/v1/object/public/images//Bl.webp" },
-    { name: "Canvas", imageUrl: "https://uwbrgokfgelgxeonoqah.supabase.co/storage/v1/object/public/images//IMG_5933.jpeg" },
-  ];
+  // podProductsList is now imported from constants.js
 
   const handleGeneratePodImagePreview = async () => {
     if (!podImagePrompt) {
@@ -537,7 +519,7 @@ export const renderWizardStepContent = (step, props) => {
                 list="productTypeSuggestions"
               />
               <datalist id="productTypeSuggestions">
-                {pto.map(option => (
+                {ptoFromConstants.map(option => (
                   <option key={option.value} value={option.label} />
                 ))}
               </datalist>

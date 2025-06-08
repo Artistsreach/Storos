@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react'; // Added useEffect
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label'; // Added Label import
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '../../components/ui/dialog';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label'; // Added Label import
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Search, Wand2 as WandIcon, UploadCloud } from 'lucide-react';
 import { useToast } from "@/components/ui/use-toast";
-import { fetchPexelsImages, generateImageWithGemini, generateId } from '@/lib/utils'; // Assuming generateImageWithGemini is suitable
+import { fetchPexelsImages, generateImageWithGemini, generateId } from '../../lib/utils'; // Assuming generateImageWithGemini is suitable
 import { motion } from 'framer-motion';
 
 // Helper function (can be moved to utils)

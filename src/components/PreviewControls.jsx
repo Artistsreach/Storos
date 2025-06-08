@@ -2,17 +2,19 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom'; // Added Link
-import { Button } from '@/components/ui/button';
+import { Button } from './ui/button';
 import { 
   Select, 
   SelectContent, 
   SelectItem, 
   SelectTrigger, 
   SelectValue 
-} from '@/components/ui/select'; // Import Select components
-import { ArrowLeft, Edit, Download, Copy, Eye, EyeOff, Sparkles, Palette, UploadCloud, Check, Settings } from 'lucide-react'; // Added Settings, Sparkles, Palette, UploadCloud, Check
-import { useToast } from '@/components/ui/use-toast';
-import { useStore } from '@/contexts/StoreContext'; // Import useStore
+} from './ui/select'; // Import Select components
+import { ArrowLeft, Edit, Download, Copy, Eye, EyeOff, Sparkles, Palette, UploadCloud, Check, Settings, ExternalLink } from 'lucide-react'; // Added Settings, Sparkles, Palette, UploadCloud, Check
+import { useToast } from './ui/use-toast';
+import { useStore } from '../contexts/StoreContext'; // Import useStore
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 
 // Added currentTemplate, onTemplateChange, availableTemplates props
 const PreviewControls = ({ store, onEdit, currentTemplate, onTemplateChange, availableTemplates = [] }) => {
@@ -20,8 +22,77 @@ const PreviewControls = ({ store, onEdit, currentTemplate, onTemplateChange, ava
   const { toast } = useToast();
   // Removed updateStoreTemplateVersion from here as it will be handled by onTemplateChange for preview
   // Persisting will be handled by EditStoreForm or a dedicated save button.
-  const { viewMode, setViewMode, currentStore, updateStore, updateStoreTemplateVersion } = useStore(); 
+  const { viewMode, setViewMode, currentStore, updateStore, updateStoreTemplateVersion, user } = useStore(); 
   
+  const handleStripeOnboarding = async () => {
+    if (!user || !user.email) {
+      toast({
+        title: 'Authentication Error',
+        description: 'You must be logged in with a valid email to onboard with Stripe.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    toast({
+      title: 'Redirecting to Stripe...',
+      description: 'Please wait while we connect you to Stripe for onboarding.',
+    });
+
+    try {
+      const functions = getFunctions();
+      const stripeCreateConnectAccount = httpsCallable(functions, 'stripeCreateConnectAccount');
+      const result = await stripeCreateConnectAccount({ email: user.email });
+      
+      const { accountLinkUrl } = result.data;
+      if (accountLinkUrl) {
+        window.location.href = accountLinkUrl;
+      } else {
+        throw new Error('Account link URL not returned from function.');
+      }
+    } catch (error) {
+      console.error('Error creating Stripe Connect account link:', error);
+      toast({
+        title: 'Error',
+        description: 'Could not initiate Stripe onboarding. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleStripeDashboard = async () => {
+    if (!currentStore || !currentStore.stripe_account_id) {
+      // This case is now handled by the Popover for non-disabled buttons,
+      // but we keep the check for robustness.
+      return;
+    }
+
+    toast({
+      title: 'Generating Dashboard Link...',
+      description: 'Please wait while we connect you to Stripe.',
+    });
+
+    try {
+      const functions = getFunctions();
+      const stripeCreateLoginLink = httpsCallable(functions, 'stripeCreateLoginLink');
+      const result = await stripeCreateLoginLink({ stripeAccountId: currentStore.stripe_account_id });
+      
+      const { loginLinkUrl } = result.data;
+      if (loginLinkUrl) {
+        window.open(loginLinkUrl, '_blank');
+      } else {
+        throw new Error('Login link URL not returned from function.');
+      }
+    } catch (error) {
+      console.error('Error creating Stripe login link:', error);
+      toast({
+        title: 'Error',
+        description: 'Could not create a link to the Stripe dashboard. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleExport = () => {
     // In a real implementation, this would generate and download the store code
     toast({
@@ -182,11 +253,38 @@ const PreviewControls = ({ store, onEdit, currentTemplate, onTemplateChange, ava
             <Copy className="h-4 w-4" /> {/* Removed margin */}
           </Button>
           
-          <Button asChild variant="outline" size="sm" disabled={!store || !store.name}>
-            <Link to={store && store.name ? `/${store.name}/dashboard` : '#'}>
+          {currentStore && currentStore.stripe_account_id ? (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleStripeDashboard}
+            >
               Dashboard
-            </Link>
-          </Button>
+              <ExternalLink className="ml-2 h-4 w-4" />
+            </Button>
+          ) : (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm">
+                  Dashboard
+                  <ExternalLink className="ml-2 h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80">
+                <div className="grid gap-4">
+                  <div className="space-y-2">
+                    <h4 className="font-medium leading-none">No active business account</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Connect with Stripe to manage your payments and payouts.
+                    </p>
+                  </div>
+                  <Button onClick={handleStripeOnboarding}>
+                    Onboard with <img src="https://firebasestorage.googleapis.com/v0/b/freshfront-c3181.firebasestorage.app/o/Stripelogo.PNG?alt=media&token=7b989f42-b2c9-4a3c-a7e1-9ed280b6a9ea" alt="Stripe" className="inline-block h-4 ml-2" />
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
 
           <Button asChild size="sm" variant="outline" disabled={!currentStore || !currentStore.name}>
             <Link 

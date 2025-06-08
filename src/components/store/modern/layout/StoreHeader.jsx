@@ -35,16 +35,20 @@ import {
   Sparkles,
   Zap,
   Star,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useStore } from "@/contexts/StoreContext";
 import InlineTextEdit from "@/components/ui/InlineTextEdit";
+import CartModal from "./CartModal";
 
 const StoreHeader = ({ store, isPublishedView = false }) => {
   const { cart, updateStoreTextContent } = useStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isScrolled, setIsScrolled] = useState(false);
   const { scrollY } = useScroll(); // Will use the mocked version
@@ -61,6 +65,17 @@ const StoreHeader = ({ store, isPublishedView = false }) => {
   const logoUrlLight = store?.logo_url_light || null; // For dark backgrounds
   const logoUrlDark = store?.logo_url_dark || null;   // For light backgrounds
   const [isDarkMode, setIsDarkMode] = useState(false); // Local state for theme
+
+  const toggleTheme = () => {
+    const newTheme = !isDarkMode ? 'dark' : 'light';
+    setIsDarkMode(!isDarkMode);
+    localStorage.setItem('theme', newTheme);
+    if (newTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  };
 
   // Cart count
   const cartCount = cart?.reduce((total, item) => total + item.quantity, 0) || 0;
@@ -169,9 +184,9 @@ const StoreHeader = ({ store, isPublishedView = false }) => {
           isScrolled
             ? "py-2 shadow-2xl border-b border-white/10"
             : "py-4 shadow-lg"
-        }`}
+        } modern-header`}
         style={{
-          backgroundColor: `rgba(255, 255, 255, ${headerOpacity.get()})`,
+          backgroundColor: isDarkMode ? `rgba(17, 24, 39, ${headerOpacity.get()})` : `rgba(255, 255, 255, ${headerOpacity.get()})`,
           backdropFilter: `blur(${headerBlur.get()}px)`,
         }}
       >
@@ -323,8 +338,41 @@ const StoreHeader = ({ store, isPublishedView = false }) => {
                 </motion.div>
               </motion.button>
 
+              {/* Theme Toggle */}
+              <motion.button
+                onClick={toggleTheme}
+                className="w-10 h-10 rounded-full bg-white/10 dark:bg-black/10 backdrop-blur-md border border-white/20 dark:border-white/10 flex items-center justify-center text-gray-700 dark:text-gray-300 hover:text-primary transition-all duration-300 shadow-glass"
+                whileHover={{ scale: 1.1, rotate: isDarkMode ? 360 : -360 }}
+                whileTap={{ scale: 0.9 }}
+              >
+                <AnimatePresence mode="wait">
+                  {isDarkMode ? (
+                    <motion.div
+                      key="moon"
+                      initial={{ y: -20, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      exit={{ y: 20, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <Moon className="w-5 h-5" />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="sun"
+                      initial={{ y: 20, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      exit={{ y: -20, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <Sun className="w-5 h-5" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.button>
+
               {/* Cart */}
               <motion.button
+                onClick={() => setIsCartOpen(true)}
                 className="w-10 h-10 rounded-full bg-white/10 dark:bg-black/10 backdrop-blur-md border border-white/20 dark:border-white/10 flex items-center justify-center text-gray-700 dark:text-gray-300 hover:text-primary transition-all duration-300 shadow-glass relative"
                 whileHover={{ scale: 1.1, rotate: 5 }}
                 whileTap={{ scale: 0.9 }}
@@ -465,6 +513,8 @@ const StoreHeader = ({ store, isPublishedView = false }) => {
 
       {/* Spacer to prevent content overlap */}
       <div className="h-20" />
+
+      <CartModal isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </>
   );
 };

@@ -1,21 +1,21 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider, Navigate, Outlet } from 'react-router-dom';
-import App from '@/App';
-import '@/index.css';
-import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import App from './App';
+import './index.css';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 // Page Imports
-import ContentCreationPage from '@/pages/ContentCreationPage';
-import StoreOwnerDashboard from '@/pages/StoreOwnerDashboard';
-import AdminDashboard from '@/pages/AdminDashboard';
-import StorePreview from '@/pages/StorePreview';
-import ProductDetail from '@/pages/ProductDetail';
-import CheckoutPage from '@/pages/CheckoutPage';
-import AuthPage from '@/pages/AuthPage';
-import PricingPage from '@/pages/PricingPage';
-import OrderConfirmationPage from '@/pages/OrderConfirmationPage';
-import StoreDashboardPage from '@/pages/StoreDashboardPage'; // Import the new dashboard page
+import ContentCreationPage from './pages/ContentCreationPage';
+import StoreOwnerDashboard from './pages/StoreOwnerDashboard';
+import AdminDashboard from './pages/AdminDashboard';
+import StorePreview from './pages/StorePreview';
+import ProductDetail from './pages/ProductDetail';
+import CheckoutPage from './pages/CheckoutPage';
+import AuthPage from './pages/AuthPage';
+import PricingPage from './pages/PricingPage';
+import OrderConfirmationPage from './pages/OrderConfirmationPage';
+import StoreDashboardPage from './pages/StoreDashboardPage'; // Import the new dashboard page
 
 // Helper component to handle initial loading and auth logic for the index route
 const IndexPageHandler = () => {

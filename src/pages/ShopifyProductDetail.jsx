@@ -1,22 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useStore } from '@/contexts/StoreContext';
-import StoreHeader from '@/components/store/StoreHeader';
-import StoreFooter from '@/components/store/StoreFooter';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { fetchPexelsImages, generateImageWithGemini, generateId } from '@/lib/utils';
-import { editImageWithGemini } from '@/lib/geminiImageGeneration';
+import { useStore } from '../contexts/StoreContext';
+import StoreHeader from '../components/store/StoreHeader';
+import StoreFooter from '../components/store/StoreFooter';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Textarea } from '../components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '../components/ui/dialog';
+import { fetchPexelsImages, generateImageWithGemini, generateId } from '../lib/utils';
+import { editImageWithGemini } from '../lib/geminiImageGeneration';
 import { ShoppingCart, Star, ImageDown as ImageUp, Wand, Loader2, ArrowLeft, Replace, Edit3, VideoIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useToast } from '@/components/ui/use-toast';
-import GenerateProductVideoModal from '@/components/product/GenerateProductVideoModal';
-import ProductVisualizer from '@/components/product/ProductVisualizer';
-import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
+import { useToast } from '../components/ui/use-toast';
+import GenerateProductVideoModal from '../components/product/GenerateProductVideoModal';
+import ProductVisualizer from '../components/product/ProductVisualizer';
+import { Separator } from '../components/ui/separator';
+import { Badge } from '../components/ui/badge';
 
 const ShopifyProductDetail = () => {
   const { storeId, productId } = useParams();

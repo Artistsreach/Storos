@@ -2,9 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion'; // Added AnimatePresence
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingBag, LogIn, LogOut, Settings, Sun, Moon, Briefcase, ExternalLink, ChevronDown, Menu, X } from 'lucide-react'; // Added Menu, X
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
+import { ShoppingBag, LogIn, LogOut, Settings, Sun, Moon, Briefcase, ExternalLink, ChevronDown, Menu, X, MousePointer2 } from 'lucide-react'; // Added Menu, X
+import { Button } from '../components/ui/button';
+import { Switch } from '../components/ui/switch';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,12 +12,12 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"; // Import Dropdown components
-import { useAuth } from '@/contexts/AuthContext';
-import { functions } from '@/lib/firebaseClient'; // Import Firebase functions instance
+} from "./ui/dropdown-menu"; // Import Dropdown components
+import { useAuth } from '../contexts/AuthContext';
+import { functions } from '../lib/firebaseClient'; // Import Firebase functions instance
 import { httpsCallable } from 'firebase/functions'; // Import httpsCallable
-// import { supabase } from '@/lib/supabaseClient'; // Removed Supabase import
-import SubscribeButton from '@/components/SubscribeButton';
+// import { supabase } from '../lib/supabaseClient'; // Removed Supabase import
+import SubscribeButton from '../components/SubscribeButton';
 
 const Header = () => {
   const { isAuthenticated, user, logout, session, subscriptionStatus, loadingProfile, profile } = useAuth(); // Changed signOut: firebaseSignOut to logout
@@ -147,10 +147,11 @@ const Header = () => {
   return (
     <>
       {/* Announcement Bar - Restored */}
-      {!loadingProfile && isAuthenticated && !isStripeConnected && ( // Added isAuthenticated check for announcement bar
+      {!loadingProfile && isAuthenticated && !(profile?.stripe_account_id && profile?.stripe_account_details_submitted) && ( // Added isAuthenticated check for announcement bar
         <div className="bg-foreground text-background py-2 px-4 text-center text-sm dark:bg-blue-700 dark:text-white">
-          <button onClick={handleCreateStripeConnectAccount} disabled={isStripeActionLoading} className="hover:underline focus:outline-none">
-            {isStripeActionLoading ? 'Processing...' : "Create A Business to Activate Checkout"}
+          <button onClick={handleCreateStripeConnectAccount} disabled={isStripeActionLoading} className="relative hover:underline focus:outline-none">
+            {isStripeActionLoading ? 'Processing...' : "Create Your Business"}
+            <MousePointer2 className="absolute bottom-[-10px] right-[-13px] h-4 w-4 text-white" />
           </button>
           {stripeActionError && <p className="text-xs text-destructive mt-1">{stripeActionError}</p>}
         </div>
@@ -162,10 +163,10 @@ const Header = () => {
         className="w-full py-4 px-6 flex justify-between items-center sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b"
       >
         <Link to="/" className="flex items-center gap-2">
-          <img 
+<img 
             src={isDarkMode 
-              ? "https://firebasestorage.googleapis.com/v0/b/themeforge-hui99.firebasestorage.app/o/ffwhite.png?alt=media&token=a2ebe18b-109c-4c55-b9e1-ec226a788632" 
-              : "https://firebasestorage.googleapis.com/v0/b/themeforge-hui99.firebasestorage.app/o/Ffblack%20(1).png?alt=media&token=cd13601d-6e44-41b9-9e25-35b6f510f99a"} 
+              ? "https://firebasestorage.googleapis.com/v0/b/freshfront-c3181.firebasestorage.app/o/ffwhite.png?alt=media&token=a8f26828-97a9-42b9-9bd3-3c63506f894b"
+              : "https://firebasestorage.googleapis.com/v0/b/freshfront-c3181.firebasestorage.app/o/Ffblack%20(1).png?alt=media&token=ccd72cd1-cd34-4670-a453-9e8424a3c93b"}
             alt="FreshFront Logo" 
             className="h-10 sm:h-[60px] w-auto transition-all" // Adjusted logo size for responsiveness
           />

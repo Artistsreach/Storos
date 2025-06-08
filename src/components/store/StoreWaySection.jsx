@@ -98,6 +98,8 @@ const StoreWaySection = ({ store, isPublishedView = false }) => {
     return <Icon className="w-8 h-8 mb-4 text-[var(--theme-primary)]" />;
   };
 
+  const template = store?.template_version || 'classic';
+
   return (
     <section className="py-16 md:py-24 bg-background">
       <div className="container mx-auto px-4">
@@ -107,7 +109,7 @@ const StoreWaySection = ({ store, isPublishedView = false }) => {
           transition={{ duration: 0.5 }}
           className="text-center mb-12 md:mb-16"
         >
-          <div className="inline-flex items-center justify-center bg-[var(--theme-primary-10)] p-3 rounded-full mb-4">
+          <div className={`inline-flex items-center justify-center bg-[var(--theme-primary-10)] p-3 mb-4 ${template !== 'sleek' ? 'rounded-full' : ''}`}>
              <Palette className="h-8 w-8 text-[var(--theme-primary)]" />
           </div>
           <InlineTextEdit
@@ -135,7 +137,7 @@ const StoreWaySection = ({ store, isPublishedView = false }) => {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: index * 0.1 + 0.2 }}
-              className="bg-card p-6 rounded-xl shadow-lg text-center border border-border/50 hover:shadow-2xl transition-shadow"
+              className={`bg-card p-6 shadow-lg text-center border border-border/50 hover:shadow-2xl transition-shadow ${template !== 'sleek' ? 'rounded-xl' : ''}`}
             >
               <div className="flex justify-center items-center mb-4">
                 {isAdmin ? (

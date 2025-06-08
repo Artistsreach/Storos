@@ -1,8 +1,8 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { useStore } from '@/contexts/StoreContext';
+import { Card, CardContent } from '../components/ui/card';
+import { Progress } from '../components/ui/progress';
+import { useStore } from '../contexts/StoreContext';
 
 const GenerationProgressDisplay = () => {
   const { isGenerating, progress, statusMessage } = useStore();

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Card } from '@/components/ui/card'; // Added Card import
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '../../components/ui/dialog';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { Textarea } from '../../components/ui/textarea';
+import { ScrollArea } from '../../components/ui/scroll-area';
+import { Card } from '../../components/ui/card'; // Added Card import
 import { PlusCircle, Trash2, UploadCloud, Sparkles, Loader2 } from 'lucide-react'; // Added UploadCloud, Sparkles, Loader2
 import { useToast } from "@/components/ui/use-toast";
 

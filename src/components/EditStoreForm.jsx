@@ -9,20 +9,20 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+} from '../components/ui/dialog';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Textarea } from '../components/ui/textarea';
 import { 
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch'; // Added Switch import
-import { useStore } from '@/contexts/StoreContext';
+} from '../components/ui/select';
+import { Switch } from '../components/ui/switch'; // Added Switch import
+import { useStore } from '../contexts/StoreContext';
 
 const EditStoreForm = ({ store, open, onOpenChange }) => {
   const navigate = useNavigate();
@@ -87,7 +87,7 @@ const EditStoreForm = ({ store, open, onOpenChange }) => {
   
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Store</DialogTitle>
           <DialogDescription>

@@ -2,13 +2,12 @@
 
 /* Enhanced Glassmorphism Effects */
 .shadow-glass {
-  0 8px 32px 0 rgba(31, 38, 135, 0.37),
-    0 4px 16px,
-    inset 0 1px 05 ,
-  backdrop-filter:6u;
-  -webkit-backdrop-filter: blur(16px) sa8trat
-  border: 1px solid rgba(255, 255, 255, 0.125);8
-};
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37),
+    0 4px 16px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.125);
+}
 
 .shadow-float {
   box-shadow: 
@@ -90,10 +89,11 @@
 @keyframes pulse-glow {
   0%, 100% {
     box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
-% {;
+  }
+  50% {
     box-shadow: 0 0 40px rgba(99, 102, 241, 0.6);
   }
-};
+}
 
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
@@ -136,17 +136,17 @@
 .modern-scrollbar::-webkit-scrollbar-track {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
-};
+}
 
 .modern-scrollbar::-webkit-scrollbar-thumb {
   background: rgba(99, 102, 241, 0.5);
   border-radius: 4px;
-};
+}
 
 .modern-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(99, 102, 241, 0.7);
 }
-;
+
 /* Text Clamp Utilities */
 .line-clamp-1 {
   overflow: hidden;
@@ -175,19 +175,19 @@
   overflow: hidden;
   background: linear-gradient(135deg, #6366f1, #8b5cf6);
   border: none;
-  eding: 0.75rem 2rem;#6366f1#8b5f6
+  padding: 0.75rem 2rem;
   color: white;
   font-weight: 600;
   transition: all 0.3s ease;
-  box-shawd0;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
-.btn-modern:hover {;
+.btn-modern:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 30px rgba(99, 102, 241, 0.4);
 }
 
-.btn-modern::before {;
+.btn-modern::before {
   content: '';
   position: absolute;
   top: 0;
@@ -233,12 +233,12 @@
   border-color: rgba(99, 102, 241, 0.5);
   box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
 }
-;
-.input-modern::placeho;
+
+.input-modern::placeholder {
   color: rgba(255, 255, 255, 0.6);
 }
 
-/* Respo;
+/* Responsive Text */
 @media (max-width: 640px) {
   .text-responsive-xl {
     font-size: 2rem;
@@ -284,17 +284,14 @@ html {
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
 }
 
-/* Loading Spinner */;
+/* Loading Spinner */
 .spinner-modern {
   width: 40px;
   height: 40px;
   border: 4px solid rgba(99, 102, 241, 0.2);
   border-top: 4px solid #6366f1;
   border-radius: 50%;
-  animation: spin 1;
-};
-
-@keyframes spin {
+  animation: spin 1s linear infinite;
 }
 
 @keyframes spin {
@@ -734,4 +731,8 @@ html {
   .interactive-card:hover {
     transform: translateY(-4px) scale(1.01);
   }
+}
+
+.modern-header.dark {
+  background-color: rgba(17, 24, 39, 0.8); /* Dark background with opacity */
 }

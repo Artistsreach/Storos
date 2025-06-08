@@ -1,14 +1,57 @@
 import React, { useState } from 'react';
-import { useStore } from '@/contexts/StoreContext';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { useStore } from '../../contexts/StoreContext';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
+import { ScrollArea } from '../../components/ui/scroll-area';
 import { Loader2, AlertTriangle, Sparkles, Image as ImageIcon, Edit3 as EditIcon } from 'lucide-react';
 import ShopifyProductEditModal from './ShopifyProductEditModal';
 import ShopifyCollectionEditModal from './ShopifyCollectionEditModal'; // Import collection edit modal
 
 export const ShopifyMetadataPreview = () => {
-  const { shopifyPreviewMetadata, isFetchingShopifyPreviewData, shopifyImportError } = useStore();
+  const { shopifyPreviewMetadata, isFetchingShopifyPreviewData, shopifyImportError, updateShopifyPreviewMetadata } = useStore(); // Added updateShopifyPreviewMetadata
+  const [primaryColor, setPrimaryColor] = useState(shopifyPreviewMetadata?.brand?.colors?.primary?.background || '#000000');
+  const [secondaryColor, setSecondaryColor] = useState(shopifyPreviewMetadata?.brand?.colors?.secondary?.background || '#ffffff');
+
+  React.useEffect(() => {
+    if (shopifyPreviewMetadata?.brand?.colors) {
+      setPrimaryColor(shopifyPreviewMetadata.brand.colors.primary?.background || '#000000');
+      setSecondaryColor(shopifyPreviewMetadata.brand.colors.secondary?.background || '#ffffff');
+    }
+  }, [shopifyPreviewMetadata]);
+
+  const handlePrimaryColorChange = (e) => {
+    const newColor = e.target.value;
+    setPrimaryColor(newColor);
+    if (updateShopifyPreviewMetadata) {
+      updateShopifyPreviewMetadata({
+        ...shopifyPreviewMetadata,
+        brand: {
+          ...shopifyPreviewMetadata.brand,
+          colors: {
+            ...shopifyPreviewMetadata.brand?.colors,
+            primary: { ...shopifyPreviewMetadata.brand?.colors?.primary, background: newColor },
+          },
+        },
+      });
+    }
+  };
+
+  const handleSecondaryColorChange = (e) => {
+    const newColor = e.target.value;
+    setSecondaryColor(newColor);
+    if (updateShopifyPreviewMetadata) {
+      updateShopifyPreviewMetadata({
+        ...shopifyPreviewMetadata,
+        brand: {
+          ...shopifyPreviewMetadata.brand,
+          colors: {
+            ...shopifyPreviewMetadata.brand?.colors,
+            secondary: { ...shopifyPreviewMetadata.brand?.colors?.secondary, background: newColor },
+          },
+        },
+      });
+    }
+  };
 
   if (isFetchingShopifyPreviewData && !shopifyPreviewMetadata) {
     return (
@@ -71,43 +114,63 @@ export const ShopifyMetadataPreview = () => {
           <CardHeader>
             <CardTitle className="text-lg">Brand Colors</CardTitle>
           </CardHeader>
-          <CardContent className="flex space-x-4">
-            {brand.colors.primary?.background && (
-              <div className="text-center">
-                <div 
-                  className="w-16 h-16 rounded border mb-1" 
-                  style={{ backgroundColor: brand.colors.primary.background }}
-                  title={`Primary Background: ${brand.colors.primary.background}`}
+          <CardContent className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="primaryColorPicker" className="block text-sm font-medium text-muted-foreground mb-1">Primary Color</label>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="color"
+                  id="primaryColorPicker"
+                  value={primaryColor}
+                  onChange={handlePrimaryColorChange}
+                  className="h-10 w-10 rounded border cursor-pointer"
+                />
+                <div
+                  className="w-12 h-10 rounded border"
+                  style={{ backgroundColor: primaryColor }}
+                  title={`Primary Background: ${primaryColor}`}
                 ></div>
-                <p className="text-xs">Primary BG</p>
-                {brand.colors.primary.foreground && (
-                   <div 
-                    className="w-16 h-8 rounded border mt-1" 
+                <span className="text-sm">{primaryColor}</span>
+              </div>
+              {brand?.colors?.primary?.foreground && (
+                <div className="mt-2">
+                  <p className="text-xs text-muted-foreground">Text/Icon Color (from Shopify):</p>
+                  <div
+                    className="w-full h-6 rounded border mt-1"
                     style={{ backgroundColor: brand.colors.primary.foreground }}
                     title={`Primary Foreground: ${brand.colors.primary.foreground}`}
                   ></div>
-                )}
-                 {brand.colors.primary.foreground && <p className="text-xs mt-1">Primary FG</p>}
-              </div>
-            )}
-            {brand.colors.secondary?.background && (
-              <div className="text-center">
-                <div 
-                  className="w-16 h-16 rounded border mb-1" 
-                  style={{ backgroundColor: brand.colors.secondary.background }}
-                  title={`Secondary Background: ${brand.colors.secondary.background}`}
+                </div>
+              )}
+            </div>
+            <div>
+              <label htmlFor="secondaryColorPicker" className="block text-sm font-medium text-muted-foreground mb-1">Secondary Color</label>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="color"
+                  id="secondaryColorPicker"
+                  value={secondaryColor}
+                  onChange={handleSecondaryColorChange}
+                  className="h-10 w-10 rounded border cursor-pointer"
+                />
+                <div
+                  className="w-12 h-10 rounded border"
+                  style={{ backgroundColor: secondaryColor }}
+                  title={`Secondary Background: ${secondaryColor}`}
                 ></div>
-                <p className="text-xs">Secondary BG</p>
-                {brand.colors.secondary.foreground && (
-                  <div 
-                    className="w-16 h-8 rounded border mt-1" 
+                <span className="text-sm">{secondaryColor}</span>
+              </div>
+              {brand?.colors?.secondary?.foreground && (
+                <div className="mt-2">
+                  <p className="text-xs text-muted-foreground">Text/Icon Color (from Shopify):</p>
+                  <div
+                    className="w-full h-6 rounded border mt-1"
                     style={{ backgroundColor: brand.colors.secondary.foreground }}
                     title={`Secondary Foreground: ${brand.colors.secondary.foreground}`}
                   ></div>
-                )}
-                {brand.colors.secondary.foreground && <p className="text-xs mt-1">Secondary FG</p>}
-              </div>
-            )}
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}

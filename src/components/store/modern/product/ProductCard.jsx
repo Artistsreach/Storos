@@ -400,7 +400,7 @@ const ProductCard = ({
         {/* Image Container */}
         <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700">
           <motion.img
-            src={internalProductData.image?.src?.medium || internalProductData.image?.src?.large}
+            src={internalProductData.image?.src?.medium || internalProductData.image?.src?.large || (Array.isArray(internalProductData.images) && internalProductData.images.length > 0 ? internalProductData.images[0] : `https://via.placeholder.com/400x400.png?text=${encodeURIComponent(internalProductData.name)}`)}
             alt={internalProductData.name}
             className="w-full h-full object-cover"
             variants={imageVariants}

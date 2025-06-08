@@ -12,7 +12,20 @@ const logging = new Logging({
 // firebase functions:config:set stripe.secret="sk_test_YOUR_STRIPE_SECRET_KEY"
 // OR for emulators, set in .runtimeconfig.json
 const { Stripe } = require('stripe');
-const stripe = new Stripe(functions.config().stripe.secret, {
+
+const stripeConfig = functions.config().stripe || {}; // Ensure stripe object exists, default to empty object if not
+const stripeSecret = stripeConfig.secret;
+
+if (!stripeSecret && process.env.FUNCTIONS_EMULATOR !== 'true') {
+  // Log a warning if not in emulator and secret is missing.
+  // In the cloud, this would mean the config isn't set.
+  // During deployment analysis (if not emulated), this might also appear if config isn't accessible.
+  console.warn('Stripe secret key is not set in Firebase config. Functions requiring Stripe will fail if this is a live environment.');
+}
+
+// Initialize Stripe. Provide a dummy key for local analysis/deployment phase if the actual secret isn't resolved.
+// The real secret from Firebase config will be used in the cloud runtime.
+const stripe = new Stripe(stripeSecret || 'sk_test_DUMMY_SECRET_KEY_FOR_DEPLOY_ANALYSIS', {
   apiVersion: '2023-10-16', // Use a recent API version
 });
 
@@ -262,6 +275,132 @@ exports.stripeCreateLoginLink = functions.https.onCall(async (data, context) => 
     functions.logger.error("Error creating Stripe login link:", error);
     await reportError(error, { stripeAccountId }); // Pass relevant context
     throw new functions.https.HttpsError("internal", userFacingMessage(error), error.message);
+  }
+});
+
+/**
+ * Creates a Stripe Payment Link for a one-time purchase.
+ * This function will first ensure a Stripe Product and Price exist (creating them if necessary using createStripeProductAndPrice logic)
+ * and then create a Payment Link for that price.
+ *
+ * @param {object} data - The data passed to the function.
+ * @param {string} data.productName - Name of the product.
+ * @param {string} [data.description] - Optional description of the product.
+ * @param {string[]} [data.images] - Optional array of image URLs for the product.
+ * @param {number} data.unitAmount - Price in the smallest currency unit (e.g., cents).
+ * @param {string} data.currency - Three-letter ISO currency code.
+ * @param {string} [data.productUrl] - Optional URL of the product page (used if creating product).
+ * @param {object} [data.productMetadata] - Optional metadata for the product (used if creating product).
+ * @param {number} data.quantity - The quantity of the item.
+ * @param {string} data.successUrl - URL to redirect to on successful payment (Stripe Payment Link uses this in after_completion).
+ * @param {string} data.cancelUrl - URL to redirect to if payment is canceled (Stripe Payment Link uses this in after_completion).
+ * @param {functions.https.CallableContext} context - Callable function context.
+ * @returns {Promise<{paymentLinkUrl: string} | {error: object}>}
+ */
+exports.createStripePaymentLink = functions.https.onCall(async (data, context) => {
+  if (!(context.auth && context.auth.uid)) {
+    throw new functions.https.HttpsError('unauthenticated', 'The function must be called while authenticated.');
+  }
+
+  const {
+    productName,
+    description,
+    images,
+    unitAmount,
+    currency,
+    productUrl,
+    productMetadata,
+    quantity,
+    successUrl, // Will be used for after_completion
+    // cancelUrl, // Payment Links use after_completion.redirect for success, no direct cancel_url in the same way.
+  } = data;
+  const userId = context.auth.uid;
+  const userEmail = context.auth.token.email;
+
+  if (!productName || !unitAmount || !currency || !quantity || !successUrl) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'Missing required parameters: productName, unitAmount, currency, quantity, or successUrl.'
+    );
+  }
+
+  try {
+    // Step 1: Get or create Stripe Customer ID
+    const db = admin.firestore();
+    const userProfileRef = db.collection("profiles").doc(userId);
+    const userProfileSnap = await userProfileRef.get();
+    let stripeCustomerId = userProfileSnap.data()?.stripe_customer_id;
+
+    if (!stripeCustomerId) {
+      if (!userEmail) {
+        throw new functions.https.HttpsError('failed-precondition', 'User email is not available to create Stripe customer.');
+      }
+      const customer = await stripe.customers.create({
+        email: userEmail,
+        metadata: { firebaseUID: userId },
+      });
+      stripeCustomerId = customer.id;
+      await userProfileRef.set({ stripe_customer_id: stripeCustomerId }, { merge: true });
+      functions.logger.log(`Created Stripe customer ${stripeCustomerId} for Firebase user ${userId} in createStripePaymentLink`);
+    } else {
+      functions.logger.log(`Using existing Stripe customer ${stripeCustomerId} for Firebase user ${userId} in createStripePaymentLink`);
+    }
+
+    // Step 2: Create Stripe Product and Price (on-the-fly)
+    const product = await stripe.products.create({
+      name: productName,
+      description: description,
+      images: images,
+      url: productUrl,
+      default_price_data: {
+        unit_amount: unitAmount,
+        currency: currency.toLowerCase(),
+      },
+      metadata: productMetadata,
+    });
+
+    if (!product.default_price) {
+        await reportError(new Error('Product created for Payment Link but default_price was not set.'), {productData: data, stripeProduct: product});
+        throw new functions.https.HttpsError('internal', 'Product created for Payment Link but default_price was not set by Stripe.');
+    }
+    const stripePriceId = typeof product.default_price === 'string' ? product.default_price : product.default_price.id;
+    functions.logger.log(`Stripe Product created for Payment Link: ${product.id}, Price: ${stripePriceId}`);
+
+    // Step 3: Create the Payment Link
+    const paymentLinkParams = {
+      line_items: [
+        {
+          price: stripePriceId,
+          quantity: quantity,
+        },
+      ],
+      after_completion: {
+        type: 'redirect',
+        redirect: {
+          url: successUrl, // User is redirected here after a successful payment
+        },
+      },
+      payment_intent_data: { // Attempt to associate the customer
+        customer: stripeCustomerId,
+      },
+      metadata: { // Metadata for the PaymentLink object itself
+          firebaseUID: userId,
+          internalProductId: productMetadata?.productId || 'N/A',
+          internalStoreId: productMetadata?.storeId || 'N/A',
+      }
+      // customer_creation: 'if_required', // This is the default, so explicit mention isn't strictly needed if relying on default.
+      // transfer_data and application_fee_amount are for Connect, not needed for platform sales.
+    };
+
+    const paymentLink = await stripe.paymentLinks.create(paymentLinkParams);
+
+    functions.logger.log(`Stripe Payment Link created: ${paymentLink.id}, URL: ${paymentLink.url}`);
+    return { paymentLinkUrl: paymentLink.url };
+
+  } catch (error) {
+    functions.logger.error('Error in createStripePaymentLink:', error);
+    await reportError(error, { data, functionName: 'createStripePaymentLink' });
+    throw new functions.https.HttpsError('internal', userFacingMessage(error), error.message);
   }
 });
 

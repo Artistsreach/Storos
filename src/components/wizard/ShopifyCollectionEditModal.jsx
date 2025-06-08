@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '../../components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -7,11 +7,11 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea } from '@/components/ui/scroll-area';
+} from '../../components/ui/dialog';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { Textarea } from '../../components/ui/textarea';
+import { ScrollArea } from '../../components/ui/scroll-area';
 
 const ShopifyCollectionEditModal = ({ isOpen, onClose, collection, onSave }) => {
   const [editedCollection, setEditedCollection] = useState(null);

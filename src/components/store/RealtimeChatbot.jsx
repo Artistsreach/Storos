@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
-import { useStore } from '@/contexts/StoreContext';
-import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { useStore } from '../../contexts/StoreContext';
+import { useAuth } from '../../contexts/AuthContext'; // Import useAuth
+import { Button } from '../../components/ui/button';
+import { Textarea } from '../../components/ui/textarea';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../../components/ui/card';
 import { Send, Settings2, X, MessageCircle, Mic, StopCircle } from 'lucide-react'; // Added Mic, StopCircle
 import ReactMarkdown from 'react-markdown';
 import { useNavigate } from 'react-router-dom'; 
@@ -15,7 +15,7 @@ import { loadStripe } from '@stripe/stripe-js';
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '');
 
 // Import the centralized product visualizer function
-import { generateProductVisualization } from '@/lib/productVisualizer';
+import { generateProductVisualization } from '../../lib/productVisualizer';
 
 
 const RealtimeChatbot = () => {

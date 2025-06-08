@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import ProductCard from "./ProductCard.jsx";
 import { Search, Grid, List, Filter } from "lucide-react";
 import { Button } from "../ui/button.jsx";
-import InlineTextEdit from '@/components/ui/InlineTextEdit'; // Added import
-import { useStore } from '@/contexts/StoreContext'; // Added import
+import InlineTextEdit from '../../components/ui/InlineTextEdit'; // Added import
+import { useStore } from '../../contexts/StoreContext'; // Added import
 import { generateStoreUrl } from "@/lib/utils.js"; // Added import
 
 const ProductGrid = ({ store, isPublishedView = false }) => {

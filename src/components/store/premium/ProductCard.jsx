@@ -236,7 +236,7 @@ const ProductCard = ({
       >
         <div className="flex flex-col md:flex-row">
           <Link to={`/${storeName}/product/${productIdForUrl}`} className="block relative md:w-1/3 aspect-square md:aspect-auto overflow-hidden">
-            <motion.img src={displayProduct.image?.src?.medium || displayProduct.image?.src?.large} alt={displayProduct.name} className="w-full h-full object-cover" variants={imageVariants} initial="hidden" animate={imageLoaded ? "visible" : "hidden"} whileHover="hover" onLoad={() => setImageLoaded(true)} />
+            <motion.img src={displayProduct.image?.src?.medium || displayProduct.image?.src?.large || (Array.isArray(displayProduct.images) && displayProduct.images.length > 0 ? displayProduct.images[0] : `https://via.placeholder.com/400x400.png?text=${encodeURIComponent(displayProduct.name)}`)} alt={displayProduct.name} className="w-full h-full object-cover" variants={imageVariants} initial="hidden" animate={imageLoaded ? "visible" : "hidden"} whileHover="hover" onLoad={() => setImageLoaded(true)} />
             <div className="absolute top-4 left-4 flex flex-col gap-2">
               <AnimatePresence>
                 {badges.map((badge, badgeIndex) => {
@@ -293,7 +293,7 @@ const ProductCard = ({
       <motion.div variants={cardVariants} initial="hidden" animate="visible" whileHover="hover" className="group bg-white dark:bg-gray-900 rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 dark:border-gray-800 backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95 cursor-pointer" onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)} >
         <Link to={`/${storeName}/product/${productIdForUrl}`} className="block">
           <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700">
-            <motion.img src={displayProduct.image?.src?.medium || displayProduct.image?.src?.large} alt={displayProduct.name} className="w-full h-full object-cover" variants={imageVariants} initial="hidden" animate={imageLoaded ? "visible" : "hidden"} whileHover="hover" onLoad={() => setImageLoaded(true)} />
+            <motion.img src={displayProduct.image?.src?.medium || displayProduct.image?.src?.large || (Array.isArray(displayProduct.images) && displayProduct.images.length > 0 ? displayProduct.images[0] : `https://via.placeholder.com/400x400.png?text=${encodeURIComponent(displayProduct.name)}`)} alt={displayProduct.name} className="w-full h-full object-cover" variants={imageVariants} initial="hidden" animate={imageLoaded ? "visible" : "hidden"} whileHover="hover" onLoad={() => setImageLoaded(true)} />
             <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
               <AnimatePresence>
                 {badges.map((badge, badgeIndex) => {

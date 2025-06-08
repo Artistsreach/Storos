@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "themeforge-hui99"
-  }
+    "default": "freshfront-c3181",
+    "staging": "freshfront-c3181"
+  },
+  "targets": {},
+  "etags": {}
 }

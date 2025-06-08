@@ -222,7 +222,7 @@ const StoreHeader = ({ store, isPublishedView = false }) => {
                   {cartItemCount > 0 && (
                     <motion.span
                       initial={{ scale: 0 }} animate={{ scale: 1 }}
-                      className="absolute -top-1.5 -right-1.5 h-4.5 w-4.5 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-medium"
+                      className="absolute -top-1.5 -right-1.5 h-5 w-5 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-medium"
                     >
                       {cartItemCount}
                     </motion.span>

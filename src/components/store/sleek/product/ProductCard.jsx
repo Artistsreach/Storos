@@ -149,7 +149,8 @@ const ProductCard = ({
           <motion.img
             src={
               displayProduct.image?.src?.medium ||
-              `https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80`
+              displayProduct.image?.src?.large ||
+              (Array.isArray(displayProduct.images) && displayProduct.images.length > 0 ? displayProduct.images[0] : `https://via.placeholder.com/400x400.png?text=${encodeURIComponent(displayProduct.name)}`)
             }
             alt={displayProduct.name}
             className="w-full h-full object-cover"

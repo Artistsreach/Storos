@@ -1,10 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '../components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
-import { db, storage } from '@/lib/firebaseClient'; // Import db and storage from firebaseClient
+import { db, storage } from '../lib/firebaseClient'; // Import db and storage from firebaseClient
 import { collection, doc, getDoc, getDocs, query, where, addDoc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
+import { useAuth } from './AuthContext'; // Import useAuth
+import { podProductsList } from '../lib/constants'; // For POD collection generation
+import { visualizeImageOnProductWithGemini } from '../lib/geminiImageGeneration'; // For POD collection generation
+import { imageSrcToBasics } from '../lib/imageUtils'; // Import from shared util
 import { 
   generateStoreFromWizardData,
   generateStoreFromPromptData,
@@ -16,13 +19,14 @@ import {
   fetchShopifyLocalizationInfo,
   generateAIProductsData,
   mapBigCommerceDataToInternalStore, 
-} from '@/contexts/storeActions';
-import { generateStoreUrl } from '@/lib/utils.js'; // Specifically from .js
-import { fetchPexelsImages, generateId } from '@/lib/utils.jsx'; // Specifically from .jsx
-import { generateLogoWithGemini } from '@/lib/geminiImageGeneration';
+} from './storeActions';
+import { generateStoreUrl } from '../lib/utils.js'; // Specifically from .js
+import { fetchPexelsImages, generateId } from '../lib/utils.jsx'; // Specifically from .jsx
+import { generateLogoWithGemini, generateImageFromPromptForPod } from '../lib/geminiImageGeneration';
 // Import BigCommerce API functions
-import { fetchStoreSettings as fetchBCStoreSettings, fetchAllProducts as fetchBCAllProducts } from '@/lib/bigcommerce';
-import ProductFinalizationModal from '@/components/store/ProductFinalizationModal'; // Added import
+import { fetchStoreSettings as fetchBCStoreSettings, fetchAllProducts as fetchBCAllProducts } from '../lib/bigcommerce';
+import ProductFinalizationModal from '../components/store/ProductFinalizationModal'; // Added import
+import DesignEditModal from '../components/store/DesignEditModal'; // Added import
 
 const DEFAULT_PLACEHOLDER_IMAGE_URL = "/placeholder-image.png"; // Define a default placeholder
 
@@ -77,10 +81,31 @@ export const StoreProvider = ({ children }) => {
   const [isGeneratingLogo, setIsGeneratingLogo] = useState(false);
   const [logoGenerationError, setLogoGenerationError] = useState(null);
 
+  // State for passing imported data to StoreGenerator
+  const [importedStoreDataForGenerator, setImportedStoreDataForGenerator] = useState(null);
+  const [isImportDataReadyForGenerator, setIsImportDataReadyForGenerator] = useState(false);
+  const [shopifyWizardShouldShowGenerator, setShopifyWizardShouldShowGenerator] = useState(false); // New flag
+
   // Product Finalization Modal State
   const [isProductFinalizationModalOpen, setIsProductFinalizationModalOpen] = useState(false);
   const [productsToFinalize, setProductsToFinalize] = useState([]);
   const [storeDataForFinalization, setStoreDataForFinalization] = useState(null);
+  const [isGeneratingPodCollection, setIsGeneratingPodCollection] = useState(false); // New state
+
+  // Design Edit Modal State
+  const [isDesignEditModalOpen, setIsDesignEditModalOpen] = useState(false);
+  const [designsToEdit, setDesignsToEdit] = useState([]);
+  const [generationContinuationData, setGenerationContinuationData] = useState(null);
+
+
+  const addPendingPodCollectionData = useCallback(({ newProducts, newCollection }) => {
+    setProductsToFinalize(prev => [...prev, ...newProducts]);
+    setStoreDataForFinalization(prev => ({
+      ...prev,
+      collections: [...(prev?.collections || []), newCollection],
+    }));
+    toast({ title: "POD Items Added", description: `${newProducts.length} products and 1 collection are ready for finalization.`, variant: "success" });
+  }, [setProductsToFinalize, setStoreDataForFinalization, toast]);
 
   // BigCommerce Import Wizard State
   const [bigCommerceWizardStep, setBigCommerceWizardStep] = useState(0);
@@ -491,11 +516,37 @@ const prepareStoresForLocalStorage = (storesArray) => {
           logoUrl = DEFAULT_PLACEHOLDER_IMAGE_URL; 
         }
 
+        let logoUrlLight = restOfStoreData.logo_url_light;
+        if (logoUrlLight && logoUrlLight.startsWith('data:image/')) {
+          try {
+            const logoPath = `store_logos/${localId}/logo_light_${generateId()}.png`;
+            logoUrlLight = await uploadBase64ToFirebaseStorage(logoUrlLight, logoPath);
+          } catch (uploadError) {
+            console.error('Error uploading store logo to Firebase Storage:', uploadError);
+            toast({ title: 'Logo Upload Failed', description: 'Could not upload store logo.', variant: 'warning' });
+            logoUrlLight = DEFAULT_PLACEHOLDER_IMAGE_URL;
+          }
+        }
+
+        let logoUrlDark = restOfStoreData.logo_url_dark;
+        if (logoUrlDark && logoUrlDark.startsWith('data:image/')) {
+          try {
+            const logoPath = `store_logos/${localId}/logo_dark_${generateId()}.png`;
+            logoUrlDark = await uploadBase64ToFirebaseStorage(logoUrlDark, logoPath);
+          } catch (uploadError) {
+            console.error('Error uploading store logo to Firebase Storage:', uploadError);
+            toast({ title: 'Logo Upload Failed', description: 'Could not upload store logo.', variant: 'warning' });
+            logoUrlDark = DEFAULT_PLACEHOLDER_IMAGE_URL;
+          }
+        }
+
         const dataToInsert = {
           ...restOfStoreData, 
           merchant_id: user.uid, 
           created_at: new Date(), 
           logo_url: logoUrl || DEFAULT_PLACEHOLDER_IMAGE_URL,
+          logo_url_light: logoUrlLight,
+          logo_url_dark: logoUrlDark,
           urlSlug: newStoreLocal.urlSlug // Ensure urlSlug is saved to Firestore
         };
         
@@ -600,7 +651,19 @@ const prepareStoresForLocalStorage = (storesArray) => {
     
     let hydratedCollections = [];
     const sourceCollections = newStoreLocal.collections || [];
-    const sourceProducts = finalProductsForStoreObject; 
+    // Ensure products in displayStore also have the image.src.medium structure
+    const sourceProducts = finalProductsForStoreObject.map(p => {
+      const imageSrc = (Array.isArray(p.images) && p.images.length > 0) ? p.images[0] : DEFAULT_PLACEHOLDER_IMAGE_URL;
+      return {
+        ...p,
+        image: { // Ensure this structure for ProductCard compatibility
+          src: {
+            medium: imageSrc,
+            large: imageSrc,
+          }
+        }
+      };
+    });
 
     if (sourceCollections.length > 0) {
       hydratedCollections = sourceCollections.map((wizardOrAiCollection) => {
@@ -697,7 +760,7 @@ const prepareStoresForLocalStorage = (storesArray) => {
   
   const generateStoreFromWizard = async (wizardData) => {
     setIsGenerating(true);
-    setProgress(0); 
+    setProgress(0);
     setStatusMessage('Initializing wizard-based store generation...');
     try {
       // Name check is now handled by commonStoreCreation.
@@ -726,54 +789,245 @@ const prepareStoresForLocalStorage = (storesArray) => {
     }
   };
 
-  const generateStore = async (prompt, storeNameOverride = null, productTypeOverride = null) => {
+  const generateStore = async (prompt, storeNameOverride = null, productTypeOverride = null, initialPodProducts = [], isPrintOnDemand = false, contextFiles = [], contextURLs = []) => {
     setIsGenerating(true);
     setProgress(0);
     setStatusMessage('Initializing generation...');
     try {
-      // Name check is now handled by commonStoreCreation.
-      // urlSlug will also be handled by commonStoreCreation.
-      const updateProgressCallback = (newProgress, newMessage) => {
-        setProgress(newProgress);
-        if (newMessage) setStatusMessage(newMessage);
-      };
-      
-      const newStoreData = await generateStoreFromPromptData(
-        prompt, 
-        // Pass storeNameOverride, productTypeOverride. commonStoreCreation will use storeNameOverride or derive from prompt for the check.
-        { storeNameOverride, productTypeOverride, fetchPexelsImages, generateId }, 
-        updateProgressCallback 
-      );
-      
-      // Instead of direct creation, open modal
+      if (isPrintOnDemand) {
+        setStatusMessage('Generating initial designs...');
+        const targetPodProducts = [
+          podProductsList.find(p => p.name === "Canvas"),
+          podProductsList.find(p => p.name === "Hat"),
+          podProductsList.find(p => p.name === "Black hoodie"),
+          podProductsList.find(p => p.name === "Mug"),
+          podProductsList.find(p => p.name === "Notebook"),
+          podProductsList.find(p => p.name === "Pillow"),
+        ].filter(Boolean);
+
+        let initialDesigns = [];
+        if (targetPodProducts.length > 0) {
+          const productsToProcess = targetPodProducts.slice(0, 6);
+          for (const [index, podProductInfo] of productsToProcess.entries()) {
+            setProgress((index / productsToProcess.length) * 100);
+            setStatusMessage(`Generating design for ${podProductInfo.name}...`);
+            const designResult = await generateImageFromPromptForPod({ prompt });
+            if (designResult && designResult.imageData) {
+              const designUrl = `data:${designResult.imageMimeType};base64,${designResult.imageData}`;
+              initialDesigns.push({
+                id: generateId(),
+                name: podProductInfo.name,
+                images: [designUrl], // The core design image
+                podProductInfo: podProductInfo, // Keep original info for re-visualization
+              });
+            }
+          }
+        }
+        
+        setGenerationContinuationData({ prompt, storeNameOverride, productTypeOverride });
+        setDesignsToEdit(initialDesigns);
+        setIsDesignEditModalOpen(true);
+        setIsGenerating(false); // Pause generation for user input
+        return; // Stop here and wait for the modal.
+      }
+
+      // If not POD, proceed directly
+      const updateProgressCallback = (p, m) => { setProgress(p); if (m) setStatusMessage(m); };
+      let newStoreData = await generateStoreFromPromptData(prompt, { storeNameOverride, productTypeOverride, fetchPexelsImages, generateId, isPrintOnDemand: false, contextFiles, contextURLs }, updateProgressCallback);
       setProductsToFinalize(newStoreData.products || []);
-      setStoreDataForFinalization(newStoreData); // Store the rest of the data
+      setStoreDataForFinalization(newStoreData);
+      setIsGenerating(false); // Pause generation for user input
       setIsProductFinalizationModalOpen(true);
-      
-      // commonStoreCreation will be called from handleFinalizeProducts
-      // For now, return null or a marker indicating modal will open
-      // The UI should react to isGenerating being false and modal opening.
-      // No navigation or final toast here.
       setStatusMessage('Products generated. Please review and finalize.');
-      // Progress can be set to a point indicating data is ready for review
-      setProgress(90); // Example: 90% done, awaiting finalization
-      return null; // Or newStoreData if the calling component needs it before modal
+      setProgress(90);
+
     } catch (error) {
       console.error('Error generating store from prompt:', error);
-      if (error.message && error.message.toLowerCase().includes("name taken") ) {
-         toast({ title: 'Store Name Taken', description: error.message, variant: 'destructive' });
-      } else {
-        toast({ title: 'Generation Failed', description: error.message || 'Failed to generate store.', variant: 'destructive' });
-      }
-      setProgress(0); 
+      toast({ title: 'Generation Failed', description: error.message || 'Failed to generate store.', variant: 'destructive' });
+      setProgress(0);
       setStatusMessage('Generation failed.');
-      return null;
-    } finally {
       setIsGenerating(false);
     }
   };
 
-  // const importShopifyStore = async (domain, token) => { // This will be replaced by wizard functions
+  const continueGenerationWithDesigns = async (editedDesigns) => {
+    setIsDesignEditModalOpen(false);
+    setIsGenerating(true);
+    setProgress(0);
+    setStatusMessage('Re-visualizing designs on products...');
+
+    const { prompt, storeNameOverride, productTypeOverride } = generationContinuationData;
+    let generatedPodProducts = [];
+
+    try {
+      for (const [index, design] of editedDesigns.entries()) {
+        const progress = (index / editedDesigns.length) * 50; // Re-visualization is first 50%
+        setProgress(progress);
+        
+        const podProductInfo = design.podProductInfo;
+        const designImageUrl = design.images[0];
+        
+        const { base64ImageData, mimeType } = await imageSrcToBasics(designImageUrl);
+
+        setStatusMessage(`Visualizing design on ${podProductInfo.name}...`);
+        const vizResult = await visualizeImageOnProductWithGemini(base64ImageData, mimeType, podProductInfo.imageUrl, prompt, podProductInfo.name);
+
+        if (vizResult && vizResult.visualizedImageData && vizResult.productDetails) {
+          const visualizedProductDataUrl = `data:${vizResult.visualizedImageMimeType};base64,${vizResult.visualizedImageData}`;
+          generatedPodProducts.push({
+            id: generateId(),
+            name: vizResult.productDetails.title || `${podProductInfo.name} with design`,
+            description: vizResult.productDetails.description || `A unique ${podProductInfo.name}.`,
+            price: vizResult.productDetails.price || '29.99',
+            images: [designImageUrl, visualizedProductDataUrl],
+            variants: vizResult.productDetails.variants || [],
+            isPrintOnDemand: true,
+            podDetails: {
+              originalDesignImageUrl: designImageUrl,
+              designPrompt: prompt,
+              baseProductName: podProductInfo.name,
+              baseProductImageUrl: podProductInfo.imageUrl,
+            },
+            category: podProductInfo.category || "Print on Demand",
+          });
+        }
+      }
+
+      const updateProgressCallback = (p, m) => { setProgress(50 + (p / 2)); if (m) setStatusMessage(m); };
+      let newStoreData = await generateStoreFromPromptData(prompt, { storeNameOverride, productTypeOverride, fetchPexelsImages, generateId, isPrintOnDemand: true }, updateProgressCallback);
+      
+      const combinedProducts = [...generatedPodProducts, ...(newStoreData.products || [])];
+      newStoreData.products = combinedProducts;
+
+      setProductsToFinalize(combinedProducts);
+      setStoreDataForFinalization(newStoreData);
+      setIsGenerating(false); // Pause generation for user input
+      setIsProductFinalizationModalOpen(true);
+      setStatusMessage('Products generated. Please review and finalize.');
+      setProgress(90);
+
+    } catch (error) {
+      console.error('Error continuing store generation:', error);
+      toast({ title: 'Generation Failed', description: error.message || 'Failed to continue store generation.', variant: 'destructive' });
+      setProgress(0);
+      setStatusMessage('Generation failed.');
+      setIsGenerating(false);
+    }
+  };
+
+const generatePodCollectionFromDesign = async (originalDesignImageUrl, designPrompt, baseProductName, storeIdToUpdate = null) => {
+  if (!originalDesignImageUrl) {
+    toast({ title: "Error", description: "Missing design image for POD collection generation.", variant: "destructive" });
+    return null;
+  }
+  if (storeIdToUpdate === null) { // Pre-creation phase
+    console.log("Generating POD collection data for pre-finalization stage.");
+  } else { // Post-creation update phase
+    if (!storeIdToUpdate) { // Explicitly null or undefined passed when it should be a string
+        toast({ title: "Error", description: "Store ID is invalid for updating POD collection.", variant: "destructive" });
+        return null;
+    }
+    console.log(`Generating POD collection for existing store: ${storeIdToUpdate}`);
+  }
+
+  setIsGeneratingPodCollection(true);
+  toast({ title: "Generating POD Collection", description: "Applying design to all mockups..." });
+
+  let newProductsForCollection = [];
+  let collectionName = `Collection from ${baseProductName} Design`;
+
+  try {
+    const { base64ImageData: designBase64, mimeType: designMimeType } = await imageSrcToBasics(originalDesignImageUrl);
+
+    for (const mockupProduct of podProductsList) {
+      if (mockupProduct.name === baseProductName) {
+        console.log(`Skipping visualization for base product: ${baseProductName}`);
+        continue;
+      }
+
+      console.log(`Visualizing design on mockup: ${mockupProduct.name}`);
+      const vizResult = await visualizeImageOnProductWithGemini(
+        designBase64,
+        designMimeType,
+        mockupProduct.imageUrl,
+        designPrompt || `Product based on ${baseProductName} design`,
+        mockupProduct.name
+      );
+
+      if (vizResult && vizResult.visualizedImageData && vizResult.productDetails) {
+        const visualizedProductImageUrl = `data:${vizResult.visualizedImageMimeType};base64,${vizResult.visualizedImageData}`;
+        newProductsForCollection.push({
+          id: generateId(),
+          name: vizResult.productDetails.title,
+          price: parseFloat(vizResult.productDetails.price), // Store as number
+          description: vizResult.productDetails.description,
+          images: [visualizedProductImageUrl],
+          isPrintOnDemand: true,
+          podDetails: {
+            originalDesignImageUrl: originalDesignImageUrl,
+            designPrompt: designPrompt,
+            baseProductName: mockupProduct.name,
+            baseProductImageUrl: mockupProduct.imageUrl,
+          },
+          variants: vizResult.productDetails.variants || [],
+        });
+      } else {
+        console.warn(`Failed to visualize design on ${mockupProduct.name} for collection. Error: ${vizResult?.error}`);
+      }
+    }
+
+    if (newProductsForCollection.length === 0) {
+      toast({ title: "Collection Generation Incomplete", description: "Could not create any new products for the collection.", variant: "warning" });
+      return null;
+    }
+    
+    const newCollection = {
+      id: generateId(),
+      name: collectionName,
+      description: `A collection of products featuring the design from ${baseProductName}. Original design prompt: ${designPrompt || 'N/A'}`,
+      imageUrl: newProductsForCollection[0].images[0] || DEFAULT_PLACEHOLDER_IMAGE_URL,
+      product_ids: newProductsForCollection.map(p => p.id),
+      // products: newProductsForCollection, // Embed full products for pre-finalization, Firestore will link by IDs post-creation
+    };
+     // If we are in pre-creation, embed full products for the modal to use.
+     // If we are updating an existing store, product_ids are enough for the collection doc,
+     // and products are added to the store's main product list.
+    if (!storeIdToUpdate) {
+        newCollection.products = [...newProductsForCollection];
+    }
+
+
+    if (storeIdToUpdate) { // Update existing store
+      const existingStore = stores.find(s => s.id === storeIdToUpdate);
+      if (!existingStore) {
+        throw new Error("Store not found to add the new collection.");
+      }
+      
+      const updatedStoreProducts = [...(existingStore.products || []), ...newProductsForCollection];
+      const updatedStoreCollections = [...(existingStore.collections || []), newCollection]; // newCollection here won't have .products embedded for Firestore
+      
+      await updateStore(storeIdToUpdate, {
+        products: updatedStoreProducts,
+        collections: updatedStoreCollections,
+      });
+      toast({ title: "POD Collection Created", description: `Collection "${collectionName}" with ${newProductsForCollection.length} products added to store.`, variant: "success" });
+      return { success: true }; // Indicate success for existing store update
+    } else { // Pre-creation: return data
+      toast({ title: "POD Items Generated", description: `${newProductsForCollection.length} products and 1 collection ready.`, variant: "info" });
+      return { newProducts: newProductsForCollection, newCollection: newCollection };
+    }
+
+  } catch (error) {
+    console.error("Error generating POD collection from design:", error);
+    toast({ title: "POD Collection Error", description: error.message, variant: "destructive" });
+    return null;
+  } finally {
+    setIsGeneratingPodCollection(false);
+  }
+};
+
+
+// const importShopifyStore = async (domain, token) => { // This will be replaced by wizard functions
   //   setIsGenerating(true);
   //   try {
   //     // Old direct import logic - to be removed or adapted for final step of wizard
@@ -788,7 +1042,7 @@ const prepareStoresForLocalStorage = (storesArray) => {
   //   }
   // };
 
-  const resetShopifyWizardState = () => {
+  const resetShopifyWizardState = useCallback(() => {
     setShopifyWizardStep(0);
     setShopifyDomain('');
     setShopifyToken('');
@@ -801,11 +1055,11 @@ const prepareStoresForLocalStorage = (storesArray) => {
     setGeneratedLogoImage(null);
     setIsGeneratingLogo(false);
     setLogoGenerationError(null);
-  };
+  }, []);
 
-  const startShopifyImportWizard = async (domain, token) => {
-    setShopifyDomain(domain); // Store domain in context
-    setShopifyToken(token);   // Store token in context
+  const startShopifyImportWizard = useCallback(async (domain, token) => {
+    setShopifyDomain(domain);
+    setShopifyToken(token);
     setIsFetchingShopifyPreviewData(true); // Use specific loading state for preview
     setShopifyImportError(null);
     setShopifyPreviewMetadata(null); // Clear previous metadata
@@ -831,10 +1085,10 @@ const prepareStoresForLocalStorage = (storesArray) => {
     } finally {
       setIsFetchingShopifyPreviewData(false);
     }
-  };
+  }, [toast, setShopifyDomain, setShopifyToken, setIsFetchingShopifyPreviewData, setShopifyImportError, setShopifyPreviewMetadata, setShopifyWizardStep]);
 
 // BigCommerce Wizard Functions
-const resetBigCommerceWizardState = () => {
+const resetBigCommerceWizardState = useCallback(() => {
   setBigCommerceWizardStep(0);
   setBigCommerceStoreDomain('');
   setBigCommerceApiToken('');
@@ -843,21 +1097,11 @@ const resetBigCommerceWizardState = () => {
   setIsFetchingBigCommercePreviewData(false);
   setBigCommerceImportError(null);
   // Reset any BigCommerce specific logo state if added
-};
+}, []);
 
-const startBigCommerceImportWizard = async (domain, token) => {
-  // This function is called after BigCommerceConnectForm succeeds.
-  // It should set credentials and move to the next step (metadata preview).
-  setBigCommerceStoreDomain(domain);
-  setBigCommerceApiToken(token);
-  setBigCommerceWizardStep(2); // Move to metadata preview step
-  // Optionally, immediately fetch settings for preview
-  await fetchBigCommerceWizardSettings(domain, token);
-};
-
-const fetchBigCommerceWizardSettings = async (domain, token) => {
-  const currentDomain = domain || bigCommerceStoreDomain;
-  const currentToken = token || bigCommerceApiToken;
+const fetchBigCommerceWizardSettings = useCallback(async (domain, token) => {
+  const currentDomain = domain || bigCommerceStoreDomain; // bigCommerceStoreDomain is state
+  const currentToken = token || bigCommerceApiToken; // bigCommerceApiToken is state
   if (!currentDomain || !currentToken) {
     setBigCommerceImportError('Domain or token missing for fetching BigCommerce settings.');
     return;
@@ -872,11 +1116,18 @@ const fetchBigCommerceWizardSettings = async (domain, token) => {
     setBigCommerceImportError(error.message || 'Failed to fetch store settings.');
     toast({ title: 'BigCommerce Settings Fetch Failed', description: error.message, variant: 'destructive' });
   } finally {
-    setIsFetchingShopifyPreviewData(false);
+    setIsFetchingBigCommercePreviewData(false);
   }
-};
+}, [bigCommerceStoreDomain, bigCommerceApiToken, toast, setBigCommerceImportError, setBigCommercePreviewSettings, setIsFetchingBigCommercePreviewData]);
 
-const fetchBigCommerceWizardProducts = async (count = 10) => { // BC API uses 'first' not cursor for initial, pagination is different
+const startBigCommerceImportWizard = useCallback(async (domain, token) => {
+  setBigCommerceStoreDomain(domain);
+  setBigCommerceApiToken(token);
+  setBigCommerceWizardStep(2);
+  await fetchBigCommerceWizardSettings(domain, token);
+}, [setBigCommerceStoreDomain, setBigCommerceApiToken, setBigCommerceWizardStep, fetchBigCommerceWizardSettings]);
+
+const fetchBigCommerceWizardProducts = useCallback(async (count = 10) => {
   if (!bigCommerceStoreDomain || !bigCommerceApiToken) {
     setBigCommerceImportError('Domain or token missing for fetching BigCommerce products.');
     return;
@@ -926,9 +1177,9 @@ const fetchBigCommerceWizardProducts = async (count = 10) => { // BC API uses 'f
   } finally {
     setIsFetchingBigCommercePreviewData(false);
   }
-};
+}, [bigCommerceStoreDomain, bigCommerceApiToken, toast, setBigCommerceImportError, setBigCommercePreviewProducts, setIsFetchingBigCommercePreviewData]);
 
-const finalizeBigCommerceImportFromWizard = async () => {
+const finalizeBigCommerceImportFromWizard = useCallback(async () => {
   if (!bigCommercePreviewSettings || !bigCommerceStoreDomain || !bigCommerceApiToken) {
     toast({ title: 'Import Error', description: 'Missing BigCommerce data to finalize import.', variant: 'destructive' });
     return false;
@@ -961,9 +1212,9 @@ const finalizeBigCommerceImportFromWizard = async () => {
   } finally {
     setIsGenerating(false);
   }
-};
+}, [bigCommercePreviewSettings, bigCommerceStoreDomain, bigCommerceApiToken, commonStoreCreation, resetBigCommerceWizardState, toast, setIsGenerating, setBigCommerceImportError, fetchBCAllProducts]); // Added dependencies
 
-  const fetchShopifyWizardProducts = async (first = 10, cursor = null) => {
+  const fetchShopifyWizardProducts = useCallback(async (first = 10, cursor = null) => {
     if (!shopifyDomain || !shopifyToken) {
       setShopifyImportError('Domain or token missing for fetching products.');
       return;
@@ -983,9 +1234,9 @@ const finalizeBigCommerceImportFromWizard = async () => {
     } finally {
       setIsFetchingShopifyPreviewData(false);
     }
-  };
+  }, [shopifyDomain, shopifyToken, toast, setShopifyImportError, setShopifyPreviewProducts, setIsFetchingShopifyPreviewData]);
   
-  const fetchShopifyWizardCollections = async (first = 10, cursor = null) => {
+  const fetchShopifyWizardCollections = useCallback(async (first = 10, cursor = null) => {
     if (!shopifyDomain || !shopifyToken) {
       setShopifyImportError('Domain or token missing for fetching collections.');
       return;
@@ -1005,9 +1256,9 @@ const finalizeBigCommerceImportFromWizard = async () => {
     } finally {
       setIsFetchingShopifyPreviewData(false);
     }
-  };
+  }, [shopifyDomain, shopifyToken, toast, setShopifyImportError, setShopifyPreviewCollections, setIsFetchingShopifyPreviewData]);
 
-  const fetchShopifyWizardLocalization = async (countryCode = "US", languageCode = "EN") => {
+  const fetchShopifyWizardLocalization = useCallback(async (countryCode = "US", languageCode = "EN") => {
     if (!shopifyDomain || !shopifyToken) {
       setShopifyImportError('Domain or token missing for fetching localization.');
       return;
@@ -1026,9 +1277,9 @@ const finalizeBigCommerceImportFromWizard = async () => {
     } finally {
       setIsFetchingShopifyPreviewData(false);
     }
-  };
+  }, [shopifyDomain, shopifyToken, toast, setShopifyImportError, setShopifyLocalization, setIsFetchingShopifyPreviewData]);
 
-  const generateShopifyStoreLogo = async () => {
+  const generateShopifyStoreLogo = useCallback(async () => {
     console.log("[StoreContext] Attempting to generate Shopify store logo...");
     if (!shopifyPreviewMetadata || !shopifyPreviewMetadata.name) {
       console.warn("[StoreContext] Cannot generate logo: Shopify preview metadata or store name is missing.", shopifyPreviewMetadata);
@@ -1065,45 +1316,100 @@ const finalizeBigCommerceImportFromWizard = async () => {
       setIsGeneratingLogo(false);
       console.log("[StoreContext] Finished logo generation attempt.");
     }
-  };
+  }, [shopifyPreviewMetadata, toast, setLogoGenerationError, setIsGeneratingLogo, setGeneratedLogoImage]);
 
-  const finalizeShopifyImportFromWizard = async () => {
+  const finalizeShopifyImportFromWizard = useCallback(async () => {
     if (!shopifyPreviewMetadata || !shopifyDomain || !shopifyToken) {
       toast({ title: 'Import Error', description: 'Missing essential Shopify data to finalize import.', variant: 'destructive' });
       return false;
     }
-    setIsGenerating(true); 
+    setIsGenerating(true);
     setShopifyImportError(null);
     try {
-      // Ensure products and collections are arrays of nodes
       const productNodes = shopifyPreviewProducts.edges.map(e => e.node);
       const collectionNodes = shopifyPreviewCollections.edges.map(e => e.node);
 
-      const newStoreData = mapShopifyDataToInternalStore(
-        shopifyPreviewMetadata,
-        productNodes,
-        collectionNodes,
-        shopifyDomain,
-        { generateId },
-        generatedLogoImage // Pass the generated logo
-      );
-      
-      const finalStore = await commonStoreCreation(newStoreData);
-      if (finalStore) {
-        resetShopifyWizardState(); // Clear wizard state on success
-        return true;
+      // Construct a descriptive prompt for StoreGenerator
+      let promptForGenerator = `Create a store named '${shopifyPreviewMetadata.name}'.`;
+      if (shopifyPreviewMetadata.description) {
+        promptForGenerator += ` The store's description is: "${shopifyPreviewMetadata.description}".`;
       }
-      return false;
+      if (shopifyPreviewMetadata.brand?.slogan) {
+        promptForGenerator += ` Slogan: "${shopifyPreviewMetadata.brand.slogan}".`;
+      }
+      if (productNodes.length > 0) {
+        promptForGenerator += ` It sells products like ${productNodes.slice(0, 3).map(p => p.title).join(', ')}.`;
+      }
+      if (collectionNodes.length > 0) {
+        promptForGenerator += ` Key collections include ${collectionNodes.slice(0, 2).map(c => c.title).join(', ')}.`;
+      }
+      if (shopifyPreviewMetadata.brand?.colors?.primary?.background) {
+        promptForGenerator += ` The primary brand color is ${shopifyPreviewMetadata.brand.colors.primary.background}.`;
+      }
+      if (shopifyPreviewMetadata.brand?.colors?.secondary?.background) {
+        promptForGenerator += ` The secondary brand color is ${shopifyPreviewMetadata.brand.colors.secondary.background}.`;
+      }
+      
+      const mappedProducts = productNodes.map(p => ({
+        name: p.title,
+        price: p.variants?.edges[0]?.node?.price?.amount || '0', // Assuming price is a string in StoreWizard
+        description: p.descriptionHtml ? p.descriptionHtml.replace(/<[^>]*>?/gm, '') : p.description || '', // Strip HTML from descriptionHtml or use description
+        images: p.images?.edges.map(imgEdge => imgEdge.node.url) || [],
+        variants: p.variants?.edges.map(vEdge => ({
+          id: vEdge.node.id,
+          title: vEdge.node.title,
+          price: vEdge.node.price?.amount || '0',
+          // Add other variant properties if needed by StoreWizard
+        })) || [],
+      }));
+
+      const mappedCollections = collectionNodes.map(c => ({
+        name: c.title,
+        description: c.descriptionHtml ? c.descriptionHtml.replace(/<[^>]*>?/gm, '') : c.description || '', // Strip HTML
+        imageUrl: c.image?.url || '',
+        // product_ids will be tricky here as StoreWizard expects internal product IDs.
+        // For now, we might pass Shopify product IDs and handle mapping later or omit.
+        // Or, if StoreWizard can take product names and map them, that's an option.
+        // For simplicity, let's pass an empty array for now, or Shopify IDs if StoreWizard can handle them.
+        product_ids: c.products?.edges.map(pEdge => pEdge.node.id) || [], // These are Shopify product IDs
+      }));
+
+      const generatorData = {
+        name: shopifyPreviewMetadata.name,
+        prompt: promptForGenerator,
+        logoUrl: generatedLogoImage || shopifyPreviewMetadata?.brand?.logo?.image?.url || shopifyPreviewMetadata?.brand?.squareLogo?.image?.url,
+        products: mappedProducts,
+        collections: mappedCollections,
+        brandColors: shopifyPreviewMetadata.brand?.colors,
+      };
+
+      setImportedStoreDataForGenerator(generatorData);
+      setIsImportDataReadyForGenerator(true);
+      resetShopifyWizardState(); // Clear wizard state
+      
+      // Navigate to the StoreGenerator page. Assuming '/generate' is the route.
+      // The actual route might be different.
+      // navigate('/generate'); // Or the correct route for StoreGenerator - REMOVED NAVIGATION
+      setShopifyWizardStep(4); // Advance to the new "Configure & Generate" step within ImportWizard
+      setShopifyWizardShouldShowGenerator(true); // Signal ImportWizard to render StoreWizard
+
+      toast({ title: 'Import Successful', description: 'Store data imported. Proceed to configure and generate your store.', duration: 5000 });
+      return true;
+
     } catch (error) {
-      console.error('Error finalizing Shopify import from wizard:', error);
-      setShopifyImportError(error.message || 'Failed to finalize Shopify import.');
-      toast({ title: 'Import Failed', description: error.message || 'Could not complete Shopify store import.', variant: 'destructive' });
+      console.error('Error preparing data for StoreGenerator from Shopify import:', error);
+      setShopifyImportError(error.message || 'Failed to process Shopify data for generator.');
+      toast({ title: 'Import Processing Failed', description: error.message || 'Could not prepare imported data.', variant: 'destructive' });
       return false;
     } finally {
       setIsGenerating(false);
     }
-  };
+  }, [shopifyPreviewMetadata, shopifyDomain, shopifyToken, shopifyPreviewProducts, shopifyPreviewCollections, generatedLogoImage, commonStoreCreation, resetShopifyWizardState, setShopifyWizardStep, setShopifyWizardShouldShowGenerator, setImportedStoreDataForGenerator, setIsImportDataReadyForGenerator, toast, setIsGenerating, setShopifyImportError]); // Added dependencies
 
+  const clearImportedStoreDataForGenerator = useCallback(() => {
+    setImportedStoreDataForGenerator(null);
+    setIsImportDataReadyForGenerator(false);
+  }, []);
 
   const getStoreById = useCallback((id) => {
     const foundStore = stores.find(store => store.id === id);
@@ -1596,6 +1902,9 @@ const finalizeBigCommerceImportFromWizard = async () => {
     addToCart, removeFromCart, updateQuantity, clearCart,
     generateAIProducts: generateAIProductsData,
     updateProductImagesArray, // Expose the new function
+    generatePodCollectionFromDesign, // Expose new function
+    addPendingPodCollectionData, // Expose new function
+    isGeneratingPodCollection, // Expose new loading state
     viewMode, setViewMode, // Expose viewMode and setter
 
     // Shopify Wizard related state and functions
@@ -1606,13 +1915,21 @@ const finalizeBigCommerceImportFromWizard = async () => {
     isFetchingShopifyPreviewData, shopifyImportError,
     // setShopifyDomain, setShopifyToken, // Already exposed with domain/token
     generatedLogoImage, isGeneratingLogo, logoGenerationError,
+    shopifyWizardShouldShowGenerator, setShopifyWizardShouldShowGenerator, // Expose new flag and setter
     startShopifyImportWizard,
     fetchShopifyWizardProducts,
+    // State and functions for passing imported data to StoreGenerator
+    importedStoreDataForGenerator,
+    isImportDataReadyForGenerator,
+    clearImportedStoreDataForGenerator,
     fetchShopifyWizardCollections,
     fetchShopifyWizardLocalization,
     generateShopifyStoreLogo,
     finalizeShopifyImportFromWizard,
     resetShopifyWizardState,
+    updateShopifyPreviewMetadata: (newMetadata) => { // Added this function
+      setShopifyPreviewMetadata(newMetadata);
+    },
     updateShopifyPreviewProduct: (updatedProduct) => { // Added this function
       setShopifyPreviewProducts(prev => {
         const newEdges = prev.edges.map(edge => 
@@ -1640,6 +1957,18 @@ const finalizeBigCommerceImportFromWizard = async () => {
     fetchBigCommerceWizardProducts,
     finalizeBigCommerceImportFromWizard,
     resetBigCommerceWizardState,
+
+    // Design Edit Modal related
+    closeDesignEditModal: () => {
+      setIsDesignEditModalOpen(false);
+      setDesignsToEdit([]);
+      setGenerationContinuationData(null);
+      // Also reset main generation state if they cancel
+      setIsGenerating(false);
+      setProgress(0);
+      setStatusMessage('');
+    },
+    continueGenerationWithDesigns,
 
     // Product Finalization Modal related
     openProductFinalizationModal: (products, storeData) => {
@@ -1695,6 +2024,12 @@ const finalizeBigCommerceImportFromWizard = async () => {
   return (
     <StoreContext.Provider value={value}>
       {children}
+      <DesignEditModal
+        isOpen={isDesignEditModalOpen}
+        onClose={value.closeDesignEditModal}
+        designs={designsToEdit}
+        onContinue={continueGenerationWithDesigns}
+      />
       <ProductFinalizationModal
         isOpen={isProductFinalizationModalOpen}
         onClose={value.closeProductFinalizationModal}

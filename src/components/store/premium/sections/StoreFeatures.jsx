@@ -66,7 +66,7 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
 
   const y = useTransform(scrollYProgress, [0, 1], [100, -100]);
   const opacity = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0, 1, 1, 0]);
-  const scale = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0.8, 1, 1, 0.8]);
+  const scale = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0.9, 1, 1, 0.9]);
 
   const themePrimaryColor = store?.theme?.primaryColor || "#6366F1"; // Renamed to avoid conflict
   const storeId = store?.id;

@@ -1,6 +1,6 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button'; 
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
+import { Button } from '../../components/ui/button'; 
 import { Sparkles } from 'lucide-react'; // For Visualize button icon
 
 const ProductCardInChat = ({ productData, onViewDetails, onAddToCart, onBuyNow, onVisualize }) => {

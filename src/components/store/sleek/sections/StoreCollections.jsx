@@ -76,9 +76,9 @@ const StoreCollections = ({ store }) => {
             >
               <Link to={`/store/${storeId}/collection/${collection.handle || collection.id}`} className="block">
                 <div className="aspect-[4/3] relative overflow-hidden">
-                  {collection.image_url ? (
+                  {(collection.imageUrl || collection.image_url) ? (
                     <img
-                      src={collection.image_url}
+                      src={collection.imageUrl || collection.image_url}
                       alt={collection.name}
                       className="w-full h-full object-cover transition-transform duration-500 ease-in-out group-hover:scale-110"
                     />

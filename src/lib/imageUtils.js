@@ -95,3 +95,56 @@ export async function overlayLogoOnProductImage(
     return baseImageSrc; // Fallback to original base image URL on error
   }
 }
+
+/**
+ * Converts an image source (URL or data URL) to base64 data and MIME type.
+ * @param {string} imageSrc - The image source.
+ * @returns {Promise<{base64ImageData: string, mimeType: string}>}
+ */
+export const imageSrcToBasics = (imageSrc) => {
+  return new Promise((resolve, reject) => {
+    if (!imageSrc) {
+      return reject(new Error("Image source is undefined or null."));
+    }
+    if (imageSrc.startsWith('data:')) {
+      try {
+        const parts = imageSrc.split(',');
+        if (parts.length < 2) throw new Error("Invalid data URL structure.");
+        const metaPart = parts[0];
+        const base64Data = parts[1];
+        const mimeTypeMatch = metaPart.match(/:(.*?);/);
+        if (!mimeTypeMatch || !mimeTypeMatch[1]) throw new Error("Could not parse MIME type from data URL.");
+        const mimeType = mimeTypeMatch[1];
+        resolve({ base64ImageData: base64Data, mimeType });
+      } catch (error) {
+        console.error("Error parsing data URL:", imageSrc, error);
+        reject(new Error(`Invalid data URL format: ${error.message}`));
+      }
+    } else { // Assuming it's a URL that needs fetching and converting
+      const img = new Image();
+      img.crossOrigin = 'Anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        try {
+          // Prefer PNG for consistency, but could use original type if needed
+          const dataUrl = canvas.toDataURL('image/png'); 
+          const parts = dataUrl.split(',');
+          const base64Data = parts[1];
+          resolve({ base64ImageData: base64Data, mimeType: 'image/png' });
+        } catch (e) {
+          console.error("Canvas toDataURL failed:", e);
+          reject(new Error("Canvas toDataURL failed, possibly due to CORS or tainted canvas."));
+        }
+      };
+      img.onerror = (e) => {
+        console.error("Failed to load image from URL for conversion:", imageSrc, e);
+        reject(new Error("Failed to load image from URL for conversion."));
+      };
+      img.src = imageSrc;
+    }
+  });
+};

@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
-import DashboardLayout from '@/components/dashboard/DashboardLayout';
-import OrdersTab from '@/components/dashboard/OrdersTab';
-import ProductsTab from '@/components/dashboard/ProductsTab';
-import CustomersTab from '@/components/dashboard/CustomersTab';
-import PaymentsTab from '@/components/dashboard/PaymentsTab';
-import AnalyticsTab from '@/components/dashboard/AnalyticsTab';
-import MarketingTab from '@/components/dashboard/MarketingTab';
-import ShippingTab from '@/components/dashboard/ShippingTab';
-import SettingsTab from '@/components/dashboard/SettingsTab';
-import { useStore } from '@/contexts/StoreContext'; // To potentially load store-specific data
+import DashboardLayout from '../components/dashboard/DashboardLayout';
+import OrdersTab from '../components/dashboard/OrdersTab';
+import ProductsTab from '../components/dashboard/ProductsTab';
+import CustomersTab from '../components/dashboard/CustomersTab';
+import PaymentsTab from '../components/dashboard/PaymentsTab';
+import AnalyticsTab from '../components/dashboard/AnalyticsTab';
+import MarketingTab from '../components/dashboard/MarketingTab';
+import ShippingTab from '../components/dashboard/ShippingTab';
+import SettingsTab from '../components/dashboard/SettingsTab';
+import { useStore } from '../contexts/StoreContext'; // To potentially load store-specific data
 
 const StoreDashboardPage = () => {
   const { storeName } = useParams(); // Changed from storeId

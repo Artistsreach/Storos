@@ -2,18 +2,18 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingCart, Search, Menu, X, Trash2, Sun, Moon, Edit } from 'lucide-react'; // Added Sun, Moon, Edit
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch'; // Added Switch
-import { useStore } from '@/contexts/StoreContext';
+import { Button } from '../../components/ui/button';
+import { Switch } from '../../components/ui/switch'; // Added Switch
+import { useStore } from '../../contexts/StoreContext';
 import { Link, useNavigate } from 'react-router-dom';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
-import { cn } from '@/lib/utils';
-import InlineTextEdit from '@/components/ui/InlineTextEdit';
-import ChangeLogoModal from '@/components/store/ChangeLogoModal'; // Import the new modal
+import { Badge } from '../../components/ui/badge';
+import { ScrollArea } from '../../components/ui/scroll-area';
+import { Separator } from '../../components/ui/separator';
+import { cn } from '../../lib/utils';
+import InlineTextEdit from '../../components/ui/InlineTextEdit';
+import ChangeLogoModal from '../../components/store/ChangeLogoModal'; // Import the new modal
 
-const StoreHeader = ({ store, isPublishedView = false }) => {
+const StoreHeader = ({ store, isPublishedView = false, productName }) => {
   // Destructure logoUrlLight and logoUrlDark, provide fallbacks
   const { 
     name, 
@@ -174,53 +174,62 @@ const handleSaveHeaderText = async (field, value, index = null) => {
       >
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Link to={basePath} className="group">
-              {(isDarkMode ? logoUrlLight : logoUrlDark) ? (
-                <img 
-                  src={isDarkMode ? logoUrlLight : logoUrlDark} 
-                  alt={`${name} logo`} 
-                  className="h-16 w-16 object-contain group-hover:scale-105 transition-transform duration-200" 
-                />
-              ) : (
-                // Fallback if the specific theme logo isn't available, try the other or a placeholder
-                (logoUrlLight || logoUrlDark) ? (
-                   <img 
-                    src={logoUrlLight || logoUrlDark} 
-                    alt={`${name} logo (fallback)`} 
-                    className="h-16 w-16 object-contain group-hover:scale-105 transition-transform duration-200" 
-                  />
-                ) : null // Or a placeholder div if neither is available
-              )}
-            </Link>
-            {isAdmin && (logoUrlLight || logoUrlDark) && (
-              <Button variant="outline" size="icon" onClick={openChangeImageDialog} className="h-8 w-8 p-0 -ml-2 relative z-10 bg-background hover:bg-muted">
-                <Edit className="h-4 w-4" />
-              </Button>
+            {productName ? (
+              <h1 className="font-bold text-xl tracking-tight" style={{color: theme.primaryColor}}>
+                {productName}
+              </h1>
+            ) : (
+              <>
+                <Link to={basePath} className="group">
+                  {(isDarkMode ? logoUrlLight : logoUrlDark) ? (
+                    <img 
+                      src={isDarkMode ? logoUrlLight : logoUrlDark} 
+                      alt={`${name} logo`} 
+                      className="h-16 w-16 object-contain group-hover:scale-105 transition-transform duration-200" 
+                    />
+                  ) : (
+                    (logoUrlLight || logoUrlDark) ? (
+                       <img 
+                        src={logoUrlLight || logoUrlDark} 
+                        alt={`${name} logo (fallback)`} 
+                        className="h-16 w-16 object-contain group-hover:scale-105 transition-transform duration-200" 
+                      />
+                    ) : null
+                  )}
+                </Link>
+                {isAdmin && (logoUrlLight || logoUrlDark) && (
+                  <Button variant="outline" size="icon" onClick={openChangeImageDialog} className="h-8 w-8 p-0 -ml-2 relative z-10 bg-background hover:bg-muted">
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                )}
+                <Link to={basePath} className="group ml-2">
+                  <span className="font-bold text-xl tracking-tight group-hover:text-primary transition-colors" style={{color: theme.primaryColor}}>
+                    <InlineTextEdit
+                      initialText={name}
+                      onSave={(newText) => handleSaveHeaderText('storeName', newText)}
+                      isAdmin={isAdmin}
+                      placeholder="Store Name"
+                    />
+                  </span>
+                </Link>
+              </>
             )}
-            <Link to={basePath} className="group ml-2">
-              <span className="font-bold text-xl tracking-tight group-hover:text-primary transition-colors" style={{color: theme.primaryColor}}>
-                <InlineTextEdit
-                  initialText={name}
-                onSave={(newText) => handleSaveHeaderText('storeName', newText)}
-                isAdmin={isAdmin}
-                placeholder="Store Name"
-              />
-            </span>
-          </Link>
-          </div> {/* Closes the "flex items-center gap-2" for logo and name */}
+          </div>
           
-          <nav className="hidden md:flex items-center gap-x-6">
-            {navLinks.map((link, index) => (
-              <a key={link.label + index} href={link.href} onClick={(e) => handleNavLinkClick(e, link.href)} className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors" style={{ '--hover-color': theme.primaryColor }}>
-                <InlineTextEdit
-                  initialText={link.label}
-                  onSave={(newText) => handleSaveHeaderText('navLink', newText, index)}
-                  isAdmin={isAdmin}
-                  placeholder={`Link ${index + 1}`}
-                />
-              </a>
-            ))}
-          </nav>
+          {!productName && (
+            <nav className="hidden md:flex items-center gap-x-6">
+              {navLinks.map((link, index) => (
+                <a key={link.label + index} href={link.href} onClick={(e) => handleNavLinkClick(e, link.href)} className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors" style={{ '--hover-color': theme.primaryColor }}>
+                  <InlineTextEdit
+                    initialText={link.label}
+                    onSave={(newText) => handleSaveHeaderText('navLink', newText, index)}
+                    isAdmin={isAdmin}
+                    placeholder={`Link ${index + 1}`}
+                  />
+                </a>
+              ))}
+            </nav>
+          )}
           
           <div className="flex items-center gap-2">
             {(settings?.showThemeToggle ?? true) && ( // Conditionally render based on store setting, default to true if not set
@@ -254,9 +263,11 @@ const handleSaveHeaderText = async (field, value, index = null) => {
               <span className="ml-2 hidden sm:inline">Cart</span>
             </Button>
             
-            <Button variant="ghost" size="icon" className="md:hidden text-muted-foreground hover:text-primary" onClick={() => setIsMobileMenuOpen(true)} style={{ '--hover-color': theme.primaryColor }}>
-              <Menu className="h-6 w-6" />
-            </Button>
+            {!productName && (
+              <Button variant="ghost" size="icon" className="md:hidden text-muted-foreground hover:text-primary" onClick={() => setIsMobileMenuOpen(true)} style={{ '--hover-color': theme.primaryColor }}>
+                <Menu className="h-6 w-6" />
+              </Button>
+            )}
           </div>
         </div>
       </motion.header>

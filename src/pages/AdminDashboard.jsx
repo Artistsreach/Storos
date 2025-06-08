@@ -1,6 +1,6 @@
 import React from 'react';
-import Header from '@/components/Header'; // Assuming a common Header
-import { useAuth } from '@/contexts/AuthContext'; // To get user info if needed
+import Header from '../components/Header'; // Assuming a common Header
+import { useAuth } from '../contexts/AuthContext'; // To get user info if needed
 
 const AdminDashboard = () => {
   const { user } = useAuth();

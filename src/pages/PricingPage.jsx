@@ -2,7 +2,7 @@ import React from 'react';
 import SubscribeButton from '../components/SubscribeButton';
 import { Link } from 'react-router-dom'; // Assuming you use React Router for navigation
 import { useAuth } from '../contexts/AuthContext';
-import Header from '@/components/Header'; // Added Header import
+import Header from '../components/Header'; // Added Header import
 
 const PricingPage = () => {
   const { isAuthenticated, user } = useAuth();

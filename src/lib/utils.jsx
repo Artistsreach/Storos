@@ -164,6 +164,8 @@ export const fetchPexelsVideos = async (query, perPage = 1, orientation = 'lands
 };
 
 import { GoogleGenAI, Modality, HarmCategory, HarmBlockThreshold } from "@google/genai"; // Import for actual Gemini call
+import { generateStoreFeaturesContent } from './gemini';
+
 
 export const generateImageWithGemini = async (prompt) => {
   if (!GEMINI_API_KEY || GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY_FALLBACK') {
@@ -269,7 +271,54 @@ export const generateAIProductDescriptions = (productType, productName) => {
   return descriptions[Math.floor(Math.random() * descriptions.length)];
 };
 
-export const generateAIStoreContent = (storeType, storeName) => {
+export const generateAIStoreContent = async (storeType, storeName, description = '') => {
+  const storeInfo = {
+    niche: storeType,
+    name: storeName,
+    description: description,
+  };
+
+  // Default content structure
+  let content = {
+    heroTitle: `Welcome to ${storeName}`,
+    heroDescription: `Discover amazing products at ${storeName}.`,
+    featuresSectionTitle: "Why Shop With Us?",
+    featuresSectionSubtitle: "We are committed to providing you with the best shopping experience.",
+    featureTitles: [
+      "Fast Worldwide Shipping",
+      "Secure Online Payments",
+      "24/7 Customer Support",
+      "Easy Returns & Exchanges"
+    ],
+    featureDescriptions: [
+      "Get your orders delivered quickly and reliably, no matter where you are.",
+      "Shop with confidence using our encrypted and secure payment gateways.",
+      "Our dedicated team is here to help you around the clock with any queries.",
+      "Not satisfied? We offer a hassle-free return and exchange policy."
+    ],
+    featuresVideoQuery: `${storeType} abstract`,
+    newsletterHeading: `Join the ${storeName} Family`,
+    newsletterText: `Sign up for our newsletter to receive exclusive offers, new product alerts, and style tips directly to your inbox. Don't miss out!`,
+  };
+
+  try {
+    const featuresContent = await generateStoreFeaturesContent(storeInfo);
+
+    if (featuresContent && !featuresContent.error && featuresContent.items) {
+      content.featuresSectionTitle = featuresContent.title;
+      content.featuresSectionSubtitle = featuresContent.subtitle;
+      content.featureTitles = featuresContent.items.map(item => item.title);
+      content.featureDescriptions = featuresContent.items.map(item => item.description);
+      if (content.featureTitles.length > 0) {
+        // Create a more descriptive query for the video
+        content.featuresVideoQuery = `${storeName} ${storeType} ${content.featureTitles[0]}`;
+      }
+    }
+  } catch (error) {
+    console.error("Failed to generate dynamic features content, using fallback.", error);
+  }
+
+  // Generate other content (could also be made dynamic)
   const heroTitles = {
     fashion: `Step Into Style at ${storeName}`,
     electronics: `${storeName}: Your Tech Universe`,
@@ -284,27 +333,27 @@ export const generateAIStoreContent = (storeType, storeName) => {
     jewelry: `Find exquisite pieces that tell your story. ${storeName} presents a stunning collection of fine jewelry, perfect for gifting or treating yourself.`,
     general: `Your one-stop shop for amazing products. ${storeName} offers a diverse range of quality items to meet your everyday needs and special desires.`,
   };
-  const featureTitles = [
-    "Fast Worldwide Shipping", 
-    "Secure Online Payments", 
-    "24/7 Customer Support", 
-    "Easy Returns & Exchanges"
-  ];
-  const featureDescriptions = [
-    "Get your orders delivered quickly and reliably, no matter where you are.",
-    "Shop with confidence using our encrypted and secure payment gateways.",
-    "Our dedicated team is here to help you around the clock with any queries.",
-    "Not satisfied? We offer a hassle-free return and exchange policy."
-  ];
-  const newsletterHeading = `Join the ${storeName} Family`;
-  const newsletterText = `Sign up for our newsletter to receive exclusive offers, new product alerts, and style tips directly to your inbox. Don't miss out!`;
 
-  return {
-    heroTitle: heroTitles[storeType] || heroTitles.general,
-    heroDescription: heroDescriptions[storeType] || heroDescriptions.general,
-    featureTitles,
-    featureDescriptions,
-    newsletterHeading,
-    newsletterText,
-  };
+  content.heroTitle = heroTitles[storeType] || heroTitles.general;
+  content.heroDescription = heroDescriptions[storeType] || heroDescriptions.general;
+
+  return content;
 };
+
+import { useState, useEffect } from 'react';
+
+export function useDebounce(value, delay) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}

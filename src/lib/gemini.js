@@ -22,15 +22,15 @@ export async function generateStoreNameSuggestions(promptContent) {
   const storeNameResponseSchema = {
     type: Type.ARRAY,
     items: { type: Type.STRING },
-    description: "An array of 5 creative and catchy store name suggestions."
-    // Consider adding minItems: 5, maxItems: 5 if strictness is needed and supported.
+    description: "An array of 3 creative and catchy store name suggestions."
+    // Consider adding minItems: 3, maxItems: 3 if strictness is needed and supported.
   };
 
   try {
-    const fullPrompt = `Suggest 5 creative and catchy store name options based on the following description or keywords: "${promptContent}". Return exactly 5 suggestions.`;
+    const fullPrompt = `Suggest 3 creative and catchy store name options based on the following store name: "${promptContent}". The suggestions should be relevant and similar. Return exactly 3 suggestions.`;
 
     const response = await genAI.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: "gemini-2.0-flash-lite-preview-02-05",
       contents: [{ role: "user", parts: [{text: fullPrompt}]}],
       config: {
         responseMimeType: "application/json",
@@ -47,7 +47,7 @@ export async function generateStoreNameSuggestions(promptContent) {
     try {
       const parsedSuggestions = JSON.parse(responseText);
       if (Array.isArray(parsedSuggestions) && parsedSuggestions.every(s => typeof s === 'string')) {
-        return { suggestions: parsedSuggestions.slice(0, 5).map(s => s.trim()).filter(s => s.length > 0) };
+        return { suggestions: parsedSuggestions.slice(0, 3).map(s => s.trim()).filter(s => s.length > 0) };
       } else {
         console.error("Parsed store name suggestions are not an array of strings:", parsedSuggestions);
         return { error: "AI response was not in the expected format (array of strings)." , rawResponse: responseText};

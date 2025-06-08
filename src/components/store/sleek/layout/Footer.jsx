@@ -82,7 +82,7 @@ const Footer = ({ store }) => {
 
 
   return (
-    <footer className="bg-gradient-to-br from-slate-900 via-gray-900 to-blue-950 text-slate-300 pt-20 pb-10 relative overflow-hidden">
+    <footer className="bg-slate-50 dark:bg-gradient-to-br dark:from-slate-900 dark:via-gray-900 dark:to-blue-950 text-slate-600 dark:text-slate-300 pt-20 pb-10 relative overflow-hidden">
       <div className="absolute inset-0 opacity-5">
         {/* Subtle background pattern or texture if desired */}
       </div>
@@ -106,7 +106,7 @@ const Footer = ({ store }) => {
                   />
                 </div>
               )}
-              <span className="font-bold text-2xl tracking-tight text-white group-hover:text-primary transition-colors duration-300 font-inter" style={{ color: primaryColor }}>
+              <span className="font-bold text-2xl tracking-tight text-slate-800 dark:text-white group-hover:text-primary transition-colors duration-300 font-inter" style={{ color: primaryColor }}>
                 {name}
               </span>
             </Link>
@@ -115,7 +115,7 @@ const Footer = ({ store }) => {
               onSave={updateStoreTextContent}
               identifier="content.footerTagline"
               as="p"
-              className="text-slate-400 mb-8 font-inter leading-relaxed"
+              className="text-slate-500 dark:text-slate-400 mb-8 font-inter leading-relaxed"
             >
               {footerTagline}
             </InlineTextEdit>
@@ -126,7 +126,7 @@ const Footer = ({ store }) => {
                   href={social.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-slate-400 hover:text-primary transition-colors duration-300"
+                  className="text-slate-500 dark:text-slate-400 hover:text-primary transition-colors duration-300"
                   style={{ "--hover-color": primaryColor }}
                   whileHover={{ scale: 1.2, y: -2 }}
                   aria-label={social.label}
@@ -140,7 +140,7 @@ const Footer = ({ store }) => {
           {/* Footer Links */}
           {footerLinks.map((section) => (
             <div key={section.title}>
-              <h5 className="font-semibold text-white text-lg mb-6 font-inter tracking-wide">
+              <h5 className="font-semibold text-slate-800 dark:text-white text-lg mb-6 font-inter tracking-wide">
                 {section.title}
               </h5>
               <ul className="space-y-3">
@@ -149,7 +149,7 @@ const Footer = ({ store }) => {
                     <motion.a
                       href={link.href}
                       onClick={(e) => handleLinkClick(e, link.href)}
-                      className="text-slate-400 hover:text-primary hover:pl-1 transition-all duration-300 font-inter"
+                      className="text-slate-500 dark:text-slate-400 hover:text-primary hover:pl-1 transition-all duration-300 font-inter"
                       style={{ "--hover-color": primaryColor }}
                       whileHover={{ x: 2 }}
                     >
@@ -163,7 +163,7 @@ const Footer = ({ store }) => {
         </motion.div>
 
         <motion.div
-          className="border-t border-slate-700/50 pt-10 flex flex-col sm:flex-row justify-between items-center text-center sm:text-left"
+          className="border-t border-slate-200 dark:border-slate-700/50 pt-10 flex flex-col sm:flex-row justify-between items-center text-center sm:text-left"
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
@@ -174,11 +174,11 @@ const Footer = ({ store }) => {
             onSave={updateStoreTextContent}
             identifier="content.footerText"
             as="p"
-            className="text-sm text-slate-500 font-inter mb-4 sm:mb-0"
+            className="text-sm text-slate-500 dark:text-slate-500 font-inter mb-4 sm:mb-0"
           >
             {footerText}
           </InlineTextEdit>
-          <div className="flex items-center gap-2 text-sm text-slate-500 font-inter">
+          <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-500 font-inter">
             <Sparkles className="w-4 h-4 text-primary/70" style={{color: primaryColor}} />
             <span>
               Powered by{" "}

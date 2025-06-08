@@ -1,17 +1,17 @@
 import React, { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+} from "../ui/card";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Textarea } from "../ui/textarea";
+import { Label } from "../ui/label";
+import { Switch } from "../ui/switch";
 import {
   Settings,
   CreditCard,
@@ -21,8 +21,8 @@ import {
   Copy,
   Check,
 } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import { useStore } from "@/contexts/StoreContext"; // Import useStore
+import { useAuth } from "../../contexts/AuthContext";
+import { useStore } from "../../contexts/StoreContext"; // Import useStore
 
 const SettingsTab = ({ store }) => { // Accept store as a prop
   const [activeSubTab, setActiveSubTab] = useState("store");

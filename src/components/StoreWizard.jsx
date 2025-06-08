@@ -2,29 +2,32 @@
 import React, { useState, useEffect } from 'react'; // Added useEffect
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Textarea } from '../components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
 import { Loader2, Wand2, UploadCloud, PlusCircle, Trash2, Sparkles, ArrowRight, ArrowLeft } from 'lucide-react';
-import { useStore } from '@/contexts/StoreContext';
-// import { generateImageWithGemini } from '@/lib/utils'; // Old import, to be replaced
+import { useStore } from '../contexts/StoreContext';
+// import { generateImageWithGemini } from '../lib/utils'; // Old import, to be replaced
 import { 
   generateLogoWithGemini, 
   generateGenericProductImageWithGemini,
   generateCollectionImageWithGemini // Added for collection image generation
-} from '@/lib/geminiImageGeneration'; // New import for logo and product image generation
-import { generateStoreNameSuggestions, generateStoreWayContent, generateHeroContent, generateStoreFeaturesContent } from '@/lib/gemini'; // Import generateStoreFeaturesContent
-import { generateProductWithGemini } from '@/lib/geminiProductGeneration'; // This generates full product details
-import { generateCollectionWithGemini } from '@/lib/geminiCollectionGeneration'; // New import for collection generation
-import { generateStoreDetailsFromPhotos } from '@/lib/geminiImageUnderstanding'; // Import for photo analysis
-import { isStoreNameTaken } from '@/lib/firebaseClient'; // Import the Firestore check function
-import { productTypeOptions, renderWizardStepContent, isWizardNextDisabled } from '@/components/wizard/wizardStepComponents';
-import { generateStoreUrl } from '@/lib/utils.js';
+} from '../lib/geminiImageGeneration'; // New import for logo and product image generation
+import { generateStoreNameSuggestions, generateStoreWayContent, generateHeroContent, generateStoreFeaturesContent } from '../lib/gemini'; // Import generateStoreFeaturesContent
+import { generateProductWithGemini } from '../lib/geminiProductGeneration'; // This generates full product details
+import { generateCollectionWithGemini } from '../lib/geminiCollectionGeneration'; // New import for collection generation
+import { generateStoreDetailsFromPhotos } from '../lib/geminiImageUnderstanding'; // Import for photo analysis
+import { analyzeStorePromptForStrategy } from '../lib/geminiPromptAnalysis'; // New: For prompt analysis
+import { generateImageFromPromptForPod, visualizeImageOnProductWithGemini } from '../lib/geminiImageGeneration'; // New: For POD image generation
+import { isStoreNameTaken } from '../lib/firebaseClient'; // Import the Firestore check function
+import { renderWizardStepContent, isWizardNextDisabled } from '../components/wizard/wizardStepComponents'; // Removed productTypeOptions
+import { podProductsList, productTypeOptions } from '../lib/constants'; // New: For POD product mockups and productTypeOptions
+import { generateStoreUrl } from '../lib/utils.js';
  
-const StoreWizard = () => {
+const StoreWizard = ({ isEmbedded = false, onGenerationComplete, initialDataFromImport = null }) => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [storeNameSuggestions, setStoreNameSuggestions] = useState([]);
@@ -56,17 +59,96 @@ const StoreWizard = () => {
   const [storeNameAvailability, setStoreNameAvailability] = useState(null); // e.g., { status: 'available' | 'claimed' | 'error', message: '' }
 
 
-  const { generateStoreFromWizard, isGenerating, checkStoreNameAvailability } = useStore(); // Assuming checkStoreNameAvailability is from context/store
+  const { 
+    generateStoreFromWizard, 
+    isGenerating, 
+    checkStoreNameAvailability,
+    importedStoreDataForGenerator, // For embedded case
+    isImportDataReadyForGenerator,  // For embedded case
+    clearImportedStoreDataForGenerator // For embedded case
+  } = useStore();
+
+  useEffect(() => {
+    if (isEmbedded && isImportDataReadyForGenerator && importedStoreDataForGenerator) {
+      console.log("StoreWizard (Embedded) consuming imported data:", importedStoreDataForGenerator);
+      setFormData(prev => ({
+        ...prev,
+        storeName: importedStoreDataForGenerator.name || prev.storeName,
+        prompt: importedStoreDataForGenerator.prompt || prev.prompt,
+        logoUrlLight: importedStoreDataForGenerator.logoUrl || prev.logoUrlLight,
+        logoUrlDark: importedStoreDataForGenerator.logoUrl || prev.logoUrlDark,
+        products: importedStoreDataForGenerator.products && importedStoreDataForGenerator.products.length > 0 ? {
+          source: 'manual',
+          count: importedStoreDataForGenerator.products.length,
+          items: importedStoreDataForGenerator.products.map(p => ({
+            name: p.name || '',
+            price: p.price || '',
+            description: p.description || '',
+            images: p.images || [], // Assuming images is an array of URLs or base64 strings
+            variants: p.variants || [],
+          })),
+        } : prev.products,
+        collections: importedStoreDataForGenerator.collections && importedStoreDataForGenerator.collections.length > 0 ? {
+          source: 'manual',
+          count: importedStoreDataForGenerator.collections.length,
+          items: importedStoreDataForGenerator.collections.map(c => ({
+            name: c.name || '',
+            description: c.description || '',
+            imageUrl: c.imageUrl || '', 
+            product_ids: c.product_ids || [],
+          })),
+        } : prev.collections,
+      }));
+      if (importedStoreDataForGenerator.name) {
+        handleManualStoreNameCheck(importedStoreDataForGenerator.name); // Auto-check name
+      }
+      clearImportedStoreDataForGenerator();
+    } else if (initialDataFromImport) { // Fallback for direct prop if context isn't ready/used
+        setFormData(prev => ({
+        ...prev,
+        storeName: initialDataFromImport.name || prev.storeName,
+        prompt: initialDataFromImport.prompt || prev.prompt,
+        logoUrlLight: initialDataFromImport.logoUrl || prev.logoUrlLight,
+        logoUrlDark: initialDataFromImport.logoUrl || prev.logoUrlDark,
+        products: initialDataFromImport.products && initialDataFromImport.products.length > 0 ? {
+          source: 'manual',
+          count: initialDataFromImport.products.length,
+          items: initialDataFromImport.products.map(p => ({
+            name: p.name || '',
+            price: p.price || '',
+            description: p.description || '',
+            images: p.images || [],
+            variants: p.variants || [],
+          })),
+        } : prev.products,
+        collections: initialDataFromImport.collections && initialDataFromImport.collections.length > 0 ? {
+          source: 'manual',
+          count: initialDataFromImport.collections.length,
+          items: initialDataFromImport.collections.map(c => ({
+            name: c.name || '',
+            description: c.description || '',
+            imageUrl: c.imageUrl || '',
+            product_ids: c.product_ids || [],
+          })),
+        } : prev.collections,
+      }));
+      if (initialDataFromImport.name) {
+        handleManualStoreNameCheck(initialDataFromImport.name);
+      }
+    }
+  }, [isEmbedded, isImportDataReadyForGenerator, importedStoreDataForGenerator, clearImportedStoreDataForGenerator, initialDataFromImport]);
+
 
   // Manual Store Name Availability Check Handler
-  const handleManualStoreNameCheck = async () => {
-    if (!formData.storeName) {
+  const handleManualStoreNameCheck = async (nameToTest) => {
+    const currentName = nameToTest || formData.storeName;
+    if (!currentName) {
       setStoreNameAvailability({ status: 'error', message: 'Please enter a store name to check.' });
       return;
     }
     setIsCheckingStoreName(true);
     setStoreNameAvailability(null);
-    setSuggestionError(null); 
+    setSuggestionError(null);
 
     try {
       const isTaken = await isStoreNameTaken(formData.storeName);
@@ -99,24 +181,23 @@ const StoreWizard = () => {
     // It would typically be a useEffect hook that watches formData.storeName.
     if (formData.storeName && step === 2) { // Assuming check is most relevant on Step 2
       const handler = setTimeout(async () => {
-        // setIsCheckingStoreName(true);
-        // setStoreNameAvailability(null); // Reset status
-        // setSuggestionError(null); // Clear previous name-related errors
+        setIsCheckingStoreName(true);
+        setStoreNameAvailability(null); // Reset status
+        setSuggestionError(null); // Clear previous name-related errors
 
-        // try {
-        //   // const response = await checkStoreNameApi(formData.storeName); // Replace with actual API call
-        //   // if (response.isAvailable) {
-        //   //   setStoreNameAvailability({ status: 'available', message: 'Store name is available!' });
-        //   // } else {
-        //   //   setStoreNameAvailability({ status: 'claimed', message: 'This store name is already taken.' });
-        //   // }
-        // } catch (apiError) {
-        //   // console.error("Store name availability check failed:", apiError);
-        //   // setStoreNameAvailability({ status: 'error', message: 'Could not check store name. Please try again.' });
-        // } finally {
-        //   // setIsCheckingStoreName(false);
-        // }
-        // console.log(`Placeholder: Would check availability for "${formData.storeName}" here.`);
+        try {
+          const isTaken = await isStoreNameTaken(formData.storeName);
+          if (isTaken) {
+            setStoreNameAvailability({ status: 'claimed', message: 'This store name is already taken.' });
+          } else {
+            setStoreNameAvailability({ status: 'available', message: 'Store name is available!' });
+          }
+        } catch (apiError) {
+          console.error("Store name availability check failed:", apiError);
+          setStoreNameAvailability({ status: 'error', message: apiError.message || 'Could not check store name. Please try again.' });
+        } finally {
+          setIsCheckingStoreName(false);
+        }
       }, 750); // Debounce for 750ms
 
       return () => {
@@ -324,7 +405,7 @@ const StoreWizard = () => {
     setStoreNameSuggestions([]);
     setSuggestionError(null);
     try {
-      const productDescription = productTypeOptions.find(p => p.value === formData.productType)?.label || formData.productType;
+      const productDescription = productTypeOptions.find(p => p.value === formData.productType)?.label || formData.productType; // productTypeOptions is now from constants
       // Use the new function that returns multiple suggestions
       const result = await generateStoreNameSuggestions(productDescription);
       if (result.error) {
@@ -394,58 +475,150 @@ const StoreWizard = () => {
     }
     setIsProcessing(true);
     setSuggestionError(null);
-    const generatedItems = [];
+    let generatedItems = [];
     try {
-      let logoImageBase64 = null;
-      let logoMimeType = 'image/png'; 
-      // Prioritize logoUrlLight for product generation if available, else logoUrlDark
-      const primaryLogoUrl = formData.logoUrlLight || formData.logoUrlDark;
+      // Analyze the prompt first
+      const analysisResult = await analyzeStorePromptForStrategy(formData.prompt, formData.productType);
+      console.log("Prompt Analysis Result:", analysisResult);
 
+      if (analysisResult.error || analysisResult.strategy === 'error') {
+        setSuggestionError(analysisResult.error || "Failed to analyze store prompt for product strategy.");
+        setIsProcessing(false);
+        return;
+      }
+
+      let logoImageBase64 = null;
+      let logoMimeType = 'image/png';
+      const primaryLogoUrl = formData.logoUrlLight || formData.logoUrlDark;
       if (primaryLogoUrl && primaryLogoUrl.startsWith('data:')) {
         const parts = primaryLogoUrl.split(',');
         if (parts.length === 2) {
-          const metaPart = parts[0];
           logoImageBase64 = parts[1];
-          const mimeTypeMatch = metaPart.match(/:(.*?);/);
-          if (mimeTypeMatch && mimeTypeMatch[1]) {
-            logoMimeType = mimeTypeMatch[1];
-          }
-          console.log(`[StoreWizard] Using primary logo (${primaryLogoUrl === formData.logoUrlLight ? 'Light version' : 'Dark version'}) for product generation. MimeType: ${logoMimeType}`);
-        } else {
-          console.warn("[StoreWizard] Primary logo URL is not a valid data URL format.");
+          const mimeTypeMatch = parts[0].match(/:(.*?);/);
+          if (mimeTypeMatch && mimeTypeMatch[1]) logoMimeType = mimeTypeMatch[1];
         }
       }
 
-      for (let i = 0; i < formData.products.count; i++) {
-        console.log(`Generating AI product ${i + 1} of ${formData.products.count}...`);
-        // Update processing message for user if possible, or just log
-        // Pass logo data to generateProductWithGemini
-        const productData = await generateProductWithGemini(
-          formData.productType, 
-          formData.storeName,
-          logoImageBase64, 
-          logoMimeType      
-        );
-        // productData now returns { title, description, price, variants, images: [] }
-        if (productData && productData.images && productData.images.length > 0) {
-          generatedItems.push({
-            name: productData.title,
-            description: productData.description,
-            price: productData.price,
-            images: productData.images, // Use the images array
-            variants: productData.variants || [], 
-          });
-        } else {
-          console.warn(`Failed to generate full data (including image) for product ${i + 1}. Skipping.`);
+      if (analysisResult.strategy === 'standard') {
+        console.log("Strategy: Standard Product Generation");
+        for (let i = 0; i < formData.products.count; i++) {
+          console.log(`Generating AI product ${i + 1} of ${formData.products.count}...`);
+          const productData = await generateProductWithGemini(
+            formData.productType,
+            formData.storeName,
+            logoImageBase64,
+            logoMimeType,
+            generatedItems.map(p => p.name),
+            undefined, 
+            undefined, 
+            undefined, 
+            formData.prompt
+          );
+          if (productData && productData.images && productData.images.length > 0) {
+            generatedItems.push({
+              name: productData.title,
+              description: productData.description,
+              price: productData.price,
+              images: productData.images,
+              variants: productData.variants || [],
+            });
+          } else {
+            console.warn(`Failed to generate full data for standard product ${i + 1}. Skipping.`);
+          }
+        }
+      } else if (analysisResult.strategy === 'pod_theme_visualization' || analysisResult.strategy === 'pod_specific_products') {
+        console.log(`Strategy: Print on Demand - ${analysisResult.strategy}`);
+        const baseDesignPrompt = analysisResult.theme && analysisResult.theme !== "General" ?
+          `Design for print-on-demand products for a store themed '${analysisResult.theme}'. Store name: ${formData.storeName}. User prompt: ${formData.prompt}` :
+          `Versatile design for print-on-demand products based on store prompt: "${formData.prompt}". Store name: ${formData.storeName}.`;
+
+        const numberOfDesignsToGenerate = 6;
+        let generatedDesigns = [];
+
+        for (let i = 0; i < numberOfDesignsToGenerate; i++) {
+          // Add a suffix to prompt for variety if desired, or rely on API's inherent randomness
+          const designPromptWithVariety = `${baseDesignPrompt} (Design variation ${i + 1} of ${numberOfDesignsToGenerate}, ensure it's distinct from previous designs for this store if any were made).`;
+          console.log(`Generating POD design ${i + 1}/${numberOfDesignsToGenerate}...`);
+          const designImageResult = await generateImageFromPromptForPod({ prompt: designPromptWithVariety });
+          if (designImageResult && designImageResult.imageData) {
+            generatedDesigns.push({
+              base64: designImageResult.imageData,
+              mimeType: designImageResult.imageMimeType || 'image/png',
+              prompt: designPromptWithVariety, // Store the specific prompt used for this design
+            });
+          } else {
+            console.warn(`Failed to generate POD design ${i + 1}.`);
+            // Optionally, try to generate fewer designs or break
+          }
+        }
+
+        if (generatedDesigns.length === 0) {
+          setSuggestionError("Failed to generate any base designs for POD products.");
+          setIsProcessing(false);
+          return;
+        }
+        
+        // Select unique mockups, up to the number of designs generated
+        let availableMockups = [...podProductsList];
+        let selectedMockups = [];
+        for(let i = 0; i < Math.min(generatedDesigns.length, availableMockups.length) ; i++){
+            const randomIndex = Math.floor(Math.random() * availableMockups.length);
+            selectedMockups.push(availableMockups.splice(randomIndex, 1)[0]);
+        }
+        
+        if (selectedMockups.length === 0) {
+            setSuggestionError("No POD mockup products available for visualization.");
+            setIsProcessing(false);
+            return;
+        }
+
+        for (let i = 0; i < Math.min(generatedDesigns.length, selectedMockups.length); i++) {
+          const design = generatedDesigns[i];
+          const podBaseProduct = selectedMockups[i];
+          
+          console.log(`Visualizing design ${i+1} on ${podBaseProduct.name}...`);
+          
+          const vizResult = await visualizeImageOnProductWithGemini(
+            design.base64,
+            design.mimeType,
+            podBaseProduct.imageUrl,
+            analysisResult.theme || formData.prompt, 
+            podBaseProduct.name
+          );
+
+          if (vizResult && vizResult.visualizedImageData && vizResult.productDetails) {
+            const originalDesignImageUrl = `data:${design.mimeType};base64,${design.base64}`;
+            const visualizedProductImageUrl = `data:${vizResult.visualizedImageMimeType};base64,${vizResult.visualizedImageData}`;
+            
+            generatedItems.push({
+              name: vizResult.productDetails.title,
+              price: parseFloat(vizResult.productDetails.price).toFixed(2),
+              description: vizResult.productDetails.description,
+              images: [originalDesignImageUrl, visualizedProductImageUrl], // Gallery: original design + visualized product
+              isPrintOnDemand: true,
+              podDetails: {
+                originalDesignImageUrl: originalDesignImageUrl,
+                designPrompt: design.prompt, // Store the prompt used for this specific design
+                baseProductName: podBaseProduct.name,
+                baseProductImageUrl: podBaseProduct.imageUrl,
+              },
+              variants: vizResult.productDetails.variants || [],
+            });
+          } else {
+            console.warn(`Failed to visualize design ${i+1} on ${podBaseProduct.name}. Skipping.`);
+          }
         }
       }
+
       setFormData(prev => ({
         ...prev,
         products: { ...prev.products, items: generatedItems },
       }));
+
       if (generatedItems.length === 0 && formData.products.count > 0) {
-        setSuggestionError("AI failed to generate any products. Please try again or adjust settings.");
+        setSuggestionError("AI failed to generate any products with the selected strategy. Please try again or adjust settings.");
       }
+
     } catch (error) {
       console.error("Error generating AI products:", error);
       setSuggestionError(`Failed to generate AI products: ${error.message}`);
@@ -663,8 +836,12 @@ const StoreWizard = () => {
       const newStore = await generateStoreFromWizard(finalFormData);
 
       if (newStore) {
-        const storeUrlPath = `/${newStore.urlSlug || generateStoreUrl(newStore.name)}`;
-        navigate(storeUrlPath);
+        if (isEmbedded && onGenerationComplete) {
+          onGenerationComplete(newStore); // Pass the new store data back
+        } else if (!isEmbedded) {
+          const storeUrlPath = `/${newStore.urlSlug || generateStoreUrl(newStore.name)}`;
+          navigate(storeUrlPath);
+        }
       }
       // If newStore is null, generateStoreFromWizard would have already shown an error toast.
 
@@ -720,6 +897,38 @@ const StoreWizard = () => {
     storeNameAvailability, // Ensure this has a comma if not the last actual property before new ones
     handleManualStoreNameCheck // This is now the last property, so no trailing comma needed
   };
+
+  // Conditional rendering for embedded mode (e.g., hide main card shell)
+  if (isEmbedded) {
+    // Render only the step content and a specific "Generate" button for the final step
+    // The parent (ImportWizard) will handle the overall modal structure.
+    return (
+      <div className="w-full p-2"> {/* Padding for embedded content */}
+        <AnimatePresence mode="wait">
+          {renderWizardStepContent(step, stepProps)}
+        </AnimatePresence>
+        <div className="flex justify-between mt-4">
+          <Button variant="outline" onClick={prevStep} disabled={(step === 1 || isGenerating || isProcessingPhotos)}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Previous
+          </Button>
+          {step < 6 ? (
+            <Button onClick={nextStep} disabled={(isWizardNextDisabled(step, formData, uploadedProductPhotos) || isGenerating || isProcessingPhotos)}>
+              Next <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          ) : (
+            <Button 
+              onClick={handleSubmit} 
+              disabled={(isProcessing || isGenerating || isProcessingPhotos || !formData.prompt)}
+              className="bg-primary hover:bg-primary/90" // Ensure consistent styling
+            >
+              {(isProcessing || isGenerating) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+              Generate Store
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-2xl mx-auto"> {/* Replaced Card with div and removed shadow-xl */}

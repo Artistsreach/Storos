@@ -1,17 +1,17 @@
 import React, { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+} from "../ui/card";
+import { Button } from "../ui/button";
 // Input is not used in this file based on the provided code
 // import { Input } from "@/components/ui/input"; 
 import { CreditCard, Calendar, AlertTriangle, ExternalLink } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext"; // Import useAuth
+import { useAuth } from "../../contexts/AuthContext"; // Import useAuth
 
 const PaymentsTab = () => {
   const [activeSubTab, setActiveSubTab] = useState("transactions");

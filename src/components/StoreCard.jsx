@@ -9,8 +9,8 @@ import {
   CardHeader, 
   CardTitle, 
   CardDescription 
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+} from '../components/ui/card';
+import { Button } from '../components/ui/button';
 import { 
   Store, 
   Edit, 
@@ -20,9 +20,9 @@ import {
   Lock,
   UserPlus // Added for assigning manager
 } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-// import { fetchPexelsImages } from '@/lib/utils.jsx'; // Commented out as it's not used and generateStoreUrl is from utils.js
-import { generateStoreUrl } from '@/lib/utils.js'; // Corrected path
+import { Input } from '../components/ui/input';
+// import { fetchPexelsImages } from '../lib/utils.jsx'; // Commented out as it's not used and generateStoreUrl is from utils.js
+import { generateStoreUrl } from '../lib/utils.js'; // Corrected path
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -33,8 +33,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { useStore } from '@/contexts/StoreContext';
+} from '../components/ui/alert-dialog';
+import { useStore } from '../contexts/StoreContext';
 
 const StoreCard = ({ store }) => {
   const navigate = useNavigate();

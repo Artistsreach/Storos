@@ -90,7 +90,7 @@ const Testimonials = ({ store }) => {
                   <img
                     src={testimonial.avatar}
                     alt={testimonial.name}
-                    className="w-14 h-14 rounded-full mr-4 border-2 border-primary/50"
+                    className="w-14 h-14 mr-4 border-2 border-primary/50"
                     style={{ borderColor: `${primaryColor}80` }}
                   />
                 ) : (

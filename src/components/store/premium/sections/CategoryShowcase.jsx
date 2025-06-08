@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import CollectionProductsDialog from '@/components/store/CollectionProductsDialog'; // Assuming this is the correct path
+import { Button } from '../../../../components/ui/button';
+import CollectionProductsDialog from '../../../../components/store/CollectionProductsDialog'; // Assuming this is the correct path
 import InlineTextEdit from '../../../ui/InlineTextEdit';
 import { useStore } from '../../../../contexts/StoreContext';
 

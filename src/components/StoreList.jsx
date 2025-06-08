@@ -1,11 +1,11 @@
 
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import StoreCard from '@/components/StoreCard';
-import { useStore } from '@/contexts/StoreContext';
-import { Button } from '@/components/ui/button';
+import StoreCard from '../components/StoreCard';
+import { useStore } from '../contexts/StoreContext';
+import { Button } from '../components/ui/button';
 import { RefreshCw } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext'; // Import useAuth to get the correct user object
+import { useAuth } from '../contexts/AuthContext'; // Import useAuth to get the correct user object
 
 const StoreList = () => {
   const { stores, loadStores, isLoadingStores } = useStore();

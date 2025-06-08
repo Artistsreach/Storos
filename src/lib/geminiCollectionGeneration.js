@@ -38,33 +38,8 @@ export async function generateCollectionWithGemini(
   }
 
   const getFallbackCollection = () => {
-    let fallbackProductNames = [];
-    if (products && products.length > 0) {
-      // Try to get up to 4 product names for the fallback
-      fallbackProductNames = products
-        .map(p => p.name)
-        .filter(name => typeof name === 'string' && name.trim() !== '') // Ensure names are valid strings
-        .slice(0, 4);
-    }
-  
-    // If no valid product names could be extracted for fallback, create a very generic collection
-    if (fallbackProductNames.length === 0) {
-      return {
-        name: "Our Special Collection",
-        description: "Discover a range of our finest products, specially selected for you.",
-        imageData: null,
-        product_ids: [],
-        isPlaceholder: true,
-      };
-    }
-  
-    return {
-      name: `${productType ? productType.charAt(0).toUpperCase() + productType.slice(1) : 'Featured'} Selection`,
-      description: `A curated selection of our popular ${productType || 'items'}. Explore customer favorites and top picks.`,
-      imageData: null,
-      product_ids: fallbackProductNames,
-      isPlaceholder: true,
-    };
+    // Return null instead of a generic collection
+    return null;
   };
  
   const productList = products && products.length > 0 ? products.map(p => p.name).filter(name => name).join(', ') : 'various items';

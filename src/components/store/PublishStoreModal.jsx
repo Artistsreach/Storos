@@ -7,10 +7,10 @@ import {
   DialogDescription,
   DialogFooter,
   DialogClose,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+} from '../../components/ui/dialog';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
 import { Globe, Link2, ExternalLink } from 'lucide-react';
 
 const PublishStoreModal = ({ open, onOpenChange, store, onConfirmPublish }) => {

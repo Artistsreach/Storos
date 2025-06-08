@@ -51,7 +51,7 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
 
   const y = useTransform(scrollYProgress, [0, 1], [100, -100]); // Uncommented to define y
   const opacity = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0, 1, 1, 0]);
-  const scale = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0.8, 1, 1, 0.8]);
+  const scale = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0.9, 1, 1, 0.9]);
 
   const primaryColor = store?.theme?.primaryColor || "#6366F1";
   const storeId = store?.id;
@@ -287,15 +287,15 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
       {/* Background Elements - Sleek Theme */}
       <div className="absolute inset-0 overflow-hidden">
         <motion.div
-          className="absolute top-10 left-10 w-1/2 h-1/2 bg-primary/10 blur-3xl rounded-full" // Sleek: larger, softer blurs
+          className="absolute top-10 left-10 w-1/2 h-1/2 bg-primary/10 blur-3xl" // Sleek: larger, softer blurs
           style={{ backgroundColor: `${primaryColor}1A`, y }} // Use primaryColor with alpha
         />
         <motion.div
-          className="absolute bottom-10 right-10 w-1/2 h-1/2 bg-secondary/10 blur-3xl rounded-full" // Sleek: larger, softer blurs
+          className="absolute bottom-10 right-10 w-1/2 h-1/2 bg-secondary/10 blur-3xl" // Sleek: larger, softer blurs
           style={{ backgroundColor: `${store?.theme?.secondaryColor || primaryColor}1A`, y: useTransform(scrollYProgress, [0, 1], [-100, 100]) }} // Example secondary color usage
         />
         <motion.div
-          className="absolute top-1/3 left-1/3 w-2/5 h-2/5 bg-accent/10 blur-3xl rounded-full" // Sleek: larger, softer blurs
+          className="absolute top-1/3 left-1/3 w-2/5 h-2/5 bg-accent/10 blur-3xl" // Sleek: larger, softer blurs
           animate={{
             scale: [1, 1.1, 1],
             opacity: [0.3, 0.5, 0.3],
@@ -317,7 +317,7 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
         >
           <motion.div
             variants={itemVariants}
-            className="inline-flex items-center gap-3 px-5 py-2.5 bg-white/10 dark:bg-black/10 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-full text-sm font-medium mb-6 shadow-glass" // Sleek: shadow-glass
+            className="inline-flex items-center gap-3 px-5 py-2.5 bg-white/10 dark:bg-black/10 backdrop-blur-md border border-white/20 dark:border-white/10 text-sm font-medium mb-6 shadow-glass" // Sleek: shadow-glass
             style={{ color: primaryColor, borderColor: `${primaryColor}40` }} // Slightly more prominent border for sleek
           >
             <Sparkles className="w-5 h-5" /> 
@@ -368,7 +368,7 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
               return (
                 <motion.div
                   key={feature.title + index} // Ensure unique key
-                  className={`p-6 rounded-2xl border transition-all duration-300 cursor-pointer backdrop-blur-md shadow-glass ${ // Sleek: rounded-2xl, glassmorphism
+                  className={`p-6 border transition-all duration-300 cursor-pointer backdrop-blur-md shadow-glass ${ // Sleek: glassmorphism
                     isActive
                       ? "bg-white/20 dark:bg-black/20 border-primary/50 dark:border-primary/40 ring-2 ring-primary/30" // Sleek active
                       : "bg-white/10 dark:bg-black/10 border-white/20 dark:border-white/10 hover:bg-white/15 dark:hover:bg-black/15 hover:border-white/30 dark:hover:border-white/20" // Sleek inactive
@@ -382,7 +382,7 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
                 >
                   <div className="flex items-start gap-4">
                     <div
-                      className="w-16 h-16 rounded-xl flex items-center justify-center shadow-md text-3xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10" // Sleek icon container
+                      className="w-16 h-16 flex items-center justify-center shadow-md text-3xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10" // Sleek icon container
                       style={{ borderColor: feature.color || `${primaryColor}50` }}
                     >
                       {feature.emoji || <IconComponent className="w-8 h-8" style={{color: feature.color || primaryColor}} />}
@@ -401,7 +401,7 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
                         {feature.stats && (
                           <Badge
                             variant="secondary"
-                            className="text-xs font-medium tracking-wide px-2.5 py-1 rounded-md bg-white/5 dark:bg-black/5 border border-white/10 dark:border-white/5" // Sleek badge
+                            className="text-xs font-medium tracking-wide px-2.5 py-1 bg-white/5 dark:bg-black/5 border border-white/10 dark:border-white/5" // Sleek badge
                             style={{ color: feature.color || primaryColor, borderColor: `${feature.color || primaryColor}30` }}
                           >
                             {feature.stats}
@@ -448,13 +448,13 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
           {featuresToDisplay[activeFeature] && (
             <motion.div
               variants={itemVariants}
-              className="relative aspect-square lg:aspect-[4/3] rounded-3xl overflow-hidden shadow-float-lg"
+              className="relative aspect-square lg:aspect-[4/3] overflow-hidden shadow-float-lg"
             >
               {!isPublishedView && (featuresToDisplay[activeFeature]?.videoUrl || currentPexelsVideoUrl) && (
                 <Button
                   variant="outline"
                   size="icon"
-                  className="absolute top-3 left-3 z-20 bg-background/70 hover:bg-background/90 text-foreground rounded-full p-2" // Style for Sleek
+                  className="absolute top-3 left-3 z-20 bg-background/70 hover:bg-background/90 text-foreground p-2" // Style for Sleek
                   onClick={handleOpenReplaceModal}
                   title="Replace Feature Video"
                 >
@@ -470,7 +470,7 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
                   loop
                   muted
                   playsInline
-                  className="absolute inset-0 w-full h-full object-cover rounded-2xl"
+                  className="absolute inset-0 w-full h-full object-cover"
                 />
               ) : currentPexelsVideoUrl ? ( // Contextual Pexels video
                 <video
@@ -481,14 +481,14 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
                   loop
                   muted
                   playsInline
-                  className="absolute inset-0 w-full h-full object-cover rounded-2xl"
+                  className="absolute inset-0 w-full h-full object-cover"
                 />
               ) : featuresToDisplay[activeFeature]?.image ? ( // Specific image for the feature
                 <motion.img
                   key={`feat-img-${activeFeature}`}
                   src={featuresToDisplay[activeFeature].image}
                   alt={featuresToDisplay[activeFeature].title || "Sleek feature image"}
-                  className="absolute inset-0 w-full h-full object-cover rounded-2xl"
+                  className="absolute inset-0 w-full h-full object-cover"
                   initial={{ opacity: 0, scale: 1.1 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.8 }}
@@ -498,7 +498,7 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
                   key={`fallback-img-${activeFeature}`}
                   src={'https://images.pexels.com/photos/268351/pexels-photo-268351.jpeg?auto=compress&cs=tinysrgb&w=600'}
                   alt="Default sleek feature background"
-                  className="absolute inset-0 w-full h-full object-cover rounded-2xl"
+                  className="absolute inset-0 w-full h-full object-cover"
                   initial={{ opacity: 0, scale: 1.1 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.8 }}
@@ -506,7 +506,7 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
               )}
               
               {/* Overlay - ensure it's applied if not a video or if video needs it */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-black/5 rounded-2xl" /> 
+              <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-black/5" /> 
               
               {/* Feature Info Overlay */}
               <motion.div
@@ -516,10 +516,10 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
               >
-                <div className="bg-white/10 dark:bg-black/10 backdrop-blur-lg border border-white/10 dark:border-white/5 rounded-xl p-6 shadow-glass-light"> {/* Sleek overlay */}
+                <div className="bg-white/10 dark:bg-black/10 backdrop-blur-lg border border-white/10 dark:border-white/5 p-6 shadow-glass-light"> {/* Sleek overlay */}
                   <div className="flex items-center gap-3 mb-3">
                     <div
-                      className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl bg-white/5 dark:bg-black/5 border border-white/10 dark:border-white/5" // Sleek icon container in overlay
+                      className="w-12 h-12 flex items-center justify-center text-2xl bg-white/5 dark:bg-black/5 border border-white/10 dark:border-white/5" // Sleek icon container in overlay
                       style={{ borderColor: featuresToDisplay[activeFeature].color || `${primaryColor}50` }}
                     >
                       {featuresToDisplay[activeFeature].emoji || React.createElement(featuresToDisplay[activeFeature].icon || Package, {
@@ -545,7 +545,7 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
 
               {/* Decorative elements - Sleek Theme */}
                 <motion.div
-                  className="absolute -top-5 -right-5 w-28 h-28 bg-primary/10 backdrop-blur-xl rounded-full flex items-center justify-center border border-white/10 dark:border-white/5 z-10" // Added z-10
+                  className="absolute -top-5 -right-5 w-28 h-28 bg-primary/10 backdrop-blur-xl flex items-center justify-center border border-white/10 dark:border-white/5 z-10" // Added z-10
                   style={{ backgroundColor: `${primaryColor}1A`}}
                   animate={{
                     y: [-8, 8, -8],
@@ -572,11 +572,11 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
               <motion.div
                 key={feature.title + index}
                 variants={itemVariants}
-                className="text-center p-6 bg-white/5 dark:bg-black/5 backdrop-blur-md rounded-2xl border border-white/10 dark:border-white/5 hover:bg-white/10 dark:hover:bg-black/10 transition-all duration-300 shadow-glass-light" // Sleek card
+                className="text-center p-6 bg-white/5 dark:bg-black/5 backdrop-blur-md border border-white/10 dark:border-white/5 hover:bg-white/10 dark:hover:bg-black/10 transition-all duration-300 shadow-glass-light" // Sleek card
                 whileHover={{ scale: 1.05, y: -5 }}
               >
                 <div
-                  className="w-16 h-16 mx-auto mb-4 rounded-xl flex items-center justify-center shadow-md bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10" // Sleek icon container
+                  className="w-16 h-16 mx-auto mb-4 flex items-center justify-center shadow-md bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10" // Sleek icon container
                   style={{ borderColor: primaryColor+"50" }}
                 >
                   <IconComponent className="w-8 h-8" style={{color: primaryColor}} />
@@ -608,7 +608,7 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
           variants={containerVariants}
           initial="hidden"
           animate={isInView ? "visible" : "hidden"}
-          className="grid grid-cols-2 md:grid-cols-4 gap-8 p-8 bg-white/5 dark:bg-black/5 backdrop-blur-lg rounded-2xl border border-white/10 dark:border-white/5 shadow-glass" // Sleek card
+          className="grid grid-cols-2 md:grid-cols-4 gap-8 p-8 bg-white/5 dark:bg-black/5 backdrop-blur-lg border border-white/10 dark:border-white/5 shadow-glass" // Sleek card
         >
           {(sectionData.statsItems || []).map((stat, index) => {
             const IconComponent = iconMap[stat.iconName] || Package;
@@ -619,7 +619,7 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
                 className="text-center"
               >
                 <div
-                  className="w-12 h-12 mx-auto mb-3 rounded-lg flex items-center justify-center bg-white/5 dark:bg-black/5 border border-white/10 dark:border-white/5" // Sleek icon container
+                  className="w-12 h-12 mx-auto mb-3 flex items-center justify-center bg-white/5 dark:bg-black/5 border border-white/10 dark:border-white/5" // Sleek icon container
                   style={{ borderColor: `${primaryColor}40` }}
                 >
                   <IconComponent className="w-6 h-6" style={{ color: primaryColor }} />

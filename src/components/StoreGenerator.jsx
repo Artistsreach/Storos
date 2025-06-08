@@ -1,13 +1,16 @@
-
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
-import { Wand2, Loader2, AlertCircle, CheckCircle, Sparkles } from 'lucide-react'; // Added CheckCircle, Sparkles
-import { useStore } from '@/contexts/StoreContext';
-import { cn } from "@/lib/utils"; // For conditional class names
-import { isStoreNameTaken } from '@/lib/firebaseClient'; // Import the Firestore check function
+import { Input } from '../components/ui/input';
+import { Textarea } from '../components/ui/textarea';
+import { Button } from '../components/ui/button';
+import { Wand2, Loader2, AlertCircle, CheckCircle, Sparkles, Upload, X, Paperclip, FileText } from 'lucide-react'; // Added Upload, X, Paperclip, FileText
+import { useStore } from '../contexts/StoreContext';
+import { cn, useDebounce } from "@/lib/utils"; // For conditional class names
+import { isStoreNameTaken } from '../lib/firebaseClient'; // Import the Firestore check function
+import { generateStoreNameSuggestions } from '../lib/gemini';
+import { generateImageFromPromptForPod, visualizeImageOnProductWithGemini } from '../lib/geminiImageGeneration';
+import { podProductsList as allPodProductOptions } from '../lib/constants';
+import { generateId } from '../lib/utils.jsx';
 import { 
   Card, 
   CardContent, 
@@ -15,7 +18,7 @@ import {
   CardFooter, 
   CardHeader, 
   CardTitle 
-} from '@/components/ui/card';
+} from '../components/ui/card';
 
 const promptExamples = [
   "Create a luxury jewelry store called 'Elegance' with diamond rings and gold necklaces, featuring a dark, sophisticated theme.",
@@ -98,14 +101,86 @@ const StoreGenerator = () => {
   const [storeName, setStoreName] = useState('');
   const [prompt, setPrompt] = useState('');
   const [selectedExample, setSelectedExample] = useState(null);
-  const { generateStore, isGenerating } = useStore();
+  const [isPrintOnDemand, setIsPrintOnDemand] = useState(false);
+  const [contextFiles, setContextFiles] = useState([]); // Now stores { file: File, previewUrl: string | null }
+  const fileInputRef = useRef(null);
+  const { 
+    generateStore, 
+    isGenerating,
+    importedStoreDataForGenerator,
+    isImportDataReadyForGenerator,
+    clearImportedStoreDataForGenerator
+  } = useStore();
   
   const [isCheckingName, setIsCheckingName] = useState(false);
   const [storeNameAvailability, setStoreNameAvailability] = useState(null); // { status: 'available'|'claimed'|'error', message: '...' }
+  const [suggestedNames, setSuggestedNames] = useState([]);
+  const [isSuggestingNames, setIsSuggestingNames] = useState(false);
+  const [suggestionError, setSuggestionError] = useState(null);
+  const debouncedStoreName = useDebounce(storeName, 500);
+
+
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      if (!debouncedStoreName.trim() || isSuggestingNames) {
+        return;
+      }
+      setIsSuggestingNames(true);
+      setSuggestionError(null);
+      setSuggestedNames([]);
+
+      const result = await generateStoreNameSuggestions(debouncedStoreName);
+      if (result.suggestions) {
+        setSuggestedNames(result.suggestions);
+      } else {
+        setSuggestionError(result.error || "Failed to get suggestions.");
+      }
+      setIsSuggestingNames(false);
+    };
+
+    fetchSuggestions();
+  }, [debouncedStoreName]);
+
+  useEffect(() => {
+    // Cleanup previews on unmount
+    return () => {
+      contextFiles.forEach(item => {
+        if (item.previewUrl) {
+          URL.revokeObjectURL(item.previewUrl);
+        }
+      });
+    };
+  }, [contextFiles]);
+
+  useEffect(() => {
+    if (isImportDataReadyForGenerator && importedStoreDataForGenerator) {
+      setStoreName(importedStoreDataForGenerator.name || '');
+      setPrompt(importedStoreDataForGenerator.prompt || '');
+      // Potentially set other states if StoreGenerator is expanded, e.g., for logo, colors
+      // For now, just name and prompt.
+      
+      // Automatically check name availability for imported name
+      if (importedStoreDataForGenerator.name) {
+        handleManualStoreNameCheck(importedStoreDataForGenerator.name);
+      }
+      
+      // Clear the data from context after consuming it
+      clearImportedStoreDataForGenerator();
+    }
+  }, [isImportDataReadyForGenerator, importedStoreDataForGenerator, clearImportedStoreDataForGenerator]);
 
   const handleStoreNameChange = (e) => {
     setStoreName(e.target.value);
     setStoreNameAvailability(null); // Reset availability status on change
+    setSuggestedNames([]); // Clear suggestions when name changes
+    setSuggestionError(null);
+  };
+
+  const handleSuggestionClick = (name) => {
+    setStoreName(name);
+    setSuggestedNames([]);
+    setStoreNameAvailability(null);
+    setTimeout(() => handleManualStoreNameCheck(name), 0);
   };
 
   const handleManualStoreNameCheck = useCallback(async (nameToCheck) => {
@@ -169,15 +244,37 @@ const StoreGenerator = () => {
     if (!isNameValid) return;
 
     if (!prompt.trim()) {
-      // Using alert for prompt validation as before, or could use a new state for promptError
       alert("Please provide a description for your store.");
       return;
     }
 
-    if (isGenerating || isCheckingName) return; // Prevent submission if already processing
+    if (isGenerating || isCheckingName) return;
 
     const nicheDetails = getStoreNicheDetails(prompt);
-    await generateStore(prompt, storeName, nicheDetails);
+
+    try {
+      await generateStore(prompt, storeName, nicheDetails, [], isPrintOnDemand, contextFiles.map(f => f.file), []);
+    } catch (error) {
+      console.error("Error calling generateStore from StoreGenerator:", error);
+      alert(`An error occurred during the store generation step: ${error.message}`);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const newFiles = Array.from(e.target.files);
+    const newFilesWithPreviews = newFiles.map(file => ({
+      file,
+      previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : null
+    }));
+    setContextFiles(prev => [...prev, ...newFilesWithPreviews]);
+  };
+
+  const removeFile = (index) => {
+    const fileToRemove = contextFiles[index];
+    if (fileToRemove.previewUrl) {
+      URL.revokeObjectURL(fileToRemove.previewUrl);
+    }
+    setContextFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   return (
@@ -190,11 +287,12 @@ const StoreGenerator = () => {
       {/* Card wrapper removed */}
       {/* CardHeader removed */}
       {/* CardContent removed, form is now a direct child */}
-      <form onSubmit={handleSubmit} className="space-y-6"> {/* Increased spacing a bit */}
-        <div>
-          <label htmlFor="storeName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Store Name
-              </label>
+      <form onSubmit={handleSubmit}>
+        <div className="mb-[13px]">
+          <div>
+            <label htmlFor="storeName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 ml-[6px]">
+                  Store Name
+                </label>
               <div className="relative flex items-center">
                 <Input
                   id="storeName"
@@ -209,7 +307,6 @@ const StoreGenerator = () => {
                   )}
                   value={storeName}
                   onChange={handleStoreNameChange}
-                  // onBlur={() => handleManualStoreNameCheck()} // Optional: trigger check on blur
                   disabled={isGenerating || isCheckingName}
                 />
                 <Button
@@ -224,7 +321,7 @@ const StoreGenerator = () => {
                   <span className="ml-1 hidden sm:inline">Check</span>
                 </Button>
               </div>
-              <div className="h-5 mt-1"> {/* Reserve space for messages */}
+              <div className="mt-1"> {/* Reserve space for messages */}
                 {isCheckingName && storeName.trim() && (
                   <p className="text-sm text-muted-foreground flex items-center">
                     <Loader2 className="h-4 w-4 animate-spin mr-2" /> Checking...
@@ -243,27 +340,132 @@ const StoreGenerator = () => {
                   </p>
                 )}
               </div>
-            </div>
-            <div className="-mt-[15px]">
-              <label htmlFor="storePrompt" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Description
+              
+              {/* AI Name Suggestions */}
+              {(isSuggestingNames || suggestedNames.length > 0 || suggestionError) && (
+                <div className="mt-[7px] mb-[13px]">
+                  {isSuggestingNames && (
+                    <div className="flex items-center space-x-2 animate-pulse h-8">
+                      <div className="h-8 w-28 bg-gray-200 dark:bg-gray-700 rounded-md"></div>
+                      <div className="h-8 w-32 bg-gray-200 dark:bg-gray-700 rounded-md"></div>
+                      <div className="h-8 w-24 bg-gray-200 dark:bg-gray-700 rounded-md"></div>
+                    </div>
+                  )}
+                  {!isSuggestingNames && suggestedNames.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5 }}
+                      className="flex flex-wrap gap-2"
+                    >
+                      <span className="text-sm text-muted-foreground mr-2 self-center">Suggestions:</span>
+                      {suggestedNames.map((name, index) => (
+                        <Button
+                          key={index}
+                          type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSuggestionClick(name)}
+                        className="bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 dark:border-gray-600 saturate-0"
+                      >
+                        {name}
+                        </Button>
+                      ))}
+                    </motion.div>
+                  )}
+                  {suggestionError && (
+                    <p className="text-sm text-red-600 flex items-center">
+                      <AlertCircle className="h-4 w-4 mr-1" /> {suggestionError}
+                    </p>
+                  )}
+                </div>
+              )}
+          </div>
+          <div className="pt-0 mt-[14px] mb-[13px]">
+            <div className="flex justify-between items-center mb-1">
+              <label htmlFor="storePrompt" className="text-sm font-medium text-gray-700 dark:text-gray-300 ml-[6px]">
+                Prompt
               </label>
-              <Textarea
-                id="storePrompt"
-                placeholder="e.g., 'A modern furniture store specializing in sustainable and innovative designs for the contemporary home. Focus on minimalist aesthetics and smart functionality.'"
-                className="min-h-[120px] text-base resize-none"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-              disabled={isGenerating}
-            />
-            </div> {/* Closing div for the AI Prompt section */}
-            
+                <div className="flex items-center">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="printOnDemandCheckbox"
+                      checked={isPrintOnDemand}
+                      onChange={(e) => setIsPrintOnDemand(e.target.checked)}
+                      className={cn(
+                        "appearance-none h-4 w-4 border rounded-full checked:border-transparent focus:outline-none focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-gray-900 cursor-pointer",
+                        "border-gray-400 dark:border-gray-500",
+                        "focus:ring-orange-500",
+                        isPrintOnDemand && "bg-orange-500 border-orange-500 animate-radiate-orange"
+                      )}
+                    />
+                    <label htmlFor="printOnDemandCheckbox" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Print on Demand
+                    </label>
+                  </div>
+                </div>
+              </div>
+              <div className="relative">
+                <Textarea
+                  id="storePrompt"
+                  placeholder="ex. 'A modern furniture store specializing in sustainable and innovative designs for the contemporary home. Focus on minimalist aesthetics and smart functionality.'"
+                  className="min-h-[120px] text-base resize-none w-full pr-12" // Add padding for the icon
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  disabled={isGenerating}
+                />
+                <div className="absolute bottom-2 right-2 flex items-center">
+                  <div className="flex items-center gap-2 mr-2">
+                    {contextFiles.map((item, index) => (
+                      <div key={index} className="relative group">
+                        {item.previewUrl ? (
+                          <img src={item.previewUrl} alt="Preview" className="h-8 w-8 rounded-md object-cover" />
+                        ) : (
+                          <div className="h-8 w-8 rounded-md bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                            <FileText className="h-5 w-5 text-gray-500" />
+                          </div>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => removeFile(index)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-full text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    onClick={() => fileInputRef.current.click()}
+                    disabled={isGenerating}
+                  >
+                    <Paperclip className="h-5 w-5" />
+                  </Button>
+                </div>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  multiple
+                  onChange={handleFileChange}
+                  className="hidden"
+                  accept="application/pdf,image/*"
+                />
+              </div>
+            </div>
+          </div>
+
             <Button
-              type="submit" // Changed from onClick to type="submit" for form
+              type="submit"
               disabled={
                 !storeName.trim() ||
                 !prompt.trim() ||
-                isGenerating ||
+                isGenerating || // Global generating state from context
                 isCheckingName ||
                 (storeNameAvailability && storeNameAvailability.status !== 'available')
               }
@@ -285,15 +487,18 @@ const StoreGenerator = () => {
             
             {/* Removed old progress display from here */}
 
-            <div className="space-y-2">
+            <div className="space-y-2 mt-6">
               <p className="text-sm font-medium text-muted-foreground">Or try one of these examples for inspiration:</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {promptExamples.map((example, index) => (
                   <Button
                     key={index}
                     type="button"
-                    variant={selectedExample === index ? "default" : "outline"}
-                    className="h-auto py-2 px-3 justify-start text-left text-sm font-normal"
+                    variant="outline" // Keep outline as base
+                    className={cn(
+                      "h-auto py-2 px-3 justify-start text-left text-sm font-normal",
+                      selectedExample === index ? "bg-[#c9ccd1] text-black hover:bg-[#c9ccd1] dark:bg-[#242424] dark:text-gray-300 dark:hover:bg-[#242424]" : "hover:bg-accent hover:text-accent-foreground"
+                    )}
                     onClick={() => handleExampleClick(index)}
                     disabled={isGenerating}
                   >

@@ -5,31 +5,49 @@ import {
     generateAIProductDescriptions, 
     generateAIStoreContent,
     fetchPexelsVideos // Import the new video fetching utility
-} from '@/lib/utils';
+} from '../lib/utils';
 // import { overlayLogoOnProductImage } from '@/lib/imageUtils'; // Will be replaced by generateProductWithGemini
-import { generateLogoWithGemini } from '@/lib/geminiImageGeneration';
-import { generateProductWithGemini } from '@/lib/geminiProductGeneration';
-import { generateCollectionWithGemini } from '@/lib/geminiCollectionGeneration'; // Import for AI collection generation
+import { generateLogoWithGemini } from '../lib/geminiImageGeneration';
+import { generateProductWithGemini } from '../lib/geminiProductGeneration';
+import { generateCollectionWithGemini } from '../lib/geminiCollectionGeneration'; // Import for AI collection generation
 import { 
-  generateStoreNameSuggestions, 
-  extractExplicitStoreNameFromPrompt, 
-  generateHeroContent, 
-  generateStoreWayContent, 
-  generateStoreFeaturesContent,
-  generateImageRightSectionContent, // Added
-  generateVideoLeftSectionContent  // Added
-} from '@/lib/gemini'; 
+    generateStoreNameSuggestions, 
+    extractExplicitStoreNameFromPrompt, 
+    generateHeroContent, 
+    generateStoreWayContent, 
+    generateStoreFeaturesContent,
+    generateImageRightSectionContent, // Added
+    generateVideoLeftSectionContent  // Added
+} from '../lib/gemini';
+import { generateStoreDetailsFromPhotos } from '../lib/geminiImageUnderstanding';
+import { analyzeMultipleUrls } from '../lib/geminiUrlAnalysis';
 import { 
     fetchShopifyStorefrontAPI, 
     GET_SHOP_METADATA_QUERY, 
     GET_PRODUCTS_QUERY,
     GET_COLLECTIONS_QUERY, // Added
     GET_LOCALIZATION_INFO_QUERY // Added
-} from '@/lib/shopify';
+} from '../lib/shopify';
 
 const getRandomColor = () => ['#3B82F6', '#8B5CF6', '#EC4899', '#10B981', '#F59E0B', '#EF4444', '#6366F1', '#14B8A6', '#F97316'][Math.floor(Math.random() * 9)];
 const getRandomFont = () => ['Inter', 'Roboto', 'Poppins', 'Montserrat', 'Open Sans'][Math.floor(Math.random() * 5)];
 const getRandomLayout = () => ['grid', 'list'][Math.floor(Math.random() * 2)];
+
+// Helper function to read File object into a data URL
+const fileToBasics = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      resolve({
+        base64: reader.result, // Full data URL
+        mimeType: file.type,
+        name: file.name
+      });
+    };
+    reader.onerror = (error) => reject(error);
+  });
+};
 
 
 export const generateAIProductsData = async (type, count, storeName, storeLogoDataUrl, { fetchPexelsImages = utilFetchPexelsImages, generateId = utilGenerateId } = {}) => {
@@ -95,8 +113,7 @@ export const generateStoreFromWizardData = async (wizardData, { fetchPexelsImage
     // Handle 'ai', 'printOnDemand', and 'manual' sources similarly as they populate wizardProducts.items
     if (wizardProducts.source === 'ai' || wizardProducts.source === 'printOnDemand' || wizardProducts.source === 'manual') {
       finalProducts = wizardProducts.items.map(item => ({
-        // Use a generic prefix or differentiate if necessary, for now, 'product-wizard-'
-        id: `product-wizard-${generateId()}`, 
+        id: item.id || `product-wizard-${generateId()}`, // Use existing item.id if available (e.g., from Shopify import)
         name: item.name,
         price: parseFloat(item.price) || 0,
         description: item.description || '',
@@ -125,10 +142,12 @@ export const generateStoreFromWizardData = async (wizardData, { fetchPexelsImage
     const heroSlideShowImages = await fetchPexelsImages(`${productType} ${storeName} hero slideshow ${prompt}`, heroSlideShowImagesCount, 'landscape');
     const heroMainImage = heroSlideShowImages.length > 0 ? heroSlideShowImages[0] : { src: { large: 'https://via.placeholder.com/1200x800.png?text=Hero+Image' }, alt: 'Placeholder Hero Image' };
 
-  const heroVideos = await fetchPexelsVideos(`${productType} ${storeName} store ambiance ${prompt}`, 1, 'landscape'); 
-  const baseAiContent = generateAIStoreContent(productType, storeName); // Content from older AI function
-    const cardBgImages = await fetchPexelsImages(`${storeName} ${productType} abstract background`, 1, 'landscape'); 
-    const cardBackgroundUrl = cardBgImages[0]?.src?.large || cardBgImages[0]?.src?.original || '';
+  const heroVideos = await fetchPexelsVideos(`${productType} ${storeName} store ambiance ${prompt}`, 1, 'landscape');
+  const baseAiContent = await generateAIStoreContent(productType, storeName, prompt);
+  const featuresVideo = await fetchPexelsVideos(baseAiContent.featuresVideoQuery, 1, 'landscape');
+  baseAiContent.featuresVideoUrl = featuresVideo[0]?.url || null;
+  const cardBgImages = await fetchPexelsImages(`${storeName} ${productType} abstract background`, 1, 'landscape');
+  const cardBackgroundUrl = cardBgImages[0]?.src?.large || cardBgImages[0]?.src?.original || '';
     const templateVersion = 'v1';
 
     // Merge AI-generated content with content from wizard (hero, storeWay)
@@ -184,14 +203,14 @@ export const generateStoreFromWizardData = async (wizardData, { fetchPexelsImage
       prompt: prompt || `A ${productType} store called ${storeName}`,
       products: finalProducts,
       collections: wizardData.collections.items.map(collection => ({ 
-        id: `collection-wizard-${generateId()}`, 
-        name: collection.name,
-        description: collection.description,
-        imageUrl: collection.imageUrl,
-        product_ids: collection.product_ids || [], 
-      })),
-      hero_image: heroMainImage, 
-      content: finalContent, // Use the merged finalContent
+      id: collection.id || `collection-wizard-${generateId()}`, // Use existing item.id if available
+      name: collection.name,
+      description: collection.description,
+      imageUrl: collection.imageUrl,
+      product_ids: collection.product_ids || [], // These should be product IDs that match IDs in finalProducts
+    })),
+    hero_image: heroMainImage, 
+    content: finalContent, // Use the merged finalContent
       hero_video_url: heroVideos[0]?.url || null,
       hero_video_poster_url: heroVideos[0]?.image || null,
       logo_url: wizardData.logoUrlDark || wizardData.logoUrlLight || `https://via.placeholder.com/100x100.png?text=${storeName.substring(0,1)}`, // Use dark for light bg by default
@@ -213,20 +232,87 @@ export const generateStoreFromPromptData = async (
   prompt,
   {
     storeNameOverride = null,
-    // productTypeOverride = null, // Will be derived from nicheDetails or prompt
     nicheDetails = null, // Added nicheDetails
+    isPrintOnDemand = false, // Added for collection generation logic
+    contextFiles = [],
+    contextURLs = [],
     fetchPexelsImages = utilFetchPexelsImages,
     generateId = utilGenerateId,
   } = {},
   updateProgressCallback = (progress, message) => { console.log(`Progress: ${progress}%, Message: ${message || '(no message)'}`); } // Default no-op callback
 ) => {
-  updateProgressCallback(0, 'Initializing store generation...');
+  // Modified updateProgressCallback to handle undefined progress
+  const internalUpdateProgressCallback = (newProgress, newMessage) => {
+    if (typeof newProgress === 'number' && !isNaN(newProgress)) {
+      updateProgressCallback(newProgress, newMessage); // Call original if progress is valid
+    } else if (newMessage) {
+      updateProgressCallback(undefined, newMessage); // Call original with undefined progress if only message
+    }
+  };
+
+  internalUpdateProgressCallback(0, 'Initializing store generation...');
   const storeId = `store-ai-${generateId()}`;
-  const keywords = prompt.toLowerCase().split(' ');
+
+  let finalPrompt = prompt;
+  let imageAnalysisResult = null;
+  let storeTypeFromAnalysis = null;
+
+  // Start with URL analysis if provided
+  if (contextURLs && contextURLs.length > 0 && contextURLs.some(u => u.trim() !== '')) {
+    internalUpdateProgressCallback(2, 'Analyzing context URLs...');
+    try {
+      const urlAnalysis = await analyzeMultipleUrls(contextURLs.filter(u => u.trim() !== ''));
+      if (urlAnalysis) {
+        finalPrompt = `${prompt}\n\n--- AI URL Analysis Context ---\n${urlAnalysis}`;
+        internalUpdateProgressCallback(5, 'URL analysis complete.');
+      } else {
+        internalUpdateProgressCallback(5, 'URL analysis did not return content.');
+      }
+    } catch (error) {
+      console.error("[generateStoreFromPromptData] Error during URL analysis:", error);
+      internalUpdateProgressCallback(5, 'URL analysis failed, continuing with prompt.');
+    }
+  }
+
+  const imageFiles = contextFiles.filter(f => f.type.startsWith('image/'));
+
+  if (imageFiles.length > 0) {
+    internalUpdateProgressCallback(5, 'Analyzing context images...');
+    try {
+      const imagePromises = imageFiles.map(fileToBasics);
+      const imageDatas = await Promise.all(imagePromises);
+      
+      imageAnalysisResult = await generateStoreDetailsFromPhotos(imageDatas);
+
+      if (imageAnalysisResult && !imageAnalysisResult.error) {
+        console.log("[generateStoreFromPromptData] Image analysis successful:", imageAnalysisResult);
+        internalUpdateProgressCallback(10, 'Image analysis complete.');
+        // Augment the prompt with the analysis result
+        finalPrompt += `\n\n--- AI Image Analysis Context ---\n${imageAnalysisResult.storePrompt}`;
+        storeTypeFromAnalysis = imageAnalysisResult.productType;
+      } else {
+        console.warn("[generateStoreFromPromptData] Image analysis failed or returned an error:", imageAnalysisResult?.error);
+        internalUpdateProgressCallback(10, 'Image analysis failed, continuing with prompt.');
+      }
+    } catch (error) {
+      console.error("[generateStoreFromPromptData] Error during image analysis preparation:", error);
+      internalUpdateProgressCallback(10, 'Image analysis failed, continuing with prompt.');
+    }
+  }
+  
+  // Append non-image file names for context, if any
+  const nonImageFiles = contextFiles.filter(f => !f.type.startsWith('image/'));
+  if (nonImageFiles.length > 0) {
+    finalPrompt += "\n\n--- Additional Context Files ---\n" + nonImageFiles.map(f => f.name).join("\n");
+  }
+
+  const keywords = finalPrompt.toLowerCase().split(' ');
 
   // Determine storeType from nicheDetails if available, otherwise from prompt
   let storeType = 'general'; // Default
-  if (nicheDetails && nicheDetails.name) {
+  if (storeTypeFromAnalysis) {
+    storeType = storeTypeFromAnalysis;
+  } else if (nicheDetails && nicheDetails.name) {
     // Map nicheDetails.name to a simplified storeType if needed, or use directly
     // For now, let's assume nicheDetails.name can be used or mapped to a 'type'
     // Example: if (nicheDetails.name === "Healthy Food") storeType = "food";
@@ -242,6 +328,11 @@ export const generateStoreFromPromptData = async (
 
   let brandName = storeNameOverride;
   let extractedNameResponse = null;
+
+  if (!brandName && imageAnalysisResult && imageAnalysisResult.storeNameSuggestions && imageAnalysisResult.storeNameSuggestions.length > 0) {
+    brandName = imageAnalysisResult.storeNameSuggestions[0];
+    console.log(`[generateStoreFromPromptData] Using store name from image analysis: "${brandName}"`);
+  }
 
   if (!brandName) {
     // Step 1: Try to extract name using Gemini Function Calling via extractExplicitStoreNameFromPrompt
@@ -261,6 +352,8 @@ export const generateStoreFromPromptData = async (
   if (!brandName) { 
     try {
       console.log(`[generateStoreFromPromptData] No name from override or function call. Attempting AI name suggestion using prompt: "${prompt}"`);
+      // Use internalUpdateProgressCallback for calls within this function
+      internalUpdateProgressCallback(undefined, 'Suggesting store names...'); 
       const nameSuggestionsResult = await generateStoreNameSuggestions(prompt);
       if (nameSuggestionsResult && nameSuggestionsResult.suggestions && nameSuggestionsResult.suggestions.length > 0) {
         brandName = nameSuggestionsResult.suggestions[0];
@@ -293,8 +386,10 @@ export const generateStoreFromPromptData = async (
 
   try {
     console.log(`[generateStoreFromPromptData] Generating logo for: ${brandName}`);
-    updateProgressCallback(5, `Generating logo for ${brandName}...`);
-    const logoResults = await generateLogoWithGemini(brandName, updateProgressCallback); // Pass callback
+    internalUpdateProgressCallback(10, `Generating logo for ${brandName}...`);
+    const logoPrompt = imageAnalysisResult?.logoDescription || finalPrompt;
+    // Pass internalUpdateProgressCallback to sub-functions that might only update message
+    const logoResults = await generateLogoWithGemini(logoPrompt, internalUpdateProgressCallback); 
     if (logoResults) {
       finalLogoUrlLight = logoResults.logoUrlLight;
       finalLogoUrlDark = logoResults.logoUrlDark;
@@ -312,103 +407,130 @@ export const generateStoreFromPromptData = async (
       updateProgressCallback(20, `${brandName} logo generated.`);
     } else {
       console.warn(`[generateStoreFromPromptData] Logo generation did not return expected result for ${brandName}.`);
-      updateProgressCallback(20, `Logo generation issue for ${brandName}.`); // Still advance progress
+      internalUpdateProgressCallback(20, `Logo generation issue for ${brandName}.`); // Still advance progress
     }
   } catch (error) {
     console.error(`[generateStoreFromPromptData] Error generating logo for ${brandName}:`, error);
-    updateProgressCallback(20, `Error generating logo for ${brandName}.`); // Still advance
+    internalUpdateProgressCallback(20, `Error generating logo for ${brandName}.`); // Still advance
   }
 
-  updateProgressCallback(25, `Generating ${storeType} products...`);
+  internalUpdateProgressCallback(25, `Generating ${storeType} products...`);
   const generatedProducts = [];
   const generatedProductTitles = []; 
-  const numProductsToGenerate = 6;
-  const maxTotalAttempts = numProductsToGenerate * 2; 
-  let currentAttempts = 0;
   const productGenerationStartProgress = 25;
   const productGenerationTotalProgress = 45; // Allocate 45% for product generation (25% to 70%)
 
-  console.log(`[generateStoreFromPromptData] Attempting to generate ${numProductsToGenerate} unique products for ${brandName} (type: ${storeType}).`);
-
-  while (generatedProducts.length < numProductsToGenerate && currentAttempts < maxTotalAttempts) {
-    currentAttempts++;
-    const productProgress = productGenerationStartProgress + Math.floor((generatedProducts.length / numProductsToGenerate) * productGenerationTotalProgress);
-    updateProgressCallback(productProgress, `Generating product ${generatedProducts.length + 1}/${numProductsToGenerate}...`);
+  if (imageAnalysisResult && imageAnalysisResult.products && imageAnalysisResult.products.length > 0) {
+    console.log("[generateStoreFromPromptData] Using products from image analysis.");
+    internalUpdateProgressCallback(25, 'Populating products from image analysis...');
     
-    try {
-      console.log(`[generateStoreFromPromptData] Generating product attempt ${currentAttempts} (aiming for ${generatedProducts.length + 1}/${numProductsToGenerate} unique products)... Excluding titles: ${generatedProductTitles.join(', ')}`);
-      
-      const singleProductData = await generateProductWithGemini(
-        storeType, 
-        brandName, 
-        logoImageBase64ForProductGen, // Use the potentially available logo base64
-        'image/png', // Assuming PNG if logo is passed
-        generatedProductTitles,
-        updateProgressCallback, // Pass callback
-        productProgress, // Current base progress for this product
-        productGenerationTotalProgress / numProductsToGenerate, // Progress increment per product step
-        prompt // Pass the full user prompt
-      );
-      
-      // generateProductWithGemini now returns productData.images (array)
-      if (singleProductData && 
-          singleProductData.images && singleProductData.images.length > 0 &&
-          singleProductData.title && singleProductData.title.trim() !== "" && 
-          typeof singleProductData.price === 'string' && 
-          typeof singleProductData.description === 'string') {
-        const normalizedTitle = singleProductData.title.toLowerCase().trim();
-        if (!generatedProductTitles.includes(normalizedTitle)) {
-          let finalProductVariants = singleProductData.variants || [];
-
-          if (storeType === 'fashion') {
-            const hasSizeVariant = finalProductVariants.some(v => v.name.toLowerCase() === 'size');
-            const hasColorVariant = finalProductVariants.some(v => v.name.toLowerCase() === 'color');
-            if (!hasSizeVariant) {
-              finalProductVariants.push({ name: "Size", values: ["S", "M", "L", "XL"] });
-            }
-            if (!hasColorVariant) {
-              finalProductVariants.push({ name: "Color", values: ["White", "Black", "Blue", "Red"] });
-            }
-          }
-
-          generatedProducts.push({
-            id: `product-gemini-${generateId()}`,
-            name: singleProductData.title,
-            price: parseFloat(singleProductData.price) || 0,
-            description: singleProductData.description,
-            images: singleProductData.images, // Store the full images array
-            image: { // For compatibility: primary image object
-              id: generateId(),
-              src: { medium: singleProductData.images[0] }, 
-              alt: singleProductData.title,
+    imageAnalysisResult.products.forEach(p => {
+        generatedProducts.push({
+            id: `product-img-analysis-${generateId()}`,
+            name: p.name,
+            price: parseFloat(p.price) || 0,
+            description: p.description,
+            images: p.images, // This is an array with one base64 image
+            image: {
+                id: generateId(),
+                src: { medium: p.images[0] },
+                alt: p.name,
             },
             rating: (Math.random() * 1.5 + 3.5).toFixed(1),
             stock: Math.floor(Math.random() * 80) + 20,
-            variants: finalProductVariants,
-          });
-          generatedProductTitles.push(normalizedTitle);
-          console.log(`[generateStoreFromPromptData] Product "${singleProductData.title}" generated successfully and is unique. (${generatedProducts.length}/${numProductsToGenerate})`);
-          updateProgressCallback(productGenerationStartProgress + Math.floor((generatedProducts.length / numProductsToGenerate) * productGenerationTotalProgress), `Product "${singleProductData.title}" generated.`);
+            variants: [], // Image analysis doesn't provide variants yet
+        });
+        generatedProductTitles.push(p.name.toLowerCase().trim());
+    });
+    internalUpdateProgressCallback(productGenerationStartProgress + productGenerationTotalProgress, `${generatedProducts.length} products populated from analysis.`);
+
+  } else {
+    const numProductsToGenerate = 6;
+    const maxTotalAttempts = numProductsToGenerate * 2; 
+    let currentAttempts = 0;
+
+    console.log(`[generateStoreFromPromptData] Attempting to generate ${numProductsToGenerate} unique products for ${brandName} (type: ${storeType}).`);
+
+    while (generatedProducts.length < numProductsToGenerate && currentAttempts < maxTotalAttempts) {
+      currentAttempts++;
+      const productProgress = productGenerationStartProgress + Math.floor((generatedProducts.length / numProductsToGenerate) * productGenerationTotalProgress);
+      internalUpdateProgressCallback(productProgress, `Generating product ${generatedProducts.length + 1}/${numProductsToGenerate}...`);
+      
+      try {
+        console.log(`[generateStoreFromPromptData] Generating product attempt ${currentAttempts} (aiming for ${generatedProducts.length + 1}/${numProductsToGenerate} unique products)... Excluding titles: ${generatedProductTitles.join(', ')}`);
+        
+        const singleProductData = await generateProductWithGemini(
+          storeType, 
+          brandName, 
+          logoImageBase64ForProductGen, // Use the potentially available logo base64
+          'image/png', // Assuming PNG if logo is passed
+          generatedProductTitles,
+          internalUpdateProgressCallback, // Pass internal callback
+          productProgress, // Current base progress for this product
+          productGenerationTotalProgress / numProductsToGenerate, // Progress increment per product step
+          finalPrompt // Pass the full user prompt
+        );
+        
+        // generateProductWithGemini now returns productData.images (array)
+        if (singleProductData && 
+            singleProductData.images && singleProductData.images.length > 0 &&
+            singleProductData.title && singleProductData.title.trim() !== "" && 
+            typeof singleProductData.price === 'string' && 
+            typeof singleProductData.description === 'string') {
+          const normalizedTitle = singleProductData.title.toLowerCase().trim();
+          if (!generatedProductTitles.includes(normalizedTitle)) {
+            let finalProductVariants = singleProductData.variants || [];
+
+            if (storeType === 'fashion') {
+              const hasSizeVariant = finalProductVariants.some(v => v.name.toLowerCase() === 'size');
+              const hasColorVariant = finalProductVariants.some(v => v.name.toLowerCase() === 'color');
+              if (!hasSizeVariant) {
+                finalProductVariants.push({ name: "Size", values: ["S", "M", "L", "XL"] });
+              }
+              if (!hasColorVariant) {
+                finalProductVariants.push({ name: "Color", values: ["White", "Black", "Blue", "Red"] });
+              }
+            }
+
+            generatedProducts.push({
+              id: `product-gemini-${generateId()}`,
+              name: singleProductData.title,
+              price: parseFloat(singleProductData.price) || 0,
+              description: singleProductData.description,
+              images: singleProductData.images, // Store the full images array
+              image: { // For compatibility: primary image object
+                id: generateId(),
+                src: { medium: singleProductData.images[0] }, 
+                alt: singleProductData.title,
+              },
+              rating: (Math.random() * 1.5 + 3.5).toFixed(1),
+              stock: Math.floor(Math.random() * 80) + 20,
+              variants: finalProductVariants,
+            });
+            generatedProductTitles.push(normalizedTitle);
+            console.log(`[generateStoreFromPromptData] Product "${singleProductData.title}" generated successfully and is unique. (${generatedProducts.length}/${numProductsToGenerate})`);
+            internalUpdateProgressCallback(productGenerationStartProgress + Math.floor((generatedProducts.length / numProductsToGenerate) * productGenerationTotalProgress), `Product "${singleProductData.title}" generated.`);
+          } else {
+            console.warn(`[generateStoreFromPromptData] Duplicate product title generated and skipped: "${singleProductData.title}". Attempt ${currentAttempts}/${maxTotalAttempts}.`);
+          }
         } else {
-          console.warn(`[generateStoreFromPromptData] Duplicate product title generated and skipped: "${singleProductData.title}". Attempt ${currentAttempts}/${maxTotalAttempts}.`);
+          console.warn(`[generateStoreFromPromptData] Failed to generate complete data (or image) for product attempt ${currentAttempts}. Data:`, singleProductData);
         }
-      } else {
-        console.warn(`[generateStoreFromPromptData] Failed to generate complete data (or image) for product attempt ${currentAttempts}. Data:`, singleProductData);
+      } catch (error) {
+        console.error(`[generateStoreFromPromptData] Error during product generation attempt ${currentAttempts}:`, error);
       }
-    } catch (error) {
-      console.error(`[generateStoreFromPromptData] Error during product generation attempt ${currentAttempts}:`, error);
+    }
+    internalUpdateProgressCallback(productGenerationStartProgress + productGenerationTotalProgress, `${generatedProducts.length} products generated.`);
+
+    if (generatedProducts.length < numProductsToGenerate) {
+      console.warn(`[generateStoreFromPromptData] Could only generate ${generatedProducts.length} unique products after ${maxTotalAttempts} total attempts.`);
+    }
+    if (generatedProducts.length === 0 && numProductsToGenerate > 0) {
+      console.warn(`[generateStoreFromPromptData] No products were generated successfully. The store will be created with an empty product list.`);
     }
   }
-  updateProgressCallback(productGenerationStartProgress + productGenerationTotalProgress, `${generatedProducts.length} products generated.`);
-
-  if (generatedProducts.length < numProductsToGenerate) {
-    console.warn(`[generateStoreFromPromptData] Could only generate ${generatedProducts.length} unique products after ${maxTotalAttempts} total attempts.`);
-  }
-  if (generatedProducts.length === 0 && numProductsToGenerate > 0) {
-    console.warn(`[generateStoreFromPromptData] No products were generated successfully. The store will be created with an empty product list.`);
-  }
   
-  const collectionGenerationStartProgress = 70;
+  const collectionGenerationStartProgress = 70; // Progress after products
   const collectionGenerationTotalProgress = 20; // Allocate 20% for collections (70% to 90%)
 
   const heroSlideShowImagesCountPrompt = 3;
@@ -422,7 +544,7 @@ export const generateStoreFromPromptData = async (
   const storeInfoForContent = {
     name: brandName,
     niche: storeType,
-    description: prompt, // Use the main prompt as a basis for description
+    description: finalPrompt, // Use the augmented prompt
     // targetAudience and style could be derived or set to defaults if needed by content functions
   };
 
@@ -430,7 +552,7 @@ export const generateStoreFromPromptData = async (
   const generatedStoreWayContent = await generateStoreWayContent(storeInfoForContent);
   const generatedStoreFeaturesContent = await generateStoreFeaturesContent(storeInfoForContent);
   
-  const baseAiContent = generateAIStoreContent(storeType, brandName); 
+  const baseAiContent = await generateAIStoreContent(storeType, brandName, finalPrompt);
   const cardBgImagesPrompt = await fetchPexelsImages(`${brandName} ${storeType} store background`, 1, 'landscape');
   const cardBackgroundUrlPrompt = cardBgImagesPrompt[0]?.src?.large || cardBgImagesPrompt[0]?.src?.original || '';
 
@@ -481,73 +603,92 @@ export const generateStoreFromPromptData = async (
   }
 
   const generatedCollections = [];
-  const numCollectionsToGenerate = 3; 
-  const existingCollectionNamesForPrompt = [];
 
-  if (generatedProducts.length > 0) { 
-    updateProgressCallback(collectionGenerationStartProgress, `Generating collections for products: ${generatedProductTitles.slice(0,3).join(', ')}...`);
+  if (imageAnalysisResult && imageAnalysisResult.collections && imageAnalysisResult.collections.length > 0) {
+    console.log("[generateStoreFromPromptData] Using collections from image analysis.");
+    internalUpdateProgressCallback(collectionGenerationStartProgress, 'Populating collections from image analysis...');
+    
+    for (const c of imageAnalysisResult.collections) {
+        const pexelsQuery = `${c.name} ${storeType} collection banner`;
+        const pexelsImages = await fetchPexelsImages(pexelsQuery, 1, 'landscape');
+        const finalCollectionImageUrl = pexelsImages[0]?.src?.large || `https://via.placeholder.com/400x200.png?text=${encodeURIComponent(c.name || "Collection")}`;
+
+        generatedCollections.push({
+            id: `collection-img-analysis-${generateId()}`,
+            name: c.name,
+            description: c.description,
+            imageUrl: finalCollectionImageUrl,
+            product_ids: [], // Will be populated below
+        });
+    }
+    // Simple logic to distribute products among collections
+    if (generatedProducts.length > 0 && generatedCollections.length > 0) {
+        generatedProducts.forEach((p, index) => {
+            const collectionIndex = index % generatedCollections.length;
+            generatedCollections[collectionIndex].product_ids.push(p.id);
+        });
+    }
+    internalUpdateProgressCallback(collectionGenerationStartProgress + collectionGenerationTotalProgress, `${generatedCollections.length} collections populated from analysis.`);
+
+  } else if (generatedProducts.length > 0) {
+    const numCollectionsToGenerate = isPrintOnDemand ? 3 : 2; // Ensure at least 3 for POD, 2 otherwise
+    const existingCollectionNamesForPrompt = [];
+    const maxAttempts = numCollectionsToGenerate * 2;
+    let currentAttempt = 0;
+    internalUpdateProgressCallback(collectionGenerationStartProgress, `Generating collections for products: ${generatedProductTitles.slice(0, 3).join(', ')}...`);
     console.log(`[generateStoreFromPromptData] Attempting to generate ${numCollectionsToGenerate} collections for ${brandName}.`);
-    for (let i = 0; i < numCollectionsToGenerate; i++) {
-      const collectionProgress = collectionGenerationStartProgress + Math.floor(((i + 1) / numCollectionsToGenerate) * collectionGenerationTotalProgress);
-      updateProgressCallback(collectionProgress, `Generating collection ${i + 1}/${numCollectionsToGenerate}...`);
+    
+    while (generatedCollections.length < numCollectionsToGenerate && currentAttempt < maxAttempts) {
+      currentAttempt++;
+      const collectionProgress = collectionGenerationStartProgress + Math.floor(((generatedCollections.length + 1) / numCollectionsToGenerate) * collectionGenerationTotalProgress);
+      internalUpdateProgressCallback(collectionProgress, `Generating collection ${generatedCollections.length + 1}/${numCollectionsToGenerate} (Attempt ${currentAttempt})...`);
+      
       try {
-        console.log(`[generateStoreFromPromptData] Generating collection ${i + 1}/${numCollectionsToGenerate}...`);
         const collectionData = await generateCollectionWithGemini(
           storeType,
           brandName,
-          generatedProducts, 
+          generatedProducts,
           existingCollectionNamesForPrompt,
-          updateProgressCallback, // Pass callback
-          collectionProgress, // Current base progress
-          collectionGenerationTotalProgress / numCollectionsToGenerate // Progress increment per collection step
+          internalUpdateProgressCallback,
+          collectionProgress,
+          collectionGenerationTotalProgress / numCollectionsToGenerate
         );
 
         if (collectionData && !collectionData.error && collectionData.name) {
           let finalCollectionImageUrl = '';
           if (collectionData.imageData) {
             finalCollectionImageUrl = `data:image/png;base64,${collectionData.imageData}`;
-            console.log(`[generateStoreFromPromptData] Using Gemini-generated image for collection "${collectionData.name}".`);
           } else {
-            console.warn(`[generateStoreFromPromptData] Gemini image generation failed for collection "${collectionData.name}". Attempting Pexels fallback.`);
             const pexelsQuery = `${collectionData.name} ${storeType} collection banner`;
-            try {
-              const pexelsImages = await fetchPexelsImages(pexelsQuery, 1, 'landscape');
-              if (pexelsImages && pexelsImages.length > 0 && pexelsImages[0].src?.large) {
-                finalCollectionImageUrl = pexelsImages[0].src.large;
-                console.log(`[generateStoreFromPromptData] Using Pexels fallback image for collection "${collectionData.name}": ${finalCollectionImageUrl}`);
-              } else {
-                finalCollectionImageUrl = `https://via.placeholder.com/400x200.png?text=${encodeURIComponent(collectionData.name || "Collection")}`;
-                console.warn(`[generateStoreFromPromptData] Pexels fallback also failed for collection "${collectionData.name}". Using placeholder.`);
-              }
-            } catch (pexelsError) {
-              console.error(`[generateStoreFromPromptData] Error fetching Pexels image for collection "${collectionData.name}":`, pexelsError);
-              finalCollectionImageUrl = `https://via.placeholder.com/400x200.png?text=${encodeURIComponent(collectionData.name || "Collection")}`;
-            }
+            const pexelsImages = await fetchPexelsImages(pexelsQuery, 1, 'landscape');
+            finalCollectionImageUrl = pexelsImages[0]?.src?.large || `https://via.placeholder.com/400x200.png?text=${encodeURIComponent(collectionData.name || "Collection")}`;
           }
+          
           generatedCollections.push({
-            id: `collection-gemini-${generateId()}`, 
+            id: `collection-gemini-${generateId()}`,
             name: collectionData.name,
             description: collectionData.description,
-            imageUrl: finalCollectionImageUrl, 
-            product_ids: collectionData.product_ids || [], 
+            imageUrl: finalCollectionImageUrl,
+            product_ids: collectionData.product_ids || [],
           });
           existingCollectionNamesForPrompt.push(collectionData.name);
-          console.log(`[generateStoreFromPromptData] Collection "${collectionData.name}" generated with ${collectionData.product_ids?.length || 0} products.`);
-          updateProgressCallback(collectionProgress, `Collection "${collectionData.name}" generated.`);
+          internalUpdateProgressCallback(collectionProgress, `Collection "${collectionData.name}" generated.`);
+        } else if (collectionData === null) {
+            console.warn(`[generateStoreFromPromptData] Collection generation returned null (fallback prevented), attempt ${currentAttempt}.`);
         } else {
-          console.warn(`[generateStoreFromPromptData] Failed to generate complete data for collection ${i + 1}. Error: ${collectionData?.error}`);
+            console.warn(`[generateStoreFromPromptData] Failed to generate complete data for collection attempt ${currentAttempt}. Error: ${collectionData?.error}`);
         }
       } catch (error) {
-        console.error(`[generateStoreFromPromptData] Error during collection generation attempt ${i + 1}:`, error);
+        console.error(`[generateStoreFromPromptData] Error during collection generation attempt ${currentAttempt}:`, error);
       }
     }
-    updateProgressCallback(collectionGenerationStartProgress + collectionGenerationTotalProgress, `${generatedCollections.length} collections generated.`);
+    internalUpdateProgressCallback(collectionGenerationStartProgress + collectionGenerationTotalProgress, `${generatedCollections.length} collections generated.`);
   } else {
     console.warn(`[generateStoreFromPromptData] Skipping collection generation as no products were generated for ${brandName}.`);
-    updateProgressCallback(collectionGenerationStartProgress + collectionGenerationTotalProgress, "Skipped collection generation (no products).");
+    internalUpdateProgressCallback(collectionGenerationStartProgress + collectionGenerationTotalProgress, "Skipped collection generation (no products).");
   }
   
-  updateProgressCallback(95, "Loading storefront...");
+  internalUpdateProgressCallback(95, "Loading storefront...");
 
   // Define storeToReturn in the main scope
   let storeToReturn = {
@@ -556,7 +697,7 @@ export const generateStoreFromPromptData = async (
     template_version: templateVersion, 
     type: storeType,
     description: (generatedHeroContent && !generatedHeroContent.error ? generatedHeroContent.heroDescription : baseAiContent.heroDescription),
-    prompt,
+    prompt: finalPrompt,
     products: generatedProducts,
     collections: generatedCollections, 
     hero_image: heroMainImagePrompt,
@@ -718,7 +859,9 @@ export const mapShopifyDataToInternalStore = async (shopifyStore, shopifyProduct
     const shopifyProvidedLogo = shopifyStore.brand?.logo?.image?.url || shopifyStore.brand?.squareLogo?.image?.url;
     const logoUrl = generatedLogoDataUrl || shopifyProvidedLogo || `https://via.placeholder.com/100x100.png?text=${(shopifyStore.name || "S").substring(0,1)}`;
     
-    const aiContent = generateAIStoreContent('general', shopifyStore.name || "Imported Store"); 
+    const aiContent = await generateAIStoreContent('general', shopifyStore.name || "Imported Store", shopifyStore.description);
+    const featuresVideoShopify = await fetchPexelsVideos(aiContent.featuresVideoQuery, 1, 'landscape');
+    aiContent.featuresVideoUrl = featuresVideoShopify[0]?.url || null;
     const cardBgImagesShopify = await utilFetchPexelsImages(`${shopifyStore.name || "store"} background`, 1, 'landscape');
     const cardBackgroundUrlShopify = cardBgImagesShopify[0]?.src?.large || cardBgImagesShopify[0]?.src?.original || '';
 
@@ -801,7 +944,9 @@ export const mapBigCommerceDataToInternalStore = async (bcStoreSettings, bcProdu
   const aiCollectionsForBC = []; 
 
   const logoUrl = generatedLogoDataUrl || bcStoreSettings.logo?.image?.url || `https://via.placeholder.com/100x100.png?text=${(bcStoreSettings.storeName || "S").substring(0,1)}`;
-  const aiContent = generateAIStoreContent('general', bcStoreSettings.storeName || "My BigCommerce Store");
+  const aiContent = await generateAIStoreContent('general', bcStoreSettings.storeName || "My BigCommerce Store", bcStoreSettings.description);
+  const featuresVideoBC = await fetchPexelsVideos(aiContent.featuresVideoQuery, 1, 'landscape');
+  aiContent.featuresVideoUrl = featuresVideoBC[0]?.url || null;
   const cardBgImagesBC = await utilFetchPexelsImages(`${bcStoreSettings.storeName || "store"} background`, 1, 'landscape');
   const cardBackgroundUrlBC = cardBgImagesBC[0]?.src?.large || cardBgImagesBC[0]?.src?.original || '';
 

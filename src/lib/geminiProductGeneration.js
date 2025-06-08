@@ -63,7 +63,7 @@ The product should include:
 5. A visually appealing product image.
 
 Return the text details (title, description, price, variants) as a single JSON object in the text part of your response.
-Your entire text response MUST be ONLY longed JSON object. Do not include any other words, phrases, or conversational text before or after the JSON object.
+Your entire text response MUST be ONLY a valid JSON object. Do not include any other words, phrases, or conversational text before or after the JSON object.
 The JSON object should strictly follow this format:
 {
   "title": "Example Product Title",

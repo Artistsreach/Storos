@@ -7,12 +7,12 @@ import { generateStoreUrl } from "./utils.js"; // Explicitly import from .js fil
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyDI2pWJOx7_ACgr25-m5Jj6x6_2z_qRRPc",
-  authDomain: "themeforge-hui99.firebaseapp.com",
-  projectId: "themeforge-hui99",
-  storageBucket: "themeforge-hui99.firebasestorage.app",
-  messagingSenderId: "485239718484",
-  appId: "1:485239718484:web:20d2f6aedc04d993f3e3c1"
+  apiKey: "AIzaSyAI8iWuP1P20OZDIGsUNX6BluSCF40A7AU",
+  authDomain: "freshfront-c3181.firebaseapp.com",
+  projectId: "freshfront-c3181",
+  storageBucket: "freshfront-c3181.firebasestorage.app",
+  messagingSenderId: "925329325314",
+  appId: "1:925329325314:web:67f69c02b9ff7580e6561b"
 };
 
 // Initialize Firebase

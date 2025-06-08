@@ -72,11 +72,23 @@ module.exports = {
           '0%': { backgroundPosition: '200% center' },
           '100%': { backgroundPosition: '-200% center' },
         },
+        'radiate-orange': {
+          '0%': { 'box-shadow': '0 0 0 0 rgba(249, 115, 22, 0.7)' },
+          '70%': { 'box-shadow': '0 0 0 10px rgba(249, 115, 22, 0)' },
+          '100%': { 'box-shadow': '0 0 0 0 rgba(249, 115, 22, 0)' },
+        },
+        'radiate-green': {
+          '0%': { 'box-shadow': '0 0 0 0 rgba(34, 197, 94, 0.7)' },
+          '70%': { 'box-shadow': '0 0 0 10px rgba(34, 197, 94, 0)' },
+          '100%': { 'box-shadow': '0 0 0 0 rgba(34, 197, 94, 0)' },
+        },
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
         shimmer: 'shimmer 2.5s linear',
+        'radiate-orange': 'radiate-orange 1.5s infinite',
+        'radiate-green': 'radiate-green 1.5s infinite',
 			},
       backgroundSize: {
         '200%': '200% auto',

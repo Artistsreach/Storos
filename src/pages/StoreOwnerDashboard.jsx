@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import Header from '@/components/Header';
-import StoreGenerator from '@/components/StoreGenerator';
-import StoreList from '@/components/StoreList';
-import ImportWizard from '@/components/ImportWizard'; // Changed from ShopifyImportWizard
-import ImportSourceSelector from '@/components/ImportSourceSelector'; // Added
-import StoreWizard from '@/components/StoreWizard';
-import SubscribeButton from '@/components/SubscribeButton';
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
+import Header from '../components/Header';
+import StoreGenerator from '../components/StoreGenerator';
+import StoreList from '../components/StoreList';
+import ImportWizard from '../components/ImportWizard'; // Changed from ShopifyImportWizard
+import ImportSourceSelector from '../components/ImportSourceSelector'; // Added
+import StoreWizard from '../components/StoreWizard';
+import SubscribeButton from '../components/SubscribeButton';
+import { useAuth } from '../contexts/AuthContext';
+import { Button } from '../components/ui/button';
 import { DownloadCloud as ImportIcon, ListChecks as WizardIcon } from 'lucide-react'; // Changed Icon
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 
 const StoreOwnerDashboard = () => {
   const [isImportSelectorOpen, setIsImportSelectorOpen] = useState(false);
@@ -97,7 +97,7 @@ const StoreOwnerDashboard = () => {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col bg-background"> {/* Changed to use theme's bg-background */}
+    <div className="min-h-screen flex flex-col bg-[#ededed] dark:bg-[#131314]"> {/* Light mode: #ededed, Dark mode: #131314 */}
       <Header />
       
       <motion.div 

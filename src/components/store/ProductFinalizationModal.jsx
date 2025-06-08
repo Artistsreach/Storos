@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogClose } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { generateDifferentAnglesFromImage, editImageWithGemini } from '@/lib/geminiImageGeneration';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Card } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { PlusCircle, Trash2, UploadCloud, Sparkles, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogClose } from '../../components/ui/dialog';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { generateDifferentAnglesFromImage, editImageWithGemini } from '../../lib/geminiImageGeneration';
+import { Label } from '../../components/ui/label';
+import { Textarea } from '../../components/ui/textarea';
+import { Card } from '../../components/ui/card';
+import { ScrollArea } from '../../components/ui/scroll-area';
+import { PlusCircle, Trash2, UploadCloud, Sparkles, Loader2, Layers3 } from 'lucide-react'; // Added Layers3
 import { useToast } from "@/components/ui/use-toast";
+import { useStore } from '../../contexts/StoreContext'; // For POD collection generation
+import { imageSrcToBasics } from '../../lib/imageUtils'; // Import from shared util
 
 // Helper function to convert file to data URL (copied from wizardStepComponents.jsx)
 const fileToBase64 = (file) => {
@@ -20,72 +22,44 @@ const fileToBase64 = (file) => {
   });
 };
 
-// Helper function to convert image src to base64 (if not already)
-const imageSrcToBasics = (imageSrc) => {
-  return new Promise((resolve, reject) => {
-    if (!imageSrc) {
-      return reject(new Error("Image source is undefined or null."));
-    }
-    if (imageSrc.startsWith('data:')) {
-      try {
-        const parts = imageSrc.split(',');
-        if (parts.length < 2) throw new Error("Invalid data URL structure.");
-        const metaPart = parts[0];
-        const base64Data = parts[1];
-        const mimeTypeMatch = metaPart.match(/:(.*?);/);
-        if (!mimeTypeMatch || !mimeTypeMatch[1]) throw new Error("Could not parse MIME type from data URL.");
-        const mimeType = mimeTypeMatch[1];
-        resolve({ base64ImageData: base64Data, mimeType });
-      } catch (error) {
-        console.error("Error parsing data URL:", imageSrc, error);
-        reject(new Error(`Invalid data URL format: ${error.message}`));
-      }
-    } else { // Assuming it's a URL that needs fetching and converting
-      const img = new Image();
-      img.crossOrigin = 'Anonymous';
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
-        try {
-          // Prefer PNG for consistency, but could use original type if needed
-          const dataUrl = canvas.toDataURL('image/png'); 
-          const parts = dataUrl.split(',');
-          const base64Data = parts[1];
-          resolve({ base64ImageData: base64Data, mimeType: 'image/png' });
-        } catch (e) {
-          console.error("Canvas toDataURL failed:", e);
-          reject(new Error("Canvas toDataURL failed, possibly due to CORS or tainted canvas."));
-        }
-      };
-      img.onerror = (e) => {
-        console.error("Failed to load image from URL for conversion:", imageSrc, e);
-        reject(new Error("Failed to load image from URL for conversion."));
-      };
-      img.src = imageSrc;
-    }
-  });
-};
-
+// imageSrcToBasics is now imported from '../../lib/imageUtils'
 
 const ProductFinalizationModal = ({ isOpen, onClose, products: initialProducts, onFinalize }) => {
   const [products, setProducts] = useState([]);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGeneratingVisuals, setIsGeneratingVisuals] = useState({}); // To track loading state per product
   const [enlargedImageUrl, setEnlargedImageUrl] = useState(null);
   const [isEnlargedViewOpen, setIsEnlargedViewOpen] = useState(false);
   const { toast } = useToast();
+  const { generatePodCollectionFromDesign, addPendingPodCollectionData, isGeneratingPodCollection, currentStore, isGenerating } = useStore(); // Get context functions
 
   useEffect(() => {
     if (initialProducts) {
       // Deep copy and ensure variants and images are arrays
-      setProducts(initialProducts.map(p => ({
-        ...p,
-        images: Array.isArray(p.images) ? [...p.images] : (p.image?.src?.medium ? [p.image.src.medium] : []),
-        variants: Array.isArray(p.variants) ? p.variants.map(v => ({...v, values: Array.isArray(v.values) ? [...v.values] : []})) : [],
-      })));
+      setProducts(initialProducts.map(p => {
+        let imagesArray = [];
+        if (Array.isArray(p.images)) {
+          imagesArray = [...p.images];
+        } else if (p.image?.src?.medium) {
+          imagesArray = [p.image.src.medium];
+        }
+
+        // For POD products, ensure the mockup is the first image, not the design source.
+        if (p.isPrintOnDemand && p.podDetails?.originalDesignImageUrl) {
+          const mockupIndex = imagesArray.findIndex(img => img !== p.podDetails.originalDesignImageUrl);
+          // If a mockup is found and it's not already the first image, move it to the front.
+          if (mockupIndex > 0) {
+            const mockupImage = imagesArray.splice(mockupIndex, 1)[0];
+            imagesArray.unshift(mockupImage);
+          }
+        }
+
+        return {
+          ...p,
+          images: imagesArray, // Ensures images is always an array
+          variants: Array.isArray(p.variants) ? p.variants.map(v => ({...v, values: Array.isArray(v.values) ? [...v.values] : []})) : [],
+        };
+      }));
     }
   }, [initialProducts]);
 
@@ -185,11 +159,20 @@ const ProductFinalizationModal = ({ isOpen, onClose, products: initialProducts, 
       if (generatedImageUrls.length > 0) {
         setProducts(prev => {
           const newProducts = [...prev];
-          const currentImages = Array.isArray(newProducts[productIndex].images) ? newProducts[productIndex].images : [];
-          newProducts[productIndex].images = [...currentImages, ...generatedImageUrls];
+          const productToUpdate = newProducts[productIndex];
+          const currentImages = Array.isArray(productToUpdate.images) ? productToUpdate.images : [];
+          const existingImageSet = new Set(currentImages);
+          const uniqueNewImages = generatedImageUrls.filter(url => !existingImageSet.has(url));
+
+          if (uniqueNewImages.length > 0) {
+            productToUpdate.images = [...currentImages, ...uniqueNewImages];
+            toast({ title: "Visuals Added", description: `${uniqueNewImages.length} new images added.`, variant: "success" });
+          } else {
+            toast({ title: "Visuals Generated", description: "Generated images were already present.", variant: "default" });
+          }
+          
           return newProducts;
         });
-        toast({ title: "Visuals Added", description: `${generatedImageUrls.length} new images added to the product.`, variant: "success" });
       } else {
         toast({ title: "No New Visuals", description: "Could not generate additional visuals.", variant: "default" });
       }
@@ -276,7 +259,6 @@ const ProductFinalizationModal = ({ isOpen, onClose, products: initialProducts, 
   };
 
   const handleFinalize = () => {
-    setIsProcessing(true);
     // Basic validation: ensure all products have a name and price
     const isValid = products.every(p => p.name && p.name.trim() !== "" && (p.price || p.price === 0) && String(p.price).trim() !== "");
     if (!isValid) {
@@ -285,17 +267,49 @@ const ProductFinalizationModal = ({ isOpen, onClose, products: initialProducts, 
             description: "Please ensure all products have a name and a valid price.",
             variant: "destructive",
         });
-        setIsProcessing(false);
         return;
     }
     onFinalize(products); // Pass the edited products back
-    setIsProcessing(false);
-    // onClose(); // The parent component will handle closing after onFinalize completes
+    // The parent component (context) will handle closing after onFinalize completes
+    // and will manage the isGenerating state.
   };
 
   const handleImageEnlarge = (imageUrl) => {
     setEnlargedImageUrl(imageUrl);
     setIsEnlargedViewOpen(true);
+  };
+
+  const handleCreatePodCollection = async (productIndex) => {
+    const product = products[productIndex];
+    if (!product || !product.podDetails?.originalDesignImageUrl) {
+      toast({ title: "Error", description: "Product details or original design image missing for POD collection.", variant: "destructive" });
+      return;
+    }
+
+    const originalDesignImageUrl = product.podDetails.originalDesignImageUrl;
+    const designPrompt = product.podDetails.designPrompt || `Design based on ${product.name}`;
+    const baseProductName = product.podDetails.baseProductName || product.name;
+
+    // Call generatePodCollectionFromDesign without storeId for pre-finalization
+    const result = await generatePodCollectionFromDesign(
+      originalDesignImageUrl,
+      designPrompt,
+      baseProductName 
+      // storeId is omitted, so the function knows it's for pre-finalization
+    );
+
+    if (result && result.newProducts && result.newCollection) {
+      // Add the generated products and collection to the modal's state via context
+      addPendingPodCollectionData({ 
+        newProducts: result.newProducts, 
+        newCollection: result.newCollection 
+      });
+      // Toast messages for success are handled within addPendingPodCollectionData or generatePodCollectionFromDesign
+    } else {
+      // Error toasts are handled within generatePodCollectionFromDesign
+      console.error("POD Collection generation in modal failed or returned no data.");
+    }
+    // Loading state (isGeneratingPodCollection) is handled by context
   };
 
   if (!isOpen) return null;
@@ -330,7 +344,7 @@ const ProductFinalizationModal = ({ isOpen, onClose, products: initialProducts, 
                 </div>
                 
                 {/* Image Management */}
-                <div className="space-y-2">
+                <div className="space-y-2 mb-[3px]">
                   <Label>Product Images</Label>
                   <div className="flex flex-wrap gap-2 mb-2">
                     {(product.images || []).map((imgSrc, imgIdx) => (
@@ -369,9 +383,9 @@ const ProductFinalizationModal = ({ isOpen, onClose, products: initialProducts, 
                         variant="outline"
                         size="sm"
                         onClick={() => handleGenerateProductImage(index)}
-                        disabled={isProcessing || !product.name} // Example disabled condition
+                        disabled={isSubmitting || !product.name} // Example disabled condition
                     >
-                        {isProcessing ? ( 
+                        {isSubmitting ? ( 
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         ) : (
                             <Sparkles className="mr-2 h-4 w-4" />
@@ -383,7 +397,7 @@ const ProductFinalizationModal = ({ isOpen, onClose, products: initialProducts, 
                         variant="outline"
                         size="sm"
                         onClick={() => handleGenerateMoreVisuals(index)}
-                        disabled={isProcessing || isGeneratingVisuals[index] || !product.name || !product.images || product.images.length === 0}
+                        disabled={isGeneratingVisuals[index] || !product.name || !product.images || product.images.length === 0}
                     >
                         {isGeneratingVisuals[index] ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -393,6 +407,19 @@ const ProductFinalizationModal = ({ isOpen, onClose, products: initialProducts, 
                         More Angles/Context
                     </Button>
                   </div>
+                  {product.isPrintOnDemand && product.podDetails?.originalDesignImageUrl && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-2 w-full"
+                      onClick={() => handleCreatePodCollection(index)}
+                      disabled={isGeneratingVisuals[index] || isGeneratingPodCollection} 
+                    >
+                      {isGeneratingPodCollection && isGeneratingVisuals[index] !== true ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Layers3 className="mr-2 h-4 w-4" />}
+                      Create Full POD Collection
+                    </Button>
+                  )}
                 </div>
 
                 {/* Variant Management */}
@@ -442,12 +469,12 @@ const ProductFinalizationModal = ({ isOpen, onClose, products: initialProducts, 
         </ScrollArea>
         <DialogFooter>
           <DialogClose asChild>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isGenerating}>
               Cancel
             </Button>
           </DialogClose>
-          <Button type="button" onClick={handleFinalize} disabled={isProcessing}>
-            {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+          <Button type="button" onClick={handleFinalize} disabled={isGenerating}>
+            {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Finalize and Create Store
           </Button>
         </DialogFooter>
@@ -459,14 +486,9 @@ const ProductFinalizationModal = ({ isOpen, onClose, products: initialProducts, 
         <DialogContent className="max-w-xl max-h-[80vh]">
           <DialogHeader>
             <DialogTitle>Enlarged Image</DialogTitle>
-            <DialogClose asChild>
-              <Button variant="ghost" size="icon" className="absolute top-4 right-4" onClick={() => setIsEnlargedViewOpen(false)}>
-                <PlusCircle className="h-4 w-4 rotate-45" /> {/* Using PlusCircle rotated as a close icon */}
-              </Button>
-            </DialogClose>
           </DialogHeader>
-          <div className="flex justify-center items-center p-4">
-            <img src={enlargedImageUrl} alt="Enlarged product" className="max-w-full max-h-[70vh] object-contain" />
+          <div className="flex justify-center items-center p-4 max-h-[70vh]">
+            <img src={enlargedImageUrl} alt="Enlarged product" className="max-w-full max-h-full object-contain" />
           </div>
         </DialogContent>
       </Dialog>

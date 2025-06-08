@@ -1,13 +1,13 @@
 import React, { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+} from "../ui/card";
+import { Button } from "../ui/button";
 // Input is not used in this file based on the provided code
 // import { Input } from "@/components/ui/input"; 
 import { ShoppingCart, AlertTriangle, Package, RefreshCw } from "lucide-react";

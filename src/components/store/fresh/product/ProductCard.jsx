@@ -116,9 +116,9 @@ const ProductCard = ({
         onMouseLeave={() => setIsHovered(false)}
       >
         <Link to={`/${storeName}/product/${productId}`} className="w-1/3 sm:w-40 md:w-48 block relative overflow-hidden rounded-l-2xl bg-slate-100 dark:bg-slate-700"> {/* Use storeName */}
-          {displayProduct.image?.src?.medium ? (
+          {(displayProduct.image?.src?.medium || (Array.isArray(displayProduct.images) && displayProduct.images.length > 0 && displayProduct.images[0])) ? (
             <motion.img
-              src={displayProduct.image.src.medium}
+              src={displayProduct.image?.src?.medium || displayProduct.images[0]}
               alt={displayProduct.name}
               className="w-full h-full object-cover"
               variants={imageHoverVariants}
@@ -206,9 +206,9 @@ const ProductCard = ({
       >
         <Link to={`/${storeName}/product/${productId}`} className="block"> {/* Use storeName */}
           <div className="aspect-square relative overflow-hidden bg-slate-100 dark:bg-slate-700">
-            {displayProduct.image?.src?.medium ? (
+            {(displayProduct.image?.src?.medium || (Array.isArray(displayProduct.images) && displayProduct.images.length > 0 && displayProduct.images[0])) ? (
               <motion.img
-                src={displayProduct.image.src.medium}
+                src={displayProduct.image?.src?.medium || displayProduct.images[0]}
                 alt={displayProduct.name}
                 className="w-full h-full object-cover"
                 variants={imageHoverVariants}

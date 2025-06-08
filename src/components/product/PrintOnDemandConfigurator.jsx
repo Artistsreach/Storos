@@ -5,10 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // For future multi-select
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'; // For future multi-select
 import { ImageIcon, Upload, Settings, Layers, Eye, PlusCircle, RefreshCw, Sparkles, Loader2, Trash2, UploadCloud, AlertTriangle, CheckCircle, X } from 'lucide-react';
 import { useToast } from "@/components/ui/use-toast";
-import { generateImageFromPromptForPod, visualizeImageOnProductWithGemini } from '@/lib/geminiImageGeneration'; // Assuming these exist
+import { generateImageFromPromptForPod, visualizeImageOnProductWithGemini } from '../../lib/geminiImageGeneration'; // Assuming these exist
 
 // Helper function to convert file to data URL (copied from wizardStepComponents)
 const fileToBase64 = (file) => {

@@ -7,14 +7,14 @@ import {
   DialogDescription,
   DialogFooter,
   DialogClose,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
+} from '../../components/ui/dialog';
+import { Button } from '../../components/ui/button';
+import { Textarea } from '../../components/ui/textarea';
+import { Label } from '../../components/ui/label';
 import { Loader2, WandIcon } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
-import { generateCaptionForImageData } from '@/lib/geminiImageGeneration';
-import { generateVideoWithVeoFromImage } from '@/lib/geminiVideoGeneration';
+import { useToast } from '../../components/ui/use-toast';
+import { generateCaptionForImageData } from '../../lib/geminiImageGeneration';
+import { generateVideoWithVeoFromImage } from '../../lib/geminiVideoGeneration';
 
 // Helper to convert image URL (http or data) to base64 and mimeType
 // This is duplicated from ProductDetail.jsx for now, consider moving to a util if used in more places.
