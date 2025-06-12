@@ -84,6 +84,16 @@ const StorePreview = () => {
   const [SleekCollections, setSleekCollections] = useState(null); // Added
   const [SleekStoreWay, setSleekStoreWay] = useState(null);
 
+  // Furniture Template Components
+  const [FurnitureHeader, setFurnitureHeader] = useState(null);
+  const [FurnitureHero, setFurnitureHero] = useState(null);
+  const [FurnitureFeatures, setFurnitureFeatures] = useState(null);
+  const [FurnitureProductGrid, setFurnitureProductGrid] = useState(null);
+  const [FurnitureCollections, setFurnitureCollections] = useState(null);
+  const [FurnitureTestimonials, setFurnitureTestimonials] = useState(null);
+  const [FurnitureNewsletter, setFurnitureNewsletter] = useState(null);
+  const [FurnitureFooter, setFurnitureFooter] = useState(null);
+
   // Generic sections like StoreWaySection
   const [StoreWay, setStoreWay] = useState(null);
   const [StoreFeaturesComponent, setStoreFeaturesComponent] = useState(null);
@@ -292,6 +302,7 @@ const StorePreview = () => {
       setSharpHeader(null); setSharpHero(null); setSharpFeatures(null); setSharpProductGrid(null); setSharpTestimonials(null); setSharpImageRightSection(null); setSharpVideoLeftSection(null); setSharpHeroFollowUpVideo(null); setSharpNewsletter(null); setSharpFooter(null);
       setFreshHeader(null); setFreshHero(null); setFreshFeatures(null); setFreshProductGrid(null); setFreshStoreCollectionsComponent(null); setFreshTestimonials(null); setFreshNewsletter(null); setFreshFooter(null);
       setSleekHeader(null); setSleekHero(null); setSleekProductGrid(null); setSleekFeatures(null); setSleekTestimonials(null); setSleekNewsletter(null); setSleekFooter(null); setSleekCollections(null); setSleekStoreWay(null);
+      setFurnitureHeader(null); setFurnitureHero(null); setFurnitureFeatures(null); setFurnitureProductGrid(null); setFurnitureCollections(null); setFurnitureTestimonials(null); setFurnitureNewsletter(null); setFurnitureFooter(null);
       setStoreWay(null); 
       setStoreFeaturesComponent(null); // Reset StoreFeaturesComponent
 
@@ -343,7 +354,7 @@ const StorePreview = () => {
         setFreshTestimonials(() => lazy(() => import('@/components/store/fresh/sections/Testimonials.jsx')));
         setFreshNewsletter(() => lazy(() => import('@/components/store/fresh/sections/Newsletter.jsx')));
         setFreshFooter(() => lazy(() => import('@/components/store/fresh/layout/Footer.jsx')));
-      } else if (templateVersionToLoad === 'sleek') {
+      } else if (templateVersion极ToLoad === 'sleek') {
         setSleekHeader(() => lazy(() => import('@/components/store/sleek/layout/StoreHeader.jsx')));
         setSleekHero(() => lazy(() => import('@/components/store/sleek/sections/StoreHero.jsx')));
         setSleekProductGrid(() => lazy(() => import('@/components/store/sleek/sections/ProductGrid.jsx')));
@@ -353,6 +364,15 @@ const StorePreview = () => {
         setSleekFooter(() => lazy(() => import('@/components/store/sleek/layout/Footer.jsx')));
         setSleekCollections(() => lazy(() => import('@/components/store/sleek/sections/StoreCollections.jsx')));
         setSleekStoreWay(() => lazy(() => import('@/components/store/sleek/sections/StoreWaySection.jsx')));
+      } else if (templateVersionToLoad === 'furniture') {
+        setFurnitureHeader(() => lazy(() => import('@/components/store/furniture/layout/StoreHeader.jsx')));
+        setFurnitureHero(() => lazy(() => import('@/components/store/furniture/sections/StoreHero.jsx')));
+        setFurnitureFeatures(() => lazy(() => import('@/components/store/furniture/sections/StoreFeatures.jsx')));
+        setFurnitureProductGrid(() => lazy(() => import('@/components/store/furniture/sections/ProductGrid.jsx')));
+        setFurnitureCollections(() => lazy(() => import('@/components/store/furniture/sections/StoreCollections.jsx')));
+        setFurnitureTestimonials(() => lazy(() => import('@/components/store/furniture/sections/Testimonials.jsx')));
+        setFurnitureNewsletter(() => lazy(() => import('@/components/store/furniture/sections/Newsletter.jsx')));
+        setFurnitureFooter(() => lazy(() => import('@/components/store/furniture/layout/Footer.jsx')));
       }
     }
   }, [store?.id, previewTemplateVersion]); // Depends on store.id and previewTemplateVersion
