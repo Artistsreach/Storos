@@ -10,8 +10,8 @@ import {
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 // Logos and Background Image
-const fixedLogoUrl = "https://firebasestorage.googleapis.com/v0/b/freshfront-c3181.firebasestorage.app/o/ffwhite.png?alt=media&token=a8f26828-97a9-42b9-9bd3-3c63506f894b";
-const backgroundImageUrl = "https://firebasestorage.googleapis.com/v0/b/freshfront-c3181.firebasestorage.app/o/ChatGPT%20Image%20Jun%208%2C%202025%20at%2007_47_38%20AM.png?alt=media&token=3d77db95-579e-4db7-aba0-f0560bb1f7df";
+const fixedLogoUrl = "https://static.wixstatic.com/media/bd2e29_20f2a8a94b7e492a9d76e0b8b14e623b~mv2.png";
+const backgroundImageUrl = "https://static.wixstatic.com/media/bd2e29_c6677c7824044124b64fe765d0e9b88d~mv2.png";
 
 function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -151,7 +151,7 @@ function AuthPage() {
           </div>
           <button
             type="submit"
-            className="w-full bg-primary text-primary-foreground py-3 rounded-md font-semibold hover:bg-primary/90 transition-colors"
+            className="w-full bg-black text-white py-3 rounded-md font-semibold hover:bg-gray-800 transition-colors"
           >
             {isLogin ? 'Sign In' : 'Sign Up'}
           </button>

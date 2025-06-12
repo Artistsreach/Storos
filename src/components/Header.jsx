@@ -162,13 +162,13 @@ const Header = () => {
         transition={{ duration: 0.5 }}
         className="w-full py-4 px-6 flex justify-between items-center sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b"
       >
-        <Link to="/" className="flex items-center gap-2">
+<Link to="/" className="flex items-center gap-2">
 <img 
-            src={isDarkMode 
-              ? "https://firebasestorage.googleapis.com/v0/b/freshfront-c3181.firebasestorage.app/o/ffwhite.png?alt=media&token=a8f26828-97a9-42b9-9bd3-3c63506f894b"
-              : "https://firebasestorage.googleapis.com/v0/b/freshfront-c3181.firebasestorage.app/o/Ffblack%20(1).png?alt=media&token=ccd72cd1-cd34-4670-a453-9e8424a3c93b"}
-            alt="FreshFront Logo" 
-            className="h-10 sm:h-[60px] w-auto transition-all" // Adjusted logo size for responsiveness
+src={isDarkMode 
+              ? "https://static.wixstatic.com/media/bd2e29_20f2a8a94b7e492a9d76e0b8b14e623b~mv2.png"
+              : "https://static.wixstatic.com/media/bd2e29_695f70787cc24db4891e63da7e7529b3~mv2.png"}
+            alt="FreshFront Logo"
+            className="h-10 sm:h-[60px] w-auto transition-all"
           />
         <span className="font-bold text-lg sm:text-xl transition-all">FreshFront</span>
       </Link>
