@@ -82,11 +82,6 @@ module.exports = {
           '70%': { 'box-shadow': '0 0 0 10px rgba(34, 197, 94, 0)' },
           '100%': { 'box-shadow': '0 0 0 0 rgba(34, 197, 94, 0)' },
         },
-        'radiate-blue': {
-          '0%': { 'box-shadow': '0 0 0 0 rgba(59, 130, 246, 0.7)' },
-          '70%': { 'box-shadow': '0 0 0 10px rgba(59, 130, 246, 0)' },
-          '100%': { 'box-shadow': '0 0 0 0 rgba(59, 130, 246, 0)' },
-        },
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
@@ -94,7 +89,6 @@ module.exports = {
         shimmer: 'shimmer 2.5s linear',
         'radiate-orange': 'radiate-orange 1.5s infinite',
         'radiate-green': 'radiate-green 1.5s infinite',
-        'radiate-blue': 'radiate-blue 1.5s infinite',
 			},
       backgroundSize: {
         '200%': '200% auto',

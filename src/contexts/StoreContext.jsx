@@ -444,12 +444,10 @@ const prepareStoresForLocalStorage = (storesArray) => {
     // Toast for successful update is handled within updateStore
   }, [currentStore, updateStore, toast]);
 
-  useEffect(() => {
-    // Load stores on initial mount. For guests, userId will be undefined,
-    // and loadStores will correctly fetch from localStorage.
-    // For logged-in users, it will fetch from both.
-    loadStores(user?.uid);
-  }, [user?.uid, loadStores]);
+  // Automatic store loading useEffect removed.
+  // Stores should be loaded via a manual trigger (e.g., a button calling loadStores(user.id)).
+  // The isLoadingStores state is initialized to false.
+  // The loadStores function is now exposed via the context value.
 
   useEffect(() => {
     // Persist cart to localStorage
@@ -825,9 +823,12 @@ const prepareStoresForLocalStorage = (storesArray) => {
       if (isPrintOnDemand) {
         setStatusMessage('Generating initial designs...');
         const targetPodProducts = [
-          podProductsList.find(p => p.name.toLowerCase() === "t-shirt"),
-          podProductsList.find(p => p.name.toLowerCase() === "canvas"),
-          podProductsList.find(p => p.name.toLowerCase() === "hoodie"),
+          podProductsList.find(p => p.name === "Canvas"),
+          podProductsList.find(p => p.name === "Hat"),
+          podProductsList.find(p => p.name === "Black hoodie"),
+          podProductsList.find(p => p.name === "Mug"),
+          podProductsList.find(p => p.name === "Notebook"),
+          podProductsList.find(p => p.name === "Pillow"),
         ].filter(Boolean);
 
         let initialDesigns = [];
