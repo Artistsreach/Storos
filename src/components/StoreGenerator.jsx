@@ -5,6 +5,7 @@ import { Textarea } from '../components/ui/textarea';
 import { Button } from '../components/ui/button';
 import { Wand2, Loader2, AlertCircle, CheckCircle, Sparkles, Upload, X, Paperclip, FileText } from 'lucide-react'; // Added Upload, X, Paperclip, FileText
 import { useStore } from '../contexts/StoreContext';
+import { useAuth } from '../contexts/AuthContext';
 import { cn, useDebounce } from "@/lib/utils"; // For conditional class names
 import { isStoreNameTaken } from '../lib/firebaseClient'; // Import the Firestore check function
 import { generateStoreNameSuggestions } from '../lib/gemini';
@@ -19,6 +20,8 @@ import {
   CardHeader, 
   CardTitle 
 } from '../components/ui/card';
+import DropshippingModal from './DropshippingModal';
+import ProductEditModal from './store/ProductEditModal';
 
 const promptExamples = [
   "Create a luxury jewelry store called 'Elegance' with diamond rings and gold necklaces, featuring a dark, sophisticated theme.",
@@ -102,6 +105,11 @@ const StoreGenerator = () => {
   const [prompt, setPrompt] = useState('');
   const [selectedExample, setSelectedExample] = useState(null);
   const [isPrintOnDemand, setIsPrintOnDemand] = useState(false);
+  const [isDropshipping, setIsDropshipping] = useState(false);
+  const [isDropshippingModalOpen, setIsDropshippingModalOpen] = useState(false);
+  const [dropshippingProducts, setDropshippingProducts] = useState([]);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [contextFiles, setContextFiles] = useState([]); // Now stores { file: File, previewUrl: string | null }
   const fileInputRef = useRef(null);
   const { 
@@ -109,8 +117,11 @@ const StoreGenerator = () => {
     isGenerating,
     importedStoreDataForGenerator,
     isImportDataReadyForGenerator,
-    clearImportedStoreDataForGenerator
+    clearImportedStoreDataForGenerator,
+    stores,
+    openAuthModal
   } = useStore();
+  const { isAuthenticated } = useAuth();
   
   const [isCheckingName, setIsCheckingName] = useState(false);
   const [storeNameAvailability, setStoreNameAvailability] = useState(null); // { status: 'available'|'claimed'|'error', message: '...' }
@@ -229,6 +240,11 @@ const StoreGenerator = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!isAuthenticated && stores.length >= 1) {
+      openAuthModal();
+      return;
+    }
     
     let isNameValid = false;
     if (storeNameAvailability && storeNameAvailability.status === 'available') {
@@ -253,7 +269,7 @@ const StoreGenerator = () => {
     const nicheDetails = getStoreNicheDetails(prompt);
 
     try {
-      await generateStore(prompt, storeName, nicheDetails, [], isPrintOnDemand, contextFiles.map(f => f.file), []);
+      await generateStore(prompt, storeName, nicheDetails, [], isPrintOnDemand, isDropshipping, contextFiles.map(f => f.file), dropshippingProducts);
     } catch (error) {
       console.error("Error calling generateStore from StoreGenerator:", error);
       alert(`An error occurred during the store generation step: ${error.message}`);
@@ -275,6 +291,20 @@ const StoreGenerator = () => {
       URL.revokeObjectURL(fileToRemove.previewUrl);
     }
     setContextFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAddDropshippingProducts = (products) => {
+    setDropshippingProducts(products);
+  };
+
+  const handleEditProduct = (product) => {
+    setSelectedProduct(product);
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveProduct = (updatedProduct) => {
+    setDropshippingProducts(dropshippingProducts.map(p => p.product_id === updatedProduct.product_id ? updatedProduct : p));
+    setIsEditModalOpen(false);
   };
 
   return (
@@ -404,6 +434,28 @@ const StoreGenerator = () => {
                       Print on Demand
                     </label>
                   </div>
+                  <div className="flex items-center space-x-2 ml-4">
+                    <input
+                      type="checkbox"
+                      id="dropshippingCheckbox"
+                      checked={isDropshipping}
+                      onChange={(e) => {
+                        setIsDropshipping(e.target.checked);
+                        if (e.target.checked) {
+                          setIsDropshippingModalOpen(true);
+                        }
+                      }}
+                      className={cn(
+                        "appearance-none h-4 w-4 border rounded-full checked:border-transparent focus:outline-none focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-gray-900 cursor-pointer",
+                        "border-gray-400 dark:border-gray-500",
+                        "focus:ring-blue-500",
+                        isDropshipping && "bg-blue-500 border-blue-500 animate-radiate-blue"
+                      )}
+                    />
+                    <label htmlFor="dropshippingCheckbox" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Dropshipping
+                    </label>
+                  </div>
                 </div>
               </div>
               <div className="relative">
@@ -458,6 +510,19 @@ const StoreGenerator = () => {
                 />
               </div>
             </div>
+            {dropshippingProducts.length > 0 && (
+              <div className="mt-4">
+                <h3 className="text-lg font-semibold mb-2">Selected Dropshipping Products</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {dropshippingProducts.map((product) => (
+                    <div key={product.product_id} className="border rounded-lg p-2 cursor-pointer" onClick={() => handleEditProduct(product)}>
+                      <img src={product.product_main_image_url} alt={product.product_title} className="w-full h-24 object-cover rounded-md mb-2" />
+                      <p className="text-sm truncate">{product.product_title}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
             <Button
@@ -508,6 +573,19 @@ const StoreGenerator = () => {
               </div>
             </div>
           </form>
+      <DropshippingModal
+        isOpen={isDropshippingModalOpen}
+        onClose={() => setIsDropshippingModalOpen(false)}
+        onAddProducts={handleAddDropshippingProducts}
+      />
+      {selectedProduct && (
+        <ProductEditModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          product={selectedProduct}
+          onSave={handleSaveProduct}
+        />
+      )}
     </motion.div>
   );
 };

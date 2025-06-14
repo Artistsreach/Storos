@@ -28,25 +28,8 @@ const ProductDetail = () => {
   const params = useParams();
   const storeName = params.storeName; 
   
-  const isBase64 = (str) => {
-    if (typeof str !== 'string' || str.includes('://')) return false;
-    try {
-      return btoa(atob(str)) === str;
-    } catch (err) {
-      return false;
-    }
-  };
-
-  let productIdFromUrl = params.productId;
-  let decodedProductId = productIdFromUrl;
-  if (isBase64(productIdFromUrl)) {
-    try {
-      decodedProductId = atob(productIdFromUrl);
-    } catch (e) {
-      console.error("Failed to decode Base64 productId:", productIdFromUrl, e);
-    }
-  }
-  const productId = decodedProductId; 
+  // Decode the product ID from the URL, which may contain special characters.
+  const productId = decodeURIComponent(params.productId);
 
   const { getStoreByName, getProductById, updateProductImage, updateStore, isLoadingStores, viewMode, updateProductImagesArray } = useStore(); 
   const isPublishedView = viewMode === 'published';

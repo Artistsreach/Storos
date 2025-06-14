@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { generateDifferentAnglesFromImage, editImageWithGemini } from '../../lib/geminiImageGeneration';
+import { generateProductDescription } from '../../lib/gemini';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { Card } from '../../components/ui/card';
@@ -28,6 +29,7 @@ const ProductFinalizationModal = ({ isOpen, onClose, products: initialProducts, 
   const [products, setProducts] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGeneratingVisuals, setIsGeneratingVisuals] = useState({}); // To track loading state per product
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState({});
   const [enlargedImageUrl, setEnlargedImageUrl] = useState(null);
   const [isEnlargedViewOpen, setIsEnlargedViewOpen] = useState(false);
   const { toast } = useToast();
@@ -312,6 +314,39 @@ const ProductFinalizationModal = ({ isOpen, onClose, products: initialProducts, 
     // Loading state (isGeneratingPodCollection) is handled by context
   };
 
+  const handleGenerateDescription = async (productIndex) => {
+    const product = products[productIndex];
+    if (!product || !product.name) {
+      toast({ title: "Missing Product Name", description: "Product name is required to generate a description.", variant: "destructive" });
+      return;
+    }
+  
+    setIsGeneratingDescription(prev => ({ ...prev, [productIndex]: true }));
+  
+    try {
+      const storeInfo = {
+        name: currentStore?.name,
+        niche: currentStore?.niche,
+        targetAudience: currentStore?.targetAudience,
+        style: currentStore?.style,
+      };
+  
+      const result = await generateProductDescription(product, storeInfo);
+  
+      if (result.description) {
+        handleProductChange(productIndex, 'description', result.description);
+        toast({ title: "Description Generated", description: "The product description has been updated.", variant: "success" });
+      } else {
+        throw new Error(result.error || "Failed to generate description.");
+      }
+    } catch (error) {
+      console.error("Error generating product description:", error);
+      toast({ title: "Description Generation Failed", description: error.message, variant: "destructive" });
+    } finally {
+      setIsGeneratingDescription(prev => ({ ...prev, [productIndex]: false }));
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -338,9 +373,26 @@ const ProductFinalizationModal = ({ isOpen, onClose, products: initialProducts, 
                     <Input id={`productPrice-${index}`} type="number" value={product.price} onChange={(e) => handleProductChange(index, 'price', e.target.value)} placeholder="0.00" />
                   </div>
                 </div>
-                <div>
+                <div className="relative">
                   <Label htmlFor={`productDescription-${index}`}>Description</Label>
                   <Textarea id={`productDescription-${index}`} value={product.description} onChange={(e) => handleProductChange(index, 'description', e.target.value)} placeholder="Product Description" rows={3} />
+                  {product.isDropshipping && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="absolute bottom-2 right-2 text-xs h-7"
+                    onClick={() => handleGenerateDescription(index)}
+                    disabled={isGeneratingDescription[index] || !product.name}
+                  >
+                    {isGeneratingDescription[index] ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="mr-2 h-4 w-4" />
+                    )}
+                    Generate
+                  </Button>
+                  )}
                 </div>
                 
                 {/* Image Management */}

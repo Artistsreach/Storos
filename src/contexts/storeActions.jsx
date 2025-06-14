@@ -234,8 +234,10 @@ export const generateStoreFromPromptData = async (
     storeNameOverride = null,
     nicheDetails = null, // Added nicheDetails
     isPrintOnDemand = false, // Added for collection generation logic
+    isDropshipping = false, // Added for collection generation logic
     contextFiles = [],
     contextURLs = [],
+    generateProducts = true,
     fetchPexelsImages = utilFetchPexelsImages,
     generateId = utilGenerateId,
   } = {},
@@ -420,113 +422,115 @@ export const generateStoreFromPromptData = async (
   const productGenerationStartProgress = 25;
   const productGenerationTotalProgress = 45; // Allocate 45% for product generation (25% to 70%)
 
-  if (imageAnalysisResult && imageAnalysisResult.products && imageAnalysisResult.products.length > 0) {
-    console.log("[generateStoreFromPromptData] Using products from image analysis.");
-    internalUpdateProgressCallback(25, 'Populating products from image analysis...');
-    
-    imageAnalysisResult.products.forEach(p => {
-        generatedProducts.push({
-            id: `product-img-analysis-${generateId()}`,
-            name: p.name,
-            price: parseFloat(p.price) || 0,
-            description: p.description,
-            images: p.images, // This is an array with one base64 image
-            image: {
-                id: generateId(),
-                src: { medium: p.images[0] },
-                alt: p.name,
-            },
-            rating: (Math.random() * 1.5 + 3.5).toFixed(1),
-            stock: Math.floor(Math.random() * 80) + 20,
-            variants: [], // Image analysis doesn't provide variants yet
-        });
-        generatedProductTitles.push(p.name.toLowerCase().trim());
-    });
-    internalUpdateProgressCallback(productGenerationStartProgress + productGenerationTotalProgress, `${generatedProducts.length} products populated from analysis.`);
-
-  } else {
-    const numProductsToGenerate = 6;
-    const maxTotalAttempts = numProductsToGenerate * 2; 
-    let currentAttempts = 0;
-
-    console.log(`[generateStoreFromPromptData] Attempting to generate ${numProductsToGenerate} unique products for ${brandName} (type: ${storeType}).`);
-
-    while (generatedProducts.length < numProductsToGenerate && currentAttempts < maxTotalAttempts) {
-      currentAttempts++;
-      const productProgress = productGenerationStartProgress + Math.floor((generatedProducts.length / numProductsToGenerate) * productGenerationTotalProgress);
-      internalUpdateProgressCallback(productProgress, `Generating product ${generatedProducts.length + 1}/${numProductsToGenerate}...`);
+  if (generateProducts) {
+    if (imageAnalysisResult && imageAnalysisResult.products && imageAnalysisResult.products.length > 0) {
+      console.log("[generateStoreFromPromptData] Using products from image analysis.");
+      internalUpdateProgressCallback(25, 'Populating products from image analysis...');
       
-      try {
-        console.log(`[generateStoreFromPromptData] Generating product attempt ${currentAttempts} (aiming for ${generatedProducts.length + 1}/${numProductsToGenerate} unique products)... Excluding titles: ${generatedProductTitles.join(', ')}`);
-        
-        const singleProductData = await generateProductWithGemini(
-          storeType, 
-          brandName, 
-          logoImageBase64ForProductGen, // Use the potentially available logo base64
-          'image/png', // Assuming PNG if logo is passed
-          generatedProductTitles,
-          internalUpdateProgressCallback, // Pass internal callback
-          productProgress, // Current base progress for this product
-          productGenerationTotalProgress / numProductsToGenerate, // Progress increment per product step
-          finalPrompt // Pass the full user prompt
-        );
-        
-        // generateProductWithGemini now returns productData.images (array)
-        if (singleProductData && 
-            singleProductData.images && singleProductData.images.length > 0 &&
-            singleProductData.title && singleProductData.title.trim() !== "" && 
-            typeof singleProductData.price === 'string' && 
-            typeof singleProductData.description === 'string') {
-          const normalizedTitle = singleProductData.title.toLowerCase().trim();
-          if (!generatedProductTitles.includes(normalizedTitle)) {
-            let finalProductVariants = singleProductData.variants || [];
-
-            if (storeType === 'fashion') {
-              const hasSizeVariant = finalProductVariants.some(v => v.name.toLowerCase() === 'size');
-              const hasColorVariant = finalProductVariants.some(v => v.name.toLowerCase() === 'color');
-              if (!hasSizeVariant) {
-                finalProductVariants.push({ name: "Size", values: ["S", "M", "L", "XL"] });
-              }
-              if (!hasColorVariant) {
-                finalProductVariants.push({ name: "Color", values: ["White", "Black", "Blue", "Red"] });
-              }
-            }
-
-            generatedProducts.push({
-              id: `product-gemini-${generateId()}`,
-              name: singleProductData.title,
-              price: parseFloat(singleProductData.price) || 0,
-              description: singleProductData.description,
-              images: singleProductData.images, // Store the full images array
-              image: { // For compatibility: primary image object
-                id: generateId(),
-                src: { medium: singleProductData.images[0] }, 
-                alt: singleProductData.title,
+      imageAnalysisResult.products.forEach(p => {
+          generatedProducts.push({
+              id: `product-img-analysis-${generateId()}`,
+              name: p.name,
+              price: parseFloat(p.price) || 0,
+              description: p.description,
+              images: p.images, // This is an array with one base64 image
+              image: {
+                  id: generateId(),
+                  src: { medium: p.images[0] },
+                  alt: p.name,
               },
               rating: (Math.random() * 1.5 + 3.5).toFixed(1),
               stock: Math.floor(Math.random() * 80) + 20,
-              variants: finalProductVariants,
-            });
-            generatedProductTitles.push(normalizedTitle);
-            console.log(`[generateStoreFromPromptData] Product "${singleProductData.title}" generated successfully and is unique. (${generatedProducts.length}/${numProductsToGenerate})`);
-            internalUpdateProgressCallback(productGenerationStartProgress + Math.floor((generatedProducts.length / numProductsToGenerate) * productGenerationTotalProgress), `Product "${singleProductData.title}" generated.`);
-          } else {
-            console.warn(`[generateStoreFromPromptData] Duplicate product title generated and skipped: "${singleProductData.title}". Attempt ${currentAttempts}/${maxTotalAttempts}.`);
-          }
-        } else {
-          console.warn(`[generateStoreFromPromptData] Failed to generate complete data (or image) for product attempt ${currentAttempts}. Data:`, singleProductData);
-        }
-      } catch (error) {
-        console.error(`[generateStoreFromPromptData] Error during product generation attempt ${currentAttempts}:`, error);
-      }
-    }
-    internalUpdateProgressCallback(productGenerationStartProgress + productGenerationTotalProgress, `${generatedProducts.length} products generated.`);
+              variants: [], // Image analysis doesn't provide variants yet
+          });
+          generatedProductTitles.push(p.name.toLowerCase().trim());
+      });
+      internalUpdateProgressCallback(productGenerationStartProgress + productGenerationTotalProgress, `${generatedProducts.length} products populated from analysis.`);
 
-    if (generatedProducts.length < numProductsToGenerate) {
-      console.warn(`[generateStoreFromPromptData] Could only generate ${generatedProducts.length} unique products after ${maxTotalAttempts} total attempts.`);
-    }
-    if (generatedProducts.length === 0 && numProductsToGenerate > 0) {
-      console.warn(`[generateStoreFromPromptData] No products were generated successfully. The store will be created with an empty product list.`);
+    } else {
+      const numProductsToGenerate = 6;
+      const maxTotalAttempts = numProductsToGenerate * 2; 
+      let currentAttempts = 0;
+
+      console.log(`[generateStoreFromPromptData] Attempting to generate ${numProductsToGenerate} unique products for ${brandName} (type: ${storeType}).`);
+
+      while (generatedProducts.length < numProductsToGenerate && currentAttempts < maxTotalAttempts) {
+        currentAttempts++;
+        const productProgress = productGenerationStartProgress + Math.floor((generatedProducts.length / numProductsToGenerate) * productGenerationTotalProgress);
+        internalUpdateProgressCallback(productProgress, `Generating product ${generatedProducts.length + 1}/${numProductsToGenerate}...`);
+        
+        try {
+          console.log(`[generateStoreFromPromptData] Generating product attempt ${currentAttempts} (aiming for ${generatedProducts.length + 1}/${numProductsToGenerate} unique products)... Excluding titles: ${generatedProductTitles.join(', ')}`);
+          
+          const singleProductData = await generateProductWithGemini(
+            storeType, 
+            brandName, 
+            logoImageBase64ForProductGen, // Use the potentially available logo base64
+            'image/png', // Assuming PNG if logo is passed
+            generatedProductTitles,
+            internalUpdateProgressCallback, // Pass internal callback
+            productProgress, // Current base progress for this product
+            productGenerationTotalProgress / numProductsToGenerate, // Progress increment per product step
+            finalPrompt // Pass the full user prompt
+          );
+          
+          // generateProductWithGemini now returns productData.images (array)
+          if (singleProductData && 
+              singleProductData.images && singleProductData.images.length > 0 &&
+              singleProductData.title && singleProductData.title.trim() !== "" && 
+              typeof singleProductData.price === 'string' && 
+              typeof singleProductData.description === 'string') {
+            const normalizedTitle = singleProductData.title.toLowerCase().trim();
+            if (!generatedProductTitles.includes(normalizedTitle)) {
+              let finalProductVariants = singleProductData.variants || [];
+
+              if (storeType === 'fashion') {
+                const hasSizeVariant = finalProductVariants.some(v => v.name.toLowerCase() === 'size');
+                const hasColorVariant = finalProductVariants.some(v => v.name.toLowerCase() === 'color');
+                if (!hasSizeVariant) {
+                  finalProductVariants.push({ name: "Size", values: ["S", "M", "L", "XL"] });
+                }
+                if (!hasColorVariant) {
+                  finalProductVariants.push({ name: "Color", values: ["White", "Black", "Blue", "Red"] });
+                }
+              }
+
+              generatedProducts.push({
+                id: `product-gemini-${generateId()}`,
+                name: singleProductData.title,
+                price: parseFloat(singleProductData.price) || 0,
+                description: singleProductData.description,
+                images: singleProductData.images, // Store the full images array
+                image: { // For compatibility: primary image object
+                  id: generateId(),
+                  src: { medium: singleProductData.images[0] }, 
+                  alt: singleProductData.title,
+                },
+                rating: (Math.random() * 1.5 + 3.5).toFixed(1),
+                stock: Math.floor(Math.random() * 80) + 20,
+                variants: finalProductVariants,
+              });
+              generatedProductTitles.push(normalizedTitle);
+              console.log(`[generateStoreFromPromptData] Product "${singleProductData.title}" generated successfully and is unique. (${generatedProducts.length}/${numProductsToGenerate})`);
+              internalUpdateProgressCallback(productGenerationStartProgress + Math.floor((generatedProducts.length / numProductsToGenerate) * productGenerationTotalProgress), `Product "${singleProductData.title}" generated.`);
+            } else {
+              console.warn(`[generateStoreFromPromptData] Duplicate product title generated and skipped: "${singleProductData.title}". Attempt ${currentAttempts}/${maxTotalAttempts}.`);
+            }
+          } else {
+            console.warn(`[generateStoreFromPromptData] Failed to generate complete data (or image) for product attempt ${currentAttempts}. Data:`, singleProductData);
+          }
+        } catch (error) {
+          console.error(`[generateStoreFromPromptData] Error during product generation attempt ${currentAttempts}:`, error);
+        }
+      }
+      internalUpdateProgressCallback(productGenerationStartProgress + productGenerationTotalProgress, `${generatedProducts.length} products generated.`);
+
+      if (generatedProducts.length < numProductsToGenerate) {
+        console.warn(`[generateStoreFromPromptData] Could only generate ${generatedProducts.length} unique products after ${maxTotalAttempts} total attempts.`);
+      }
+      if (generatedProducts.length === 0 && numProductsToGenerate > 0) {
+        console.warn(`[generateStoreFromPromptData] No products were generated successfully. The store will be created with an empty product list.`);
+      }
     }
   }
   
@@ -603,90 +607,6 @@ export const generateStoreFromPromptData = async (
   }
 
   const generatedCollections = [];
-
-  if (imageAnalysisResult && imageAnalysisResult.collections && imageAnalysisResult.collections.length > 0) {
-    console.log("[generateStoreFromPromptData] Using collections from image analysis.");
-    internalUpdateProgressCallback(collectionGenerationStartProgress, 'Populating collections from image analysis...');
-    
-    for (const c of imageAnalysisResult.collections) {
-        const pexelsQuery = `${c.name} ${storeType} collection banner`;
-        const pexelsImages = await fetchPexelsImages(pexelsQuery, 1, 'landscape');
-        const finalCollectionImageUrl = pexelsImages[0]?.src?.large || `https://via.placeholder.com/400x200.png?text=${encodeURIComponent(c.name || "Collection")}`;
-
-        generatedCollections.push({
-            id: `collection-img-analysis-${generateId()}`,
-            name: c.name,
-            description: c.description,
-            imageUrl: finalCollectionImageUrl,
-            product_ids: [], // Will be populated below
-        });
-    }
-    // Simple logic to distribute products among collections
-    if (generatedProducts.length > 0 && generatedCollections.length > 0) {
-        generatedProducts.forEach((p, index) => {
-            const collectionIndex = index % generatedCollections.length;
-            generatedCollections[collectionIndex].product_ids.push(p.id);
-        });
-    }
-    internalUpdateProgressCallback(collectionGenerationStartProgress + collectionGenerationTotalProgress, `${generatedCollections.length} collections populated from analysis.`);
-
-  } else if (generatedProducts.length > 0) {
-    const numCollectionsToGenerate = isPrintOnDemand ? 3 : 2; // Ensure at least 3 for POD, 2 otherwise
-    const existingCollectionNamesForPrompt = [];
-    const maxAttempts = numCollectionsToGenerate * 2;
-    let currentAttempt = 0;
-    internalUpdateProgressCallback(collectionGenerationStartProgress, `Generating collections for products: ${generatedProductTitles.slice(0, 3).join(', ')}...`);
-    console.log(`[generateStoreFromPromptData] Attempting to generate ${numCollectionsToGenerate} collections for ${brandName}.`);
-    
-    while (generatedCollections.length < numCollectionsToGenerate && currentAttempt < maxAttempts) {
-      currentAttempt++;
-      const collectionProgress = collectionGenerationStartProgress + Math.floor(((generatedCollections.length + 1) / numCollectionsToGenerate) * collectionGenerationTotalProgress);
-      internalUpdateProgressCallback(collectionProgress, `Generating collection ${generatedCollections.length + 1}/${numCollectionsToGenerate} (Attempt ${currentAttempt})...`);
-      
-      try {
-        const collectionData = await generateCollectionWithGemini(
-          storeType,
-          brandName,
-          generatedProducts,
-          existingCollectionNamesForPrompt,
-          internalUpdateProgressCallback,
-          collectionProgress,
-          collectionGenerationTotalProgress / numCollectionsToGenerate
-        );
-
-        if (collectionData && !collectionData.error && collectionData.name) {
-          let finalCollectionImageUrl = '';
-          if (collectionData.imageData) {
-            finalCollectionImageUrl = `data:image/png;base64,${collectionData.imageData}`;
-          } else {
-            const pexelsQuery = `${collectionData.name} ${storeType} collection banner`;
-            const pexelsImages = await fetchPexelsImages(pexelsQuery, 1, 'landscape');
-            finalCollectionImageUrl = pexelsImages[0]?.src?.large || `https://via.placeholder.com/400x200.png?text=${encodeURIComponent(collectionData.name || "Collection")}`;
-          }
-          
-          generatedCollections.push({
-            id: `collection-gemini-${generateId()}`,
-            name: collectionData.name,
-            description: collectionData.description,
-            imageUrl: finalCollectionImageUrl,
-            product_ids: collectionData.product_ids || [],
-          });
-          existingCollectionNamesForPrompt.push(collectionData.name);
-          internalUpdateProgressCallback(collectionProgress, `Collection "${collectionData.name}" generated.`);
-        } else if (collectionData === null) {
-            console.warn(`[generateStoreFromPromptData] Collection generation returned null (fallback prevented), attempt ${currentAttempt}.`);
-        } else {
-            console.warn(`[generateStoreFromPromptData] Failed to generate complete data for collection attempt ${currentAttempt}. Error: ${collectionData?.error}`);
-        }
-      } catch (error) {
-        console.error(`[generateStoreFromPromptData] Error during collection generation attempt ${currentAttempt}:`, error);
-      }
-    }
-    internalUpdateProgressCallback(collectionGenerationStartProgress + collectionGenerationTotalProgress, `${generatedCollections.length} collections generated.`);
-  } else {
-    console.warn(`[generateStoreFromPromptData] Skipping collection generation as no products were generated for ${brandName}.`);
-    internalUpdateProgressCallback(collectionGenerationStartProgress + collectionGenerationTotalProgress, "Skipped collection generation (no products).");
-  }
   
   internalUpdateProgressCallback(95, "Loading storefront...");
 
@@ -781,6 +701,78 @@ export const generateStoreFromPromptData = async (
   return storeToReturn;
 };
 
+export const generateCollectionsForProducts = async (
+  storeType,
+  brandName,
+  products,
+  isPrintOnDemand,
+  isDropshipping,
+  updateProgressCallback,
+  collectionGenerationStartProgress,
+  collectionGenerationTotalProgress,
+  generateId
+) => {
+  const generatedCollections = [];
+  if (products.length > 0) {
+    const numCollectionsToGenerate = isPrintOnDemand || isDropshipping ? 3 : 2;
+    const existingCollectionNamesForPrompt = [];
+    const maxAttempts = numCollectionsToGenerate * 2;
+    let currentAttempt = 0;
+    updateProgressCallback(collectionGenerationStartProgress, `Generating collections for products...`);
+    console.log(`[generateCollectionsForProducts] Attempting to generate ${numCollectionsToGenerate} collections for ${brandName}.`);
+
+    while (generatedCollections.length < numCollectionsToGenerate && currentAttempt < maxAttempts) {
+      currentAttempt++;
+      const collectionProgress = collectionGenerationStartProgress + Math.floor(((generatedCollections.length + 1) / numCollectionsToGenerate) * collectionGenerationTotalProgress);
+      updateProgressCallback(collectionProgress, `Generating collection ${generatedCollections.length + 1}/${numCollectionsToGenerate} (Attempt ${currentAttempt})...`);
+
+      try {
+        const collectionData = await generateCollectionWithGemini(
+          storeType,
+          brandName,
+          products,
+          existingCollectionNamesForPrompt,
+          updateProgressCallback,
+          collectionProgress,
+          collectionGenerationTotalProgress / numCollectionsToGenerate
+        );
+
+        if (collectionData && !collectionData.error && collectionData.name) {
+          let finalCollectionImageUrl = '';
+          if (collectionData.imageData) {
+            finalCollectionImageUrl = `data:image/png;base64,${collectionData.imageData}`;
+          } else {
+            const pexelsQuery = `${collectionData.name} ${storeType} collection banner`;
+            const pexelsImages = await utilFetchPexelsImages(pexelsQuery, 1, 'landscape');
+            finalCollectionImageUrl = pexelsImages[0]?.src?.large || `https://via.placeholder.com/400x200.png?text=${encodeURIComponent(collectionData.name || "Collection")}`;
+          }
+
+          generatedCollections.push({
+            id: `collection-gemini-${generateId()}`,
+            name: collectionData.name,
+            description: collectionData.description,
+            imageUrl: finalCollectionImageUrl,
+            product_ids: collectionData.product_ids || [],
+          });
+          existingCollectionNamesForPrompt.push(collectionData.name);
+          updateProgressCallback(collectionProgress, `Collection "${collectionData.name}" generated.`);
+        } else if (collectionData === null) {
+          console.warn(`[generateCollectionsForProducts] Collection generation returned null (fallback prevented), attempt ${currentAttempt}.`);
+        } else {
+          console.warn(`[generateCollectionsForProducts] Failed to generate complete data for collection attempt ${currentAttempt}. Error: ${collectionData?.error}`);
+        }
+      } catch (error) {
+        console.error(`[generateCollectionsForProducts] Error during collection generation attempt ${currentAttempt}:`, error);
+      }
+    }
+    updateProgressCallback(collectionGenerationStartProgress + collectionGenerationTotalProgress, `${generatedCollections.length} collections generated.`);
+  } else {
+    console.warn(`[generateCollectionsForProducts] Skipping collection generation as no products were provided for ${brandName}.`);
+    updateProgressCallback(collectionGenerationStartProgress + collectionGenerationTotalProgress, "Skipped collection generation (no products).");
+  }
+  return generatedCollections;
+};
+
 export const fetchShopifyStoreMetadata = async (domain, token) => {
     const shopData = await fetchShopifyStorefrontAPI(domain, token, GET_SHOP_METADATA_QUERY);
     return shopData.shop; 
@@ -838,6 +830,7 @@ export const mapShopifyDataToInternalStore = async (shopifyStore, shopifyProduct
         name: c.title || "Untitled Collection", // Changed from title to name for consistency
         description: c.description || "",
         handle: c.handle,
+        imageUrl: c.image?.url || `https://via.placeholder.com/400x200.png?text=${encodeURIComponent(c.title || "Collection")}`,
         // productCount: c.products?.edges?.length || 0, // This is from collection query, not always present on product's collection list
         // If products are directly linked in the collection node from Shopify:
         product_ids: c.products?.edges?.map(pEdge => pEdge.node.id) || [],

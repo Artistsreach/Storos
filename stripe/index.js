@@ -29,6 +29,9 @@ const stripe = new Stripe(stripeSecret || 'sk_test_DUMMY_SECRET_KEY_FOR_DEPLOY_A
   apiVersion: '2023-10-16', // Use a recent API version
 });
 
+const aliexpressProxy = require('./lib/aliexpressProxy');
+exports.aliexpressProxy = aliexpressProxy.aliexpressProxy;
+
 /**
  * Creates a Stripe Product and a default Price for it.
  *

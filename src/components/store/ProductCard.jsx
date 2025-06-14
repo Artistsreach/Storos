@@ -27,9 +27,8 @@ const ProductCard = ({ product, theme, index, storeName, storeId, isPublishedVie
   const [isEditModalOpen, setIsEditModalOpen] = useState(false); // State for edit modal
   const isAdmin = !isPublishedView;
 
-  // Encode Shopify GIDs for URL safety
-  const isShopifyGid = (id) => typeof id === 'string' && id.startsWith('gid://shopify/');
-  const productId = isShopifyGid(rawProductId) ? btoa(rawProductId) : rawProductId;
+  // URL-encode the product ID to handle special characters.
+  const productId = encodeURIComponent(rawProductId);
 
   const imageUrl = image?.src?.medium || image?.url || (Array.isArray(displayProduct.images) && displayProduct.images.length > 0 ? displayProduct.images[0] : `https://via.placeholder.com/400x400.png?text=${encodeURIComponent(name)}`);
   const imageAlt = image?.alt || `${name} product image`;

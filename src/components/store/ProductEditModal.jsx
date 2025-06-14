@@ -7,7 +7,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { PlusCircle, Trash2, UploadCloud, Sparkles, Loader2 } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 import { useToast } from "@/components/ui/use-toast";
+import { generateDifferentAnglesFromImage, editImageWithGemini } from '../../lib/geminiImageGeneration';
+import { imageSrcToBasics } from '../../lib/imageUtils';
 
 // Helper function to convert file to data URL
 const fileToBase64 = (file) => {
@@ -29,11 +32,14 @@ const ProductEditModal = ({ isOpen, onClose, product: initialProduct, onSave, st
 
   useEffect(() => {
     if (initialProduct) {
-      // Deep copy and ensure variants and images are arrays
       setProductData({
         ...initialProduct,
-        images: Array.isArray(initialProduct.images) ? [...initialProduct.images] : (initialProduct.image?.src?.medium ? [initialProduct.image.src.medium] : []),
-        variants: Array.isArray(initialProduct.variants) ? initialProduct.variants.map(v => ({...v, values: Array.isArray(v.values) ? [...v.values] : []})) : [],
+        name: initialProduct.product_title,
+        description: initialProduct.product_description || '',
+        price: initialProduct.target_sale_price * 1.5,
+        cost: initialProduct.target_sale_price,
+        shipping: initialProduct.shipping_cost || 0,
+        images: [initialProduct.product_main_image_url],
       });
     }
   }, [initialProduct]);
@@ -71,8 +77,77 @@ const ProductEditModal = ({ isOpen, onClose, product: initialProduct, onSave, st
   };
 
   const handleGenerateMoreVisuals = async () => {
-    // Placeholder for generating more visuals
-    toast({ title: "Visual Generation", description: "Generating more visuals is not yet implemented here." });
+    if (!productData || !productData.name) {
+      toast({ title: "Missing Product Info", description: "Product name is required to generate visuals.", variant: "destructive" });
+      return;
+    }
+
+    const baseImageSrc = productData.images && productData.images.length > 0 ? productData.images[0] : null;
+    if (!baseImageSrc) {
+      toast({ title: "Missing Base Image", description: "At least one image is required to generate more visuals.", variant: "destructive" });
+      return;
+    }
+
+    setIsGeneratingVisuals(true);
+
+    try {
+      const { base64ImageData, mimeType } = await imageSrcToBasics(baseImageSrc);
+      const productName = productData.name;
+      let generatedImageUrls = [];
+
+      try {
+        const angleImages = await generateDifferentAnglesFromImage(base64ImageData, mimeType, productName);
+        if (angleImages && angleImages.length > 0) {
+          generatedImageUrls.push(...angleImages.slice(0, 2));
+        }
+        toast({ title: "Angles Generated", description: `${Math.min(2, angleImages?.length || 0)} angle images generated.`, variant: "success" });
+      } catch (angleError) {
+        console.error("Error generating angles:", angleError);
+        toast({ title: "Angle Generation Failed", description: angleError.message, variant: "destructive" });
+      }
+      
+      const contextPrompts = [
+        `Place this product, "${productName}", in a realistic home setting where it might be used or displayed. Focus on a natural context.`,
+        `Show this product, "${productName}", in an outdoor lifestyle setting, highlighting its use case or appeal.`,
+      ];
+
+      for (const prompt of contextPrompts) {
+        try {
+          const contextImageResult = await editImageWithGemini(base64ImageData, mimeType, prompt);
+          if (contextImageResult && contextImageResult.editedImageData) {
+            generatedImageUrls.push(`data:${contextImageResult.newMimeType};base64,${contextImageResult.editedImageData}`);
+          }
+        } catch (contextError) {
+          console.error(`Error generating context image with prompt "${prompt}":`, contextError);
+          toast({ title: "Context Image Failed", description: `Failed for: ${prompt.substring(0,30)}...`, variant: "destructive" });
+        }
+      }
+      toast({ title: "Context Images Attempted", description: `Attempted to generate ${contextPrompts.length} context images.`, variant: "success" });
+
+      if (generatedImageUrls.length > 0) {
+        setProductData(prev => {
+          const currentImages = Array.isArray(prev.images) ? prev.images : [];
+          const existingImageSet = new Set(currentImages);
+          const uniqueNewImages = generatedImageUrls.filter(url => !existingImageSet.has(url));
+
+          if (uniqueNewImages.length > 0) {
+            return { ...prev, images: [...currentImages, ...uniqueNewImages] };
+            toast({ title: "Visuals Added", description: `${uniqueNewImages.length} new images added.`, variant: "success" });
+          } else {
+            toast({ title: "Visuals Generated", description: "Generated images were already present.", variant: "default" });
+            return prev;
+          }
+        });
+      } else {
+        toast({ title: "No New Visuals", description: "Could not generate additional visuals.", variant: "default" });
+      }
+
+    } catch (error) {
+      console.error("Error in handleGenerateMoreVisuals:", error);
+      toast({ title: "Visual Generation Error", description: error.message, variant: "destructive" });
+    } finally {
+      setIsGeneratingVisuals(false);
+    }
   };
 
   // Variant Handlers
@@ -141,8 +216,17 @@ const ProductEditModal = ({ isOpen, onClose, product: initialProduct, onSave, st
         return;
     }
     try {
-      await onSave(productData); // Pass the edited product data
-      // onClose(); // Parent component (ProductCard) handles closing on successful save
+      const updatedProduct = {
+        ...productData,
+        product_title: productData.name,
+        product_description: productData.description,
+        sale_price: productData.price,
+        target_sale_price: productData.cost,
+        shipping_cost: productData.shipping,
+        product_main_image_url: productData.images[0],
+      };
+      await onSave(updatedProduct);
+      onClose();
     } catch (error) {
       toast({ title: "Save Error", description: "Could not save product changes.", variant: "destructive" });
     } finally {
@@ -157,12 +241,15 @@ const ProductEditModal = ({ isOpen, onClose, product: initialProduct, onSave, st
 
   if (!isOpen || !productData) return null;
 
+  const profit = productData.price - productData.cost - productData.shipping;
+  const profitMargin = productData.price > 0 ? (profit / productData.price) * 100 : 0;
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Edit Product: {initialProduct.name}</DialogTitle>
+            <DialogTitle>Edit Product: {initialProduct.product_title}</DialogTitle>
             <DialogDescription>
               Make changes to the product details below.
             </DialogDescription>
@@ -170,19 +257,54 @@ const ProductEditModal = ({ isOpen, onClose, product: initialProduct, onSave, st
           <ScrollArea className="max-h-[60vh] p-1">
             <div className="space-y-4 pr-4">
               <Card className="p-4 space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label htmlFor="productName-edit">Product Name</Label>
-                    <Input id="productName-edit" value={productData.name} onChange={(e) => handleChange('name', e.target.value)} placeholder="Product Name" />
-                  </div>
-                  <div>
-                    <Label htmlFor="productPrice-edit">Price ({productData.currencyCode || 'USD'})</Label>
-                    <Input id="productPrice-edit" type="number" value={productData.price} onChange={(e) => handleChange('price', parseFloat(e.target.value))} placeholder="0.00" />
-                  </div>
+                <div>
+                  <Label htmlFor="productName-edit">Product Name</Label>
+                  <Input id="productName-edit" value={productData.name} onChange={(e) => handleChange('name', e.target.value)} placeholder="Product Name" />
                 </div>
                 <div>
                   <Label htmlFor="productDescription-edit">Description</Label>
                   <Textarea id="productDescription-edit" value={productData.description} onChange={(e) => handleChange('description', e.target.value)} placeholder="Product Description" rows={3} />
+                </div>
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="productPrice-edit">Price ({productData.currencyCode || 'USD'})</Label>
+                      <Input id="productPrice-edit" type="number" value={productData.price} onChange={(e) => handleChange('price', parseFloat(e.target.value) || 0)} placeholder="0.00" className="w-24 text-right" />
+                    </div>
+                    <Progress value={100} className="h-2" />
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="productCost-edit">Cost</Label>
+                      <Input id="productCost-edit" type="number" value={productData.cost} onChange={(e) => handleChange('cost', parseFloat(e.target.value) || 0)} placeholder="0.00" className="w-24 text-right" />
+                    </div>
+                    <Progress value={productData.price > 0 ? (productData.cost / productData.price) * 100 : 0} className="h-2 [&>div]:bg-red-500" />
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="productShipping-edit">Shipping</Label>
+                      <Input id="productShipping-edit" type="number" value={productData.shipping} onChange={(e) => handleChange('shipping', parseFloat(e.target.value) || 0)} placeholder="0.00" className="w-24 text-right" />
+                    </div>
+                    <Progress value={productData.price > 0 ? (productData.shipping / productData.price) * 100 : 0} className="h-2 [&>div]:bg-orange-500" />
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center">
+                      <Label>Profit</Label>
+                      <Input value={profit.toFixed(2)} disabled className="w-24 text-right" />
+                    </div>
+                    <Progress value={profitMargin} className="h-2 [&>div]:bg-green-500" />
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center">
+                      <Label>Profit Margin</Label>
+                      <Input value={`${profitMargin.toFixed(2)}%`} disabled className="w-24 text-right" />
+                    </div>
+                    <Progress value={profitMargin} className="h-2 [&>div]:bg-green-500" />
+                  </div>
                 </div>
                 
                 {/* Image Management */}
@@ -223,20 +345,6 @@ const ProductEditModal = ({ isOpen, onClose, product: initialProduct, onSave, st
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={handleGenerateProductImage}
-                        disabled={isProcessing || !productData.name}
-                    >
-                        {isProcessing ? ( 
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                            <Sparkles className="mr-2 h-4 w-4" />
-                        )}
-                        Generate Image (AI)
-                    </Button>
-                    {/* <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
                         onClick={handleGenerateMoreVisuals}
                         disabled={isProcessing || isGeneratingVisuals || !productData.name || !productData.images || productData.images.length === 0}
                     >
@@ -246,7 +354,7 @@ const ProductEditModal = ({ isOpen, onClose, product: initialProduct, onSave, st
                             <Sparkles className="mr-2 h-4 w-4" />
                         )}
                         More Angles/Context (AI)
-                    </Button> */}
+                    </Button>
                   </div>
                 </div>
 

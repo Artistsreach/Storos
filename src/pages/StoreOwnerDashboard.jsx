@@ -6,54 +6,19 @@ import StoreList from '../components/StoreList';
 import ImportWizard from '../components/ImportWizard'; // Changed from ShopifyImportWizard
 import ImportSourceSelector from '../components/ImportSourceSelector'; // Added
 import StoreWizard from '../components/StoreWizard';
-import SubscribeButton from '../components/SubscribeButton';
-import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { DownloadCloud as ImportIcon, ListChecks as WizardIcon } from 'lucide-react'; // Changed Icon
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import AuthModal from '../components/AuthModal';
+import { useStore } from '../contexts/StoreContext';
 
 const StoreOwnerDashboard = () => {
   const [isImportSelectorOpen, setIsImportSelectorOpen] = useState(false);
   const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
   const [currentImportSourceForWizard, setCurrentImportSourceForWizard] = useState(null);
   const [activeTab, setActiveTab] = useState("ai-prompt");
-  const { user, session, subscriptionStatus, loadingProfile } = useAuth();
   const [isShimmering, setIsShimmering] = useState(false);
-
-  const isSubscribed = subscriptionStatus === 'active';
-  const [isPortalLoading, setIsPortalLoading] = useState(false);
-  const [portalError, setPortalError] = useState(null);
-
-  const handleManageBilling = async () => {
-    if (!session?.access_token) {
-      setPortalError('Authentication token not found. Please log in again.');
-      return;
-    }
-    setIsPortalLoading(true);
-    setPortalError(null);
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-portal-session`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-        }
-      );
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create portal session.');
-      }
-      window.location.href = data.url;
-    } catch (err) {
-      console.error('Portal session error:', err);
-      setPortalError(err.message);
-    } finally {
-      setIsPortalLoading(false);
-    }
-  };
+  const { isAuthModalOpen, closeAuthModal } = useStore();
 
   const handleOpenImportSelector = () => {
     setIsImportSelectorOpen(true);
@@ -182,6 +147,8 @@ const StoreOwnerDashboard = () => {
           initialImportSource={currentImportSourceForWizard}
         />
       )}
+
+      {isAuthModalOpen && <AuthModal onClose={closeAuthModal} />}
     </div>
   );
 };

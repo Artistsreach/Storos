@@ -11,6 +11,7 @@ import { imageSrcToBasics } from '../lib/imageUtils'; // Import from shared util
 import { 
   generateStoreFromWizardData,
   generateStoreFromPromptData,
+  generateCollectionsForProducts,
   // importShopifyStoreData, // Will be called by a new wizard finalization function
   mapShopifyDataToInternalStore, // Use the mapping function
   fetchShopifyStoreMetadata,
@@ -96,6 +97,9 @@ export const StoreProvider = ({ children }) => {
   const [isDesignEditModalOpen, setIsDesignEditModalOpen] = useState(false);
   const [designsToEdit, setDesignsToEdit] = useState([]);
   const [generationContinuationData, setGenerationContinuationData] = useState(null);
+
+  // Auth Modal State
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
 
   const addPendingPodCollectionData = useCallback(({ newProducts, newCollection }) => {
@@ -194,6 +198,15 @@ const prepareStoresForLocalStorage = (storesArray) => {
         return productForLs;
       });
     }
+
+    // Remove embedded products from collections to prevent circular references
+    if (storeForLs.collections && Array.isArray(storeForLs.collections)) {
+      storeForLs.collections = storeForLs.collections.map(collection => {
+        const { products, ...collectionForLs } = collection;
+        return collectionForLs;
+      });
+    }
+    
     return storeForLs;
   });
 };
@@ -431,10 +444,12 @@ const prepareStoresForLocalStorage = (storesArray) => {
     // Toast for successful update is handled within updateStore
   }, [currentStore, updateStore, toast]);
 
-  // Automatic store loading useEffect removed.
-  // Stores should be loaded via a manual trigger (e.g., a button calling loadStores(user.id)).
-  // The isLoadingStores state is initialized to false.
-  // The loadStores function is now exposed via the context value.
+  useEffect(() => {
+    // Load stores on initial mount. For guests, userId will be undefined,
+    // and loadStores will correctly fetch from localStorage.
+    // For logged-in users, it will fetch from both.
+    loadStores(user?.uid);
+  }, [user?.uid, loadStores]);
 
   useEffect(() => {
     // Persist cart to localStorage
@@ -455,6 +470,18 @@ const prepareStoresForLocalStorage = (storesArray) => {
 
   const commonStoreCreation = async (storeData) => {
     let storeToCreate = { ...storeData };
+    try {
+      const pexelsQuery = storeToCreate.type || storeToCreate.name || 'business';
+      const images = await fetchPexelsImages(pexelsQuery, 1);
+      if (images.length > 0) {
+        storeToCreate.card_background_url = images[0].src.large;
+      }
+    } catch (error) {
+      console.error("Failed to fetch background image from Pexels:", error);
+      // Proceed without a background image or with a default
+      storeToCreate.card_background_url = DEFAULT_PLACEHOLDER_IMAGE_URL;
+    }
+
 
     // --- BEGIN NAME UNIQUENESS CHECK ---
     const storeNameForCheck = storeToCreate.name || `Store-${generateId().substring(0,6)}`;
@@ -547,7 +574,8 @@ const prepareStoresForLocalStorage = (storesArray) => {
           logo_url: logoUrl || DEFAULT_PLACEHOLDER_IMAGE_URL,
           logo_url_light: logoUrlLight,
           logo_url_dark: logoUrlDark,
-          urlSlug: newStoreLocal.urlSlug // Ensure urlSlug is saved to Firestore
+          urlSlug: newStoreLocal.urlSlug, // Ensure urlSlug is saved to Firestore
+          card_background_url: newStoreLocal.card_background_url,
         };
         
         await setDoc(storeDocRef, dataToInsert);
@@ -789,7 +817,7 @@ const prepareStoresForLocalStorage = (storesArray) => {
     }
   };
 
-  const generateStore = async (prompt, storeNameOverride = null, productTypeOverride = null, initialPodProducts = [], isPrintOnDemand = false, contextFiles = [], contextURLs = []) => {
+  const generateStore = async (prompt, storeNameOverride = null, productTypeOverride = null, initialPodProducts = [], isPrintOnDemand = false, isDropshipping = false, contextFiles = [], dropshippingProducts = []) => {
     setIsGenerating(true);
     setProgress(0);
     setStatusMessage('Initializing generation...');
@@ -831,9 +859,70 @@ const prepareStoresForLocalStorage = (storesArray) => {
         return; // Stop here and wait for the modal.
       }
 
-      // If not POD, proceed directly
-      const updateProgressCallback = (p, m) => { setProgress(p); if (m) setStatusMessage(m); };
-      let newStoreData = await generateStoreFromPromptData(prompt, { storeNameOverride, productTypeOverride, fetchPexelsImages, generateId, isPrintOnDemand: false, contextFiles, contextURLs }, updateProgressCallback);
+      let newStoreData;
+      if (dropshippingProducts.length > 0) {
+        const updateProgressCallback = (p, m) => { setProgress(p); if (m) setStatusMessage(m); };
+        // For dropshipping, generate the store shell but not the products
+        newStoreData = await generateStoreFromPromptData(
+          prompt,
+          {
+            storeNameOverride,
+            productTypeOverride,
+            fetchPexelsImages,
+            generateId,
+            isPrintOnDemand: false,
+            isDropshipping: true,
+            contextFiles,
+            contextURLs: [],
+            generateProducts: false, // Don't generate products
+          },
+          updateProgressCallback
+        );
+        
+        // Now, add the dropshipping products to the generated store data
+        const formattedDropshippingProducts = dropshippingProducts.map(p => ({
+          id: String(p.product_id),
+          name: p.product_title,
+          description: p.product_description,
+          price: parseFloat(p.target_sale_price) || 0,
+          images: p.product_photos,
+          isDropshipping: true,
+        }));
+        newStoreData.products = formattedDropshippingProducts;
+
+        const collections = await generateCollectionsForProducts(
+          newStoreData.type,
+          newStoreData.name,
+          formattedDropshippingProducts,
+          false,
+          true,
+          updateProgressCallback,
+          70,
+          20,
+          generateId
+        );
+        newStoreData.collections = collections;
+
+      } else {
+        // If not POD and not dropshipping, proceed with regular generation
+        const updateProgressCallback = (p, m) => { setProgress(p); if (m) setStatusMessage(m); };
+        newStoreData = await generateStoreFromPromptData(prompt, { storeNameOverride, productTypeOverride, fetchPexelsImages, generateId, isPrintOnDemand: false, contextFiles, contextURLs: [] }, updateProgressCallback);
+        if (newStoreData.products.length > 0) {
+          const collections = await generateCollectionsForProducts(
+            newStoreData.type,
+            newStoreData.name,
+            newStoreData.products,
+            isPrintOnDemand,
+            isDropshipping,
+            updateProgressCallback,
+            70,
+            20,
+            generateId
+          );
+          newStoreData.collections = collections;
+        }
+      }
+
       setProductsToFinalize(newStoreData.products || []);
       setStoreDataForFinalization(newStoreData);
       setIsGenerating(false); // Pause generation for user input
@@ -1946,6 +2035,11 @@ const finalizeBigCommerceImportFromWizard = useCallback(async () => {
         return { ...prev, edges: newEdges };
       });
     },
+
+    // Auth Modal
+    isAuthModalOpen,
+    openAuthModal: () => setIsAuthModalOpen(true),
+    closeAuthModal: () => setIsAuthModalOpen(false),
 
     // BigCommerce Wizard related state and functions
     bigCommerceWizardStep, setBigCommerceWizardStep,

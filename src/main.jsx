@@ -17,23 +17,9 @@ import PricingPage from './pages/PricingPage';
 import OrderConfirmationPage from './pages/OrderConfirmationPage';
 import StoreDashboardPage from './pages/StoreDashboardPage'; // Import the new dashboard page
 
-// Helper component to handle initial loading and auth logic for the index route
+// The index route is now the public-facing store owner dashboard.
 const IndexPageHandler = () => {
-  const { isAuthenticated, userRole, loadingProfile } = useAuth();
-
-  if (loadingProfile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-xl">Loading...</p>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/auth" replace />;
-  }
-
-  return userRole === 'admin' ? <AdminDashboard /> : <StoreOwnerDashboard />;
+  return <StoreOwnerDashboard />;
 };
 
 // Helper component to handle auth logic for the AuthPage route

@@ -239,11 +239,18 @@ src={isDarkMode
             </Button>
           </>
         ) : (
-          <Link to="/auth">
-            <Button variant="outline" size="sm">
-              <LogIn className="mr-2 h-4 w-4" /> Login
-            </Button>
-          </Link>
+          <>
+            <Link to="/auth">
+              <Button variant="ghost" size="sm">
+                Log In
+              </Button>
+            </Link>
+            <Link to="/auth">
+              <Button size="sm">
+                Sign Up
+              </Button>
+            </Link>
+          </>
         )}
       </nav>
 
@@ -318,11 +325,18 @@ src={isDarkMode
                 </Button>
               </>
             ) : (
-              <Link to="/auth" className="w-full">
-                <Button variant="outline" className="w-full justify-start px-3 py-2 text-base">
-                  <LogIn className="mr-2 h-4 w-4" /> Login
-                </Button>
-              </Link>
+              <>
+                <Link to="/auth" className="w-full">
+                  <Button variant="ghost" className="w-full justify-start px-3 py-2 text-base">
+                    Log In
+                  </Button>
+                </Link>
+                <Link to="/auth" className="w-full">
+                  <Button className="w-full justify-start px-3 py-2 text-base">
+                    Sign Up
+                  </Button>
+                </Link>
+              </>
             )}
              {/* portalError is already handled above for mobile, this one might be redundant or for a different context if it was ever shown outside the dropdowns.
                  However, the previous change already added portalError display to the mobile business buttons section.

@@ -689,3 +689,68 @@ Return as a JSON object matching the schema.`;
     return { error: `Error generating VideoLeftSection content: ${error.message}` };
   }
 }
+
+export async function generateProductDescription(productInfo, storeInfo) {
+  if (!apiKey) {
+    console.error("API Key not configured. Cannot generate product description.");
+    return { error: "API Key not configured." };
+  }
+
+  const genAI = new GoogleGenAI({ apiKey });
+
+  const descriptionResponseSchema = {
+    type: Type.OBJECT,
+    properties: {
+      description: { type: Type.STRING, description: 'A compelling and SEO-friendly product description.' },
+    },
+    required: ['description'],
+  };
+
+  const { name: productName, description: existingDescription } = productInfo;
+  const { name: storeName, niche, targetAudience, style } = storeInfo;
+
+  let promptContent = `Generate a compelling, engaging, and SEO-friendly product description.
+Store Name: ${storeName || 'N/A'}
+Store Niche: ${niche || 'General E-commerce'}
+Store Style: ${style || 'Modern and friendly'}
+Target Audience: ${targetAudience || 'General consumers'}
+
+Product Name: "${productName}"
+${existingDescription ? `Existing Description (for context, improve upon it): "${existingDescription}"` : ''}
+
+The new description should be persuasive, highlight key benefits, and be written in a tone that matches the store's style. It should be between 50 and 150 words.
+Return the description as a JSON object matching the schema.`;
+
+  try {
+    const response = await genAI.models.generateContent({
+      model: "gemini-2.0-flash",
+      contents: [{ role: "user", parts: [{text: promptContent}]}],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: descriptionResponseSchema,
+      }
+    });
+
+    const responseText = response.text;
+    if (typeof responseText !== 'string' || responseText.trim() === '') {
+        console.error("Model did not return a text response for product description. Response:", JSON.stringify(response));
+        throw new Error("Model response for product description was empty or not a string.");
+    }
+
+    try {
+      const parsedContent = JSON.parse(responseText);
+      if (parsedContent && typeof parsedContent.description === 'string') {
+        return { description: parsedContent.description };
+      } else {
+        console.error("Parsed product description is not in the expected format:", parsedContent);
+        return { error: "AI response was not in the expected format for product description.", rawResponse: responseText };
+      }
+    } catch (parseError) {
+      console.error("Failed to parse JSON response for product description:", responseText, "ParseError:", parseError);
+      return { error: "Failed to parse product description from AI.", rawResponse: responseText };
+    }
+  } catch (error) {
+    console.error("Error generating product description:", error);
+    return { error: `Error generating product description: ${error.message}` };
+  }
+}
