@@ -825,12 +825,9 @@ const prepareStoresForLocalStorage = (storesArray) => {
       if (isPrintOnDemand) {
         setStatusMessage('Generating initial designs...');
         const targetPodProducts = [
-          podProductsList.find(p => p.name === "Canvas"),
-          podProductsList.find(p => p.name === "Hat"),
-          podProductsList.find(p => p.name === "Black hoodie"),
-          podProductsList.find(p => p.name === "Mug"),
-          podProductsList.find(p => p.name === "Notebook"),
-          podProductsList.find(p => p.name === "Pillow"),
+          podProductsList.find(p => p.name.toLowerCase() === "t-shirt"),
+          podProductsList.find(p => p.name.toLowerCase() === "canvas"),
+          podProductsList.find(p => p.name.toLowerCase() === "hoodie"),
         ].filter(Boolean);
 
         let initialDesigns = [];

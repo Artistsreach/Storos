@@ -11,8 +11,10 @@ import { DownloadCloud as ImportIcon, ListChecks as WizardIcon } from 'lucide-re
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import AuthModal from '../components/AuthModal';
 import { useStore } from '../contexts/StoreContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const StoreOwnerDashboard = () => {
+  const { isAuthenticated } = useAuth();
   const [isImportSelectorOpen, setIsImportSelectorOpen] = useState(false);
   const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
   const [currentImportSourceForWizard, setCurrentImportSourceForWizard] = useState(null);
@@ -124,7 +126,7 @@ const StoreOwnerDashboard = () => {
           </Button>
         </div>
         
-        <StoreList />
+        {isAuthenticated && <StoreList />}
       </motion.div>
       
       <footer className="mt-auto py-6 text-center text-sm text-muted-foreground">
