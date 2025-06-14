@@ -986,6 +986,21 @@ const prepareStoresForLocalStorage = (storesArray) => {
       const combinedProducts = [...generatedPodProducts, ...(newStoreData.products || [])];
       newStoreData.products = combinedProducts;
 
+      if (newStoreData.products.length > 0) {
+        const collections = await generateCollectionsForProducts(
+          newStoreData.type,
+          newStoreData.name,
+          newStoreData.products,
+          true, // isPrintOnDemand
+          false, // isDropshipping
+          updateProgressCallback,
+          80, // Progress from 80% to 100%
+          10,
+          generateId
+        );
+        newStoreData.collections = collections;
+      }
+
       setProductsToFinalize(combinedProducts);
       setStoreDataForFinalization(newStoreData);
       setIsGenerating(false); // Pause generation for user input

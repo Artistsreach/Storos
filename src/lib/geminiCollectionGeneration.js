@@ -42,12 +42,14 @@ export async function generateCollectionWithGemini(
     return null;
   };
  
-  const productList = products && products.length > 0 ? products.map(p => p.name).filter(name => name).join(', ') : 'various items';
+  const productList = products && products.length > 0 ? products.map(p => `- ${p.name}: ${p.description || 'No description.'}`).filter(Boolean).join('\n') : 'various items';
   const existingNamesString = existingCollectionNames.length > 0 ? `Do NOT use any of the following names: ${existingCollectionNames.join(', ')}.` : '';
 
   const prompt = `
     You are an AI assistant for an e-commerce store named "${storeName}" that sells "${productType}".
-    Based on the following products: ${productList}, suggest a compelling and UNIQUE collection name and a short, engaging description (max 2 sentences) for a new collection.
+    Based on the following products (name and description): 
+${productList}
+Suggest a compelling and UNIQUE collection name and a short, engaging description (max 2 sentences) for a new collection.
     The collection should group related products or highlight a specific theme.
     ${existingNamesString}
     Provide the output in a JSON format like this:
