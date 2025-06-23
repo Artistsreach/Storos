@@ -148,3 +148,34 @@ export const imageSrcToBasics = (imageSrc) => {
     }
   });
 };
+
+/**
+ * Converts a File object to base64 data and MIME type using FileReader.
+ * @param {File} file - The file object.
+ * @returns {Promise<{base64ImageData: string, mimeType: string}>}
+ */
+export const fileToBasics = (file) => {
+  return new Promise((resolve, reject) => {
+    if (!file || !(file instanceof File)) {
+      return reject(new Error("Invalid file object provided."));
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      try {
+        const parts = dataUrl.split(',');
+        if (parts.length < 2) throw new Error("Invalid data URL structure from FileReader.");
+        const base64Data = parts[1];
+        resolve({ base64ImageData: base64Data, mimeType: file.type });
+      } catch (error) {
+        console.error("Error parsing data URL from FileReader:", dataUrl, error);
+        reject(new Error(`Invalid data URL format from FileReader: ${error.message}`));
+      }
+    };
+    reader.onerror = (error) => {
+      console.error("FileReader error:", error);
+      reject(new Error("Failed to read the file."));
+    };
+    reader.readAsDataURL(file);
+  });
+};

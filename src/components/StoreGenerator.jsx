@@ -269,7 +269,8 @@ const StoreGenerator = () => {
     const nicheDetails = getStoreNicheDetails(prompt);
 
     try {
-      await generateStore(prompt, storeName, nicheDetails, [], isPrintOnDemand, isDropshipping, contextFiles.map(f => f.file), dropshippingProducts);
+      // Pass the entire contextFiles array (of {file, previewUrl} objects), not just the files.
+      await generateStore(prompt, storeName, nicheDetails, [], isPrintOnDemand, isDropshipping, contextFiles, dropshippingProducts);
     } catch (error) {
       console.error("Error calling generateStore from StoreGenerator:", error);
       alert(`An error occurred during the store generation step: ${error.message}`);

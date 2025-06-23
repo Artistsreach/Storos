@@ -5,6 +5,7 @@
     pkgs.docker # Added Docker package
     pkgs.doas # Added the doas program
     pkgs.doas-sudo-shim # Added for sudo to work via doas
+    pkgs.gh
   ];
   idx.extensions = [
     "svelte.svelte-vscode"

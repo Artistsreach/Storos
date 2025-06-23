@@ -7,7 +7,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage
 import { useAuth } from './AuthContext'; // Import useAuth
 import { podProductsList } from '../lib/constants'; // For POD collection generation
 import { visualizeImageOnProductWithGemini } from '../lib/geminiImageGeneration'; // For POD collection generation
-import { imageSrcToBasics } from '../lib/imageUtils'; // Import from shared util
+import { imageSrcToBasics, fileToBasics } from '../lib/imageUtils'; // Import from shared util
 import { 
   generateStoreFromWizardData,
   generateStoreFromPromptData,
@@ -834,10 +834,25 @@ const prepareStoresForLocalStorage = (storesArray) => {
         let initialDesigns = [];
         if (targetPodProducts.length > 0) {
           const productsToProcess = targetPodProducts.slice(0, 6);
+          let referenceImage = null;
+          if (contextFiles && contextFiles.length > 0) {
+            const imageFileObject = contextFiles.find(f => f.file.type.startsWith('image/'));
+            if (imageFileObject) {
+              try {
+                const { base64ImageData, mimeType } = await fileToBasics(imageFileObject.file);
+                referenceImage = { base64Data: base64ImageData, mimeType };
+                setStatusMessage('Processing reference image...');
+              } catch (error) {
+                console.error("Error processing reference image:", error);
+                toast({ title: 'Image Error', description: 'Could not process the uploaded reference image.', variant: 'destructive' });
+                // Decide if we should stop or continue without the image. Let's continue for now.
+              }
+            }
+          }
           for (const [index, podProductInfo] of productsToProcess.entries()) {
             setProgress((index / productsToProcess.length) * 100);
             setStatusMessage(`Generating design for ${podProductInfo.name}...`);
-            const designResult = await generateImageFromPromptForPod({ prompt });
+            const designResult = await generateImageFromPromptForPod({ prompt, referenceImage });
             if (designResult && designResult.imageData) {
               const designUrl = `data:${designResult.imageMimeType};base64,${designResult.imageData}`;
               initialDesigns.push({
