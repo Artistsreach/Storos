@@ -2,7 +2,6 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useParams } from 'react-router-dom'; // useSearchParams no longer needed for 'edit'
 import { useStore } from '../contexts/StoreContext';
-import { useAuth } from '../contexts/AuthContext';
 // import StoreHeader from '../components/store/StoreHeader';
 // import StoreHero from '../components/store/StoreHero';
 // import ProductGrid from '../components/store/ProductGrid';
@@ -27,7 +26,6 @@ const StorePreview = () => {
   // Use updateStore from context instead of a separate updateStoreInContext
   // Assuming getStoreByName will be available in StoreContext
   const { getStoreByName, getStoreBySlug, getStoreById, currentStore: contextCurrentStore, setCurrentStore, updateStore, viewMode, isLoadingStores, user } = useStore(); 
-  const { loading: authLoading } = useAuth();
   const { toast } = useToast();
   
   const [store, setStore] = useState(null); // Local state for the store being previewed
@@ -306,7 +304,7 @@ const StorePreview = () => {
     }, 500);
   };
   
-  if (isLoadingStores || authLoading) {
+  if (isLoadingStores) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
