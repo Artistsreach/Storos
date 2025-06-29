@@ -175,12 +175,33 @@ src={isDarkMode
       
       {/* Desktop Navigation Items */}
       <nav className="hidden md:flex items-center gap-3">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm">
+              Create <ChevronDown className="ml-1 h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem asChild>
+              <Link to="/designer">Designer</Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <a href="https://www.musicmigo.com" target="_blank" rel="noopener noreferrer">Music</a>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/podcast">Podcast</Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/video">Video</Link>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <SubscribeButton 
+            className="px-3 py-1.5 rounded-full text-sm font-medium" 
+            showIcon={true} 
+        />
         {isAuthenticated && !loadingProfile && ( // Stripe related UI restored
           <>
-            <SubscribeButton 
-              className="px-3 py-1.5 rounded-full text-sm font-medium" 
-              showIcon={true} 
-            />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="rounded-full px-3 py-1.5 text-sm font-medium">
@@ -223,21 +244,37 @@ src={isDarkMode
           {isDarkMode ? <Moon className="h-5 w-5 text-muted-foreground" /> : <Sun className="h-5 w-5 text-muted-foreground" />}
         </div>
         {isAuthenticated ? (
-          <>
-            {user?.photoURL && ( // Use photoURL from Firebase user
-              <img 
-                src={user.photoURL} 
-                alt="User avatar" 
-                className="h-6 w-6 rounded-full" 
-              />
-            )}
-            <span className="text-sm text-muted-foreground hidden lg:inline"> {/* Show email on larger screens */}
-              {user?.email}
-            </span>
-            <Button variant="outline" size="sm" onClick={handleLogout}>
-              <LogOut className="mr-2 h-4 w-4" /> Logout
-            </Button>
-          </>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="flex items-center gap-2">
+                {user?.photoURL && (
+                  <img 
+                    src={user.photoURL} 
+                    alt="User avatar" 
+                    className="h-6 w-6 rounded-full" 
+                  />
+                )}
+                <span className="text-sm text-muted-foreground hidden lg:inline">
+                  {user?.email}
+                </span>
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {isSubscribed && (
+                <DropdownMenuItem onClick={handleManageBilling} disabled={isPortalLoading}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  {isPortalLoading ? 'Loading...' : 'Manage Billing'}
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Logout
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : (
           <>
             <Link to="/auth">
@@ -273,12 +310,33 @@ src={isDarkMode
           // Header height on small screens is approx 72px (logo h-10=40px + py-4=32px). 72px + 45px margin = 117px.
         >
           <nav className="flex flex-col gap-4">
-          {isAuthenticated && !loadingProfile && ( // Stripe related UI restored
-            <>
-              <SubscribeButton 
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="w-full justify-start px-3 py-2 text-base">
+                  Create <ChevronDown className="ml-auto h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem asChild>
+                  <Link to="/designer">Designer</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <a href="https://www.musicmigo.com" target="_blank" rel="noopener noreferrer">Music</a>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/podcast">Podcast</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/video">Video</Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <SubscribeButton 
                 className="w-full justify-start px-3 py-2 text-base" 
                 showIcon={true} 
-              />
+            />
+          {isAuthenticated && !loadingProfile && ( // Stripe related UI restored
+            <>
               {!isStripeConnected ? (
                 <Button variant="outline" onClick={handleCreateStripeConnectAccount} disabled={isStripeActionLoading} className="w-full justify-start px-3 py-2 text-base">
                   <ExternalLink className="mr-2 h-4 w-4" />

@@ -11,8 +11,10 @@ import { DownloadCloud as ImportIcon, ListChecks as WizardIcon } from 'lucide-re
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import AuthModal from '../components/AuthModal';
 import { useStore } from '../contexts/StoreContext';
+import { useLocation } from 'react-router-dom';
 
 const StoreOwnerDashboard = () => {
+  const location = useLocation();
   const [isImportSelectorOpen, setIsImportSelectorOpen] = useState(false);
   const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
   const [currentImportSourceForWizard, setCurrentImportSourceForWizard] = useState(null);
@@ -102,7 +104,7 @@ const StoreOwnerDashboard = () => {
             </TabsTrigger>
           </TabsList>
           <TabsContent value="ai-prompt">
-            <StoreGenerator />
+            <StoreGenerator generatedImage={location.state?.generatedImage} />
           </TabsContent>
           <TabsContent value="wizard">
             <StoreWizard />

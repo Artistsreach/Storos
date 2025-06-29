@@ -100,7 +100,7 @@ const getStoreNicheDetails = (promptText) => {
   return { ...storeNicheConfig["Default"], name: "General Store" }; // Fallback to default
 };
 
-const StoreGenerator = () => {
+const StoreGenerator = ({ generatedImage }) => {
   const [storeName, setStoreName] = useState('');
   const [prompt, setPrompt] = useState('');
   const [selectedExample, setSelectedExample] = useState(null);
@@ -130,6 +130,21 @@ const StoreGenerator = () => {
   const [suggestionError, setSuggestionError] = useState(null);
   const debouncedStoreName = useDebounce(storeName, 500);
 
+
+  useEffect(() => {
+    if (generatedImage) {
+      const byteString = atob(generatedImage.split(',')[1]);
+      const mimeString = generatedImage.split(',')[0].split(':')[1].split(';')[0];
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+      }
+      const blob = new Blob([ab], { type: mimeString });
+      const file = new File([blob], "design.png", { type: mimeString });
+      setContextFiles([{ file, previewUrl: generatedImage }]);
+    }
+  }, [generatedImage]);
 
   useEffect(() => {
     const fetchSuggestions = async () => {

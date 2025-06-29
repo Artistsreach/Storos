@@ -16,6 +16,10 @@ import AuthPage from './pages/AuthPage';
 import PricingPage from './pages/PricingPage';
 import OrderConfirmationPage from './pages/OrderConfirmationPage';
 import StoreDashboardPage from './pages/StoreDashboardPage'; // Import the new dashboard page
+import DesignerPage from './pages/DesignerPage';
+import MusicPage from './pages/MusicPage';
+import PodcastPage from './pages/PodcastPage';
+import VideoCreationPage from './pages/VideoCreationPage';
 
 // The index route is now the public-facing store owner dashboard.
 const IndexPageHandler = () => {
@@ -58,6 +62,22 @@ const routes = [
       {
         path: "pricing",
         element: <PricingPage />,
+      },
+      {
+        path: "designer",
+        element: <DesignerPage />,
+      },
+      {
+        path: "music",
+        element: <MusicPage />,
+      },
+      {
+        path: "podcast",
+        element: <PodcastPage />,
+      },
+      {
+        path: "video",
+        element: <VideoCreationPage />,
       },
       {
         path: ":storeName",

@@ -520,3 +520,95 @@ export async function generateCollectionImageWithGemini(collectionName, collecti
     throw new Error(`Collection image generation failed for "${collectionName}": ${error.message || "Unknown error"}`);
   }
 }
+
+export async function generateImage(prompt, ingredients = []) {
+  if (!prompt) throw new Error("Prompt is required.");
+  if (!GEMINI_API_KEY) throw new Error("Gemini API key not configured.");
+
+  const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+  
+  const contents = [{ text: prompt }];
+  ingredients.forEach(ingredient => {
+    contents.push({ inlineData: { mimeType: ingredient.mimeType, data: ingredient.data } });
+  });
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.0-flash-preview-image-generation",
+      contents: contents,
+      safetySettings,
+      config: { responseModalities: [Modality.TEXT, Modality.IMAGE] },
+    });
+
+    let imageData = null;
+    let textResponse = "";
+
+    if (response.candidates?.[0]?.content?.parts) {
+      for (const part of response.candidates[0].content.parts) {
+        if (part.text) {
+          textResponse += part.text;
+        } else if (part.inlineData?.data) {
+          imageData = part.inlineData.data;
+          break;
+        }
+      }
+    }
+
+    if (!imageData) {
+      throw new Error(textResponse || "Failed to generate image. No image data returned.");
+    }
+
+    return { imageData, text: textResponse };
+  } catch (error) {
+    console.error("[generateImage] Error:", error.message);
+    throw new Error(`Image generation failed: ${error.message || "Unknown error"}`);
+  }
+}
+
+export async function editImage(prompt, imageBase64, imageMimeType, ingredients = []) {
+  if (!prompt || !imageBase64 || !imageMimeType) {
+    throw new Error("Prompt, image data, and MIME type are required.");
+  }
+  if (!GEMINI_API_KEY) throw new Error("Gemini API key not configured.");
+
+  const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+  const contents = [
+    { text: prompt },
+    { inlineData: { mimeType: imageMimeType, data: imageBase64 } },
+  ];
+  ingredients.forEach(ingredient => {
+    contents.push({ inlineData: { mimeType: ingredient.mimeType, data: ingredient.data } });
+  });
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.0-flash-preview-image-generation",
+      contents,
+      safetySettings,
+      config: { responseModalities: [Modality.TEXT, Modality.IMAGE] },
+    });
+
+    let imageData = null;
+    let textResponse = "";
+
+    if (response.candidates?.[0]?.content?.parts) {
+      for (const part of response.candidates[0].content.parts) {
+        if (part.text) {
+          textResponse += part.text;
+        } else if (part.inlineData?.data) {
+          imageData = part.inlineData.data;
+          break;
+        }
+      }
+    }
+
+    if (!imageData) {
+      throw new Error(textResponse || "Failed to edit image. No image data returned.");
+    }
+
+    return { imageData, text: textResponse };
+  } catch (error) {
+    console.error("[editImage] Error:", error.message);
+    throw new Error(`Image editing failed: ${error.message || "Unknown error"}`);
+  }
+}
