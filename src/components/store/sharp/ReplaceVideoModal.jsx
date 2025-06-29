@@ -161,7 +161,7 @@ const ReplaceVideoModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[672px] bg-slate-900 border-slate-700">
+      <DialogContent className="w-[90vw] sm:max-w-[672px] bg-slate-900 border-slate-700">
         <DialogHeader className="text-left">
           <DialogTitle className="text-white font-mono uppercase tracking-wide">
             Replace Hero Video

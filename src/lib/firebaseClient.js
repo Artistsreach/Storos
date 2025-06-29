@@ -59,26 +59,21 @@ export const db = firestoreDb;
  */
 export async function isStoreNameTaken(storeName) {
   if (!storeName || typeof storeName !== 'string' || storeName.trim() === '') {
-    // An empty or invalid name isn't "taken", but it's not valid for a store.
-    // Form validation should catch empty names. This function checks for existence.
-    return false; 
+    return false;
   }
 
-  const slugToQuery = generateStoreUrl(storeName.trim()); // Use the same slug generation logic
+  const nameToQuery = storeName.trim().toLowerCase();
 
   try {
     const storesCollectionRef = collection(db, "stores");
-    // Query for documents where 'urlSlug' matches the generated slug.
-    // It's assumed 'urlSlug' is a field in your 'stores' documents and is kept unique.
-    const q = query(storesCollectionRef, where("urlSlug", "==", slugToQuery), limit(1));
+    
+    const q = query(storesCollectionRef, where("name_lowercase", "==", nameToQuery), limit(1));
     
     const querySnapshot = await getDocs(q);
     
-    return !querySnapshot.empty; // If snapshot is not empty, a store with this slug exists.
+    return !querySnapshot.empty;
   } catch (error) {
     console.error("Error checking store name availability in Firestore:", error);
-    // Depending on desired behavior, you might want to re-throw or return a specific error state.
-    // For now, re-throwing to indicate the check itself failed.
     throw new Error("Failed to check store name availability due to a database error.");
   }
 }

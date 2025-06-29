@@ -1,5 +1,4 @@
 import React from 'react';
-import SubscribeButton from '../components/SubscribeButton';
 import { Link } from 'react-router-dom'; // Assuming you use React Router for navigation
 import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/Header'; // Added Header import
@@ -31,9 +30,7 @@ const PricingPage = () => {
         {isAuthenticated ? (
           isSubscribed ? (
             <p>You are already subscribed!</p>
-          ) : (
-            <SubscribeButton />
-          )
+          ) : null
         ) : (
           <p>
             Please <Link to="/auth">log in or sign up</Link> to subscribe.

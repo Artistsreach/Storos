@@ -568,6 +568,7 @@ const prepareStoresForLocalStorage = (storesArray) => {
           logo_url_light: logoUrlLight,
           logo_url_dark: logoUrlDark,
           urlSlug: newStoreLocal.urlSlug, // Ensure urlSlug is saved to Firestore
+          name_lowercase: newStoreLocal.name.toLowerCase(),
           card_background_url: newStoreLocal.card_background_url,
         };
         
@@ -613,6 +614,7 @@ const prepareStoresForLocalStorage = (storesArray) => {
               images: productImages, 
               priceAmount: Number(localProduct.price) >= 0 ? Number(localProduct.price) : 0,
               currency: 'usd',
+              inventory: 10,
               variants: localProduct.variants || [],
               created_at: new Date(),
             };
@@ -895,6 +897,7 @@ const prepareStoresForLocalStorage = (storesArray) => {
           price: parseFloat(p.target_sale_price) || 0,
           images: p.product_photos,
           isDropshipping: true,
+          inventory: 10,
         }));
         newStoreData.products = formattedDropshippingProducts;
 
@@ -979,6 +982,7 @@ const prepareStoresForLocalStorage = (storesArray) => {
             images: [designImageUrl, visualizedProductDataUrl],
             variants: vizResult.productDetails.variants || [],
             isPrintOnDemand: true,
+            inventory: 10,
             podDetails: {
               originalDesignImageUrl: designImageUrl,
               designPrompt: prompt,
@@ -1075,6 +1079,7 @@ const generatePodCollectionFromDesign = async (originalDesignImageUrl, designPro
           description: vizResult.productDetails.description,
           images: [visualizedProductImageUrl],
           isPrintOnDemand: true,
+          inventory: 10,
           podDetails: {
             originalDesignImageUrl: originalDesignImageUrl,
             designPrompt: designPrompt,
@@ -1467,6 +1472,7 @@ const finalizeBigCommerceImportFromWizard = useCallback(async () => {
         price: p.variants?.edges[0]?.node?.price?.amount || '0', // Assuming price is a string in StoreWizard
         description: p.descriptionHtml ? p.descriptionHtml.replace(/<[^>]*>?/gm, '') : p.description || '', // Strip HTML from descriptionHtml or use description
         images: p.images?.edges.map(imgEdge => imgEdge.node.url) || [],
+        inventory: 10,
         variants: p.variants?.edges.map(vEdge => ({
           id: vEdge.node.id,
           title: vEdge.node.title,

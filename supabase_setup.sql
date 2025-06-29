@@ -2,8 +2,6 @@
 CREATE TABLE public.profiles (
   id UUID NOT NULL PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT, -- Can be useful to store, syncs with auth.users.email
-  stripe_account_id TEXT, -- To store the Stripe Connect Account ID (e.g., acct_xxxxxxxxxxxxxx)
-  stripe_account_details_submitted BOOLEAN DEFAULT FALSE, -- Track if Stripe onboarding is complete
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -85,8 +83,6 @@ CREATE TABLE public.platform_products (
   -- Platform's price representation (optional if relying solely on Stripe price)
   -- price_amount DECIMAL(10, 2), 
   -- currency VARCHAR(3),
-  stripe_product_id TEXT, -- Stripe Product ID (prod_xxxxxxxxxxxxxx)
-  stripe_default_price_id TEXT, -- Stripe Price ID (price_xxxxxxxxxxxxxx) for the default price
   -- Add other product attributes: tax_code (TEXT), shippable (BOOLEAN), active (BOOLEAN DEFAULT TRUE)
   -- For recurring products:
   -- price_type TEXT CHECK (price_type IN ('one_time', 'recurring')),

@@ -92,34 +92,34 @@ const DesignerPage = () => {
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-screen bg-black md:bg-gradient-to-b from-black to-white">
+    <div className="flex flex-col md:flex-row h-screen bg-background text-foreground">
       <Button variant="ghost" size="icon" className="absolute top-4 left-4 z-10 md:hidden" onClick={() => window.history.back()}>
-        <ArrowLeft className="text-white" />
+        <ArrowLeft />
       </Button>
       {/* Right Preview Area (Top on Mobile) */}
-      <main className="flex-1 flex items-center justify-center p-0 md:p-6 relative bg-black md:order-2" style={{ paddingTop: '60px' }}>
+      <main className="flex-1 flex items-center justify-center p-0 md:p-6 relative bg-background md:order-2" style={{ paddingTop: '60px' }}>
         {generatedImage && (
-          <div className="absolute top-0 left-0 right-0 bg-blue-600 text-white p-2 text-center md:hidden">
-            <Button className="bg-transparent hover:bg-blue-700">
+          <div className="absolute top-0 left-0 right-0 bg-primary text-primary-foreground p-2 text-center md:hidden">
+            <Button className="bg-transparent hover:bg-primary/90">
               <Sparkles className="mr-2 h-4 w-4" />
               Create Store with Design
             </Button>
           </div>
         )}
         <div className="w-full md:max-w-2xl aspect-square flex items-center justify-center relative">
-          {isLoading && <p className="text-white">Loading...</p>}
+          {isLoading && <p>Loading...</p>}
           {error && <p className="text-red-500">{error}</p>}
           {generatedImage && (
             <img src={generatedImage} alt="Generated result" className="max-w-full max-h-full object-contain" />
           )}
           {!isLoading && !error && !generatedImage && (
-            <div className="text-center text-gray-400">
+            <div className="text-center text-muted-foreground">
               <p>Your design will appear here.</p>
             </div>
           )}
           {generatedImage && (
             <div className="absolute top-4 right-4 hidden md:block">
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => navigate('/', { state: { generatedImage } })}>
+              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground" onClick={() => navigate('/', { state: { generatedImage } })}>
                 <Sparkles className="mr-2 h-4 w-4" />
                 Create Store with Design
               </Button>
@@ -132,7 +132,7 @@ const DesignerPage = () => {
                 value={editPrompt}
                 onChange={(e) => setEditPrompt(e.target.value)}
                     placeholder="Describe your edit..."
-                    className="bg-white/80 backdrop-blur-sm"
+                    className="bg-background/80 backdrop-blur-sm"
                   />
                   <Button 
                     onClick={async () => {
@@ -155,7 +155,7 @@ const DesignerPage = () => {
                     }
                   }} 
                   disabled={isLoading}
-                  className="bg-gray-200 hover:bg-gray-300 text-black"
+                  className="bg-secondary hover:bg-secondary/90 text-secondary-foreground"
                   >
                     Edit
                   </Button>
@@ -165,7 +165,7 @@ const DesignerPage = () => {
       </main>
 
       {/* Left Sidebar (Bottom on Mobile) */}
-      <aside className="w-full md:w-1/3 md:max-w-sm p-6 bg-white shadow-md relative md:order-1">
+      <aside className="w-full md:w-1/3 md:max-w-sm p-6 bg-card shadow-md relative md:order-1">
         <ScrollArea className="h-full">
           <div className="space-y-6 pb-20">
             <div className="hidden md:flex items-center justify-between">
@@ -173,7 +173,8 @@ const DesignerPage = () => {
                 <ArrowLeft />
               </Button>
               <h1 className="text-2xl font-bold">Designer</h1>
-              <img src="https://static.wixstatic.com/media/bd2e29_695f70787cc24db4891e63da7e7529b3~mv2.png" alt="Logo" className="h-8" />
+              <img src="https://static.wixstatic.com/media/bd2e29_695f70787cc24db4891e63da7e7529b3~mv2.png" alt="Logo" className="h-8 dark:hidden" />
+              <img src="https://static.wixstatic.com/media/bd2e29_20f2a8a94b7e492a9d76e0b8b14e623b~mv2.png" alt="Logo Dark" className="h-8 hidden dark:block" />
             </div>
             <div className="md:hidden text-center">
               
@@ -187,7 +188,7 @@ const DesignerPage = () => {
             {useOwnImage && (
               <div>
                 <h3 className="text-lg font-semibold">Upload Your Image</h3>
-                <p className="text-sm text-gray-500 mb-2">Upload an image to edit.</p>
+                <p className="text-sm text-muted-foreground mb-2">Upload an image to edit.</p>
                 <Input id="image-upload" type="file" accept="image/*" onChange={handleImageUpload} className="mt-2" />
                 {uploadedImage && (
                   <div className="mt-4">
@@ -216,7 +217,7 @@ const DesignerPage = () => {
 
             <div>
               <h3 className="text-lg font-semibold">Ingredients</h3>
-              <p className="text-sm text-gray-500 mb-2">Add up to 3 images to include in the generation.</p>
+              <p className="text-sm text-muted-foreground mb-2">Add up to 3 images to include in the generation.</p>
               <Input id="ingredient-upload" type="file" accept="image/*" multiple onChange={handleIngredientImageUpload} className="mt-2" />
               <div className="grid grid-cols-3 gap-2 mt-4">
                 {ingredientImages.map((img, index) => (
@@ -239,16 +240,16 @@ const DesignerPage = () => {
 
             <div>
               <h3 className="text-lg font-semibold">Reference Styles</h3>
-              <p className="text-sm text-gray-500 mb-2">Optionally select a style to influence the generation.</p>
+              <p className="text-sm text-muted-foreground mb-2">Optionally select a style to influence the generation.</p>
               <div className="grid grid-cols-2 gap-4">
                 {sampleReferences.map((ref) => (
                   <div 
                     key={ref.id} 
-                    className={`cursor-pointer border-2 rounded-lg overflow-hidden ${selectedReference?.id === ref.id ? 'border-blue-500' : 'border-transparent'}`}
+                    className={`cursor-pointer border-2 rounded-lg overflow-hidden ${selectedReference?.id === ref.id ? 'border-primary' : 'border-transparent'}`}
                     onClick={() => setSelectedReference(selectedReference?.id === ref.id ? null : ref)}
                   >
                     <img src={ref.imageUrl} alt={ref.name} className="w-full h-24 object-cover" />
-                    <p className="text-center text-sm p-1 bg-gray-100">{ref.name}</p>
+                    <p className="text-center text-sm p-1 bg-muted">{ref.name}</p>
                   </div>
                 ))}
               </div>

@@ -6,7 +6,6 @@ import { Button } from '../../components/ui/button';
 import { ShoppingCart, Star, Eye, Zap as BuyNowIcon, Edit } from 'lucide-react'; // Added Edit icon
 import { useStore } from '../../contexts/StoreContext';
 import { Link } from 'react-router-dom';
-import { stripePromise } from '../../lib/stripe';
 import InlineTextEdit from '../../components/ui/InlineTextEdit'; // Added import
 import ProductEditModal from './ProductEditModal'; // Importing the new modal
 import { useEffect } from 'react'; // Added useEffect
@@ -104,58 +103,29 @@ const ProductCard = ({ product, theme, index, storeName, storeId, isPublishedVie
     e.preventDefault();
     e.stopPropagation();
 
-    // The stripe_price_id is fetched by the backend function now, 
-    // but we can keep a client-side check if product object is expected to have it.
-    // For now, let's rely on the backend to check if the product has a valid Stripe price ID.
-    // if (!stripe_price_id) { 
-    //   setCheckoutError('This product is not available for purchase at the moment (missing local Stripe Price ID).');
-    //   console.error('Stripe Price ID is missing for product on client:', product);
-    //   return;
-    // }
-
     setIsCheckoutLoading(true);
     setCheckoutError(null);
 
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            // No Authorization header needed for public checkout usually
-            // 'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY // If function requires it
-          },
-          body: JSON.stringify({ 
-            platform_product_id: rawProductId, // Use platform_product_id
-            store_id: storeId,                 // Use store_id
-            quantity: 1 
-          }),
-        }
-      );
+      const createProductCheckoutSession = httpsCallable(functions, 'createProductCheckoutSession');
+      const result = await createProductCheckoutSession({
+        productName: name,
+        productDescription: description,
+        productImage: imageUrl,
+        amount: price * 100, // amount in cents
+        currency: 'usd',
+        storeOwnerId: currentStore.merchantId,
+      });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create checkout session.');
-      }
-
-      // The function now returns checkoutUrl directly
-      if (data.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
-      } else if (data.sessionId) { // Fallback if only sessionId is returned (older Stripe.js integration)
-        const stripe = await stripePromise;
-        const { error: stripeError } = await stripe.redirectToCheckout({ sessionId: data.sessionId });
-        if (stripeError) {
-          console.error('Stripe redirect error:', stripeError);
-          setCheckoutError(stripeError.message);
-        }
+      const data = result.data;
+      if (data && data.url) {
+        window.location.href = data.url;
       } else {
-        throw new Error('Checkout session created, but no URL or Session ID returned.');
+        throw new Error('Failed to create checkout session.');
       }
     } catch (err) {
-      console.error('Checkout error:', err);
-      setCheckoutError(err.message);
+      console.error("Checkout error:", err);
+      setCheckoutError(err.message || 'An unexpected error occurred.');
     } finally {
       setIsCheckoutLoading(false);
     }

@@ -9,10 +9,6 @@ import { Send, Settings2, X, MessageCircle, Mic, StopCircle } from 'lucide-react
 import ReactMarkdown from 'react-markdown';
 import { useNavigate } from 'react-router-dom'; 
 import ProductCardInChat from './ProductCardInChat';
-import { loadStripe } from '@stripe/stripe-js';
-
-// Initialize Stripe.js with your publishable key
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '');
 
 // Import the centralized product visualizer function
 import { generateProductVisualization } from '../../lib/productVisualizer';

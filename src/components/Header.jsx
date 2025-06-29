@@ -16,16 +16,17 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { functions } from '../lib/firebaseClient'; // Import Firebase functions instance
 import { httpsCallable } from 'firebase/functions'; // Import httpsCallable
+import OnboardingButton from './stripe/OnboardingButton';
+import ManageAccountButton from './stripe/ManageAccountButton';
 // import { supabase } from '../lib/supabaseClient'; // Removed Supabase import
-import SubscribeButton from '../components/SubscribeButton';
 
 const Header = () => {
   const { isAuthenticated, user, logout, session, subscriptionStatus, loadingProfile, profile } = useAuth(); // Changed signOut: firebaseSignOut to logout
   const navigate = useNavigate();
   const [isPortalLoading, setIsPortalLoading] = useState(false); // Uncommented Stripe related state
   const [portalError, setPortalError] = useState(null); // Uncommented Stripe related state
-  const [isStripeActionLoading, setIsStripeActionLoading] = useState(false); // Uncommented Stripe related state
-  const [stripeActionError, setStripeActionError] = useState(null); // Uncommented Stripe related state
+  const [isSubscriptionLoading, setIsSubscriptionLoading] = useState(false);
+  const [isConnectLoading, setIsConnectLoading] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // State for mobile menu
 
@@ -92,68 +93,61 @@ const Header = () => {
 
   const handleCreateStripeConnectAccount = async () => {
     if (!user) {
-      setStripeActionError("Authentication required.");
+      setPortalError("Authentication required.");
       return;
     }
-    setIsStripeActionLoading(true);
-    setStripeActionError(null);
+    setIsConnectLoading(true);
     try {
-      const createConnectAccount = httpsCallable(functions, 'stripeCreateConnectAccount');
-      // const idToken = await user.getIdToken();
-      // Pass user email for Stripe account creation if needed by the backend
-      const result = await createConnectAccount({ email: user.email }); 
+      const createConnectAccount = httpsCallable(functions, 'createConnectAccount');
+      const result = await createConnectAccount({ email: user.email });
       const data = result.data;
 
       if (data && data.accountLinkUrl) {
         window.location.href = data.accountLinkUrl;
       } else {
-        throw new Error(data.error || 'Failed to create Stripe Connect account link.');
+        throw new Error('Failed to retrieve the Stripe onboarding URL.');
       }
     } catch (err) {
-      console.error("Stripe Connect account creation error:", err);
-      setStripeActionError(err.message || 'An unexpected error occurred.');
+      console.error("Stripe Connect onboarding error:", err);
+      setPortalError(err.message || 'An unexpected error occurred.');
     } finally {
-      setIsStripeActionLoading(false);
+      setIsConnectLoading(false);
     }
   };
 
-  const handleManageStripeAccount = async () => {
-    if (!user || !profile?.stripe_account_id) {
-      setStripeActionError("Stripe account not connected or user not authenticated.");
+  const handleSubscribe = async () => {
+    if (!user) {
+      setPortalError("Authentication required.");
       return;
     }
-    setIsStripeActionLoading(true);
-    setStripeActionError(null);
+    setIsSubscriptionLoading(true);
     try {
-      const createLoginLink = httpsCallable(functions, 'stripeCreateLoginLink');
-      // const idToken = await user.getIdToken();
-      // Pass stripe_account_id to the cloud function
-      const result = await createLoginLink({ stripeAccountId: profile.stripe_account_id }); 
+      const createSubscriptionCheckout = httpsCallable(functions, 'createSubscriptionCheckout');
+      const result = await createSubscriptionCheckout({ priceId: 'price_1RPDinDktew9heHOLkkL3ZDv' });
       const data = result.data;
 
-      if (data && data.loginLinkUrl) {
-        window.location.href = data.loginLinkUrl;
+      if (data && data.url) {
+        window.location.href = data.url;
       } else {
-        throw new Error(data.error || 'Failed to create Stripe login link.');
+        throw new Error('Failed to retrieve the Stripe checkout URL.');
       }
     } catch (err) {
-      console.error("Stripe login link error:", err);
-      setStripeActionError(err.message || 'An unexpected error occurred.');
+      console.error("Stripe subscription error:", err);
+      setPortalError(err.message || 'An unexpected error occurred.');
     } finally {
-      setIsStripeActionLoading(false);
+      setIsSubscriptionLoading(false);
     }
   };
 
   return (
     <>
-      {/* Announcement Bar - Restored */}
+      {/* Announcement Bar - Functionality Removed */}
       {!loadingProfile && isAuthenticated && !(profile?.stripe_account_id && profile?.stripe_account_details_submitted) && ( // Added isAuthenticated check for announcement bar
         <div className="bg-foreground text-background py-2 px-4 text-center text-sm dark:bg-blue-700 dark:text-white">
-          <button onClick={handleCreateStripeConnectAccount} disabled={isStripeActionLoading} className="relative hover:underline focus:outline-none">
-            {isStripeActionLoading ? 'Processing...' : "Create Your Business"}
+          <button onClick={handleCreateStripeConnectAccount} disabled={isConnectLoading} className="relative hover:underline focus:outline-none">
+            {isConnectLoading ? 'Processing...' : 'Create Your Business'}
             <MousePointer2 className="absolute bottom-[-10px] right-[-13px] h-4 w-4 text-white" />
           </button>
-          {stripeActionError && <p className="text-xs text-destructive mt-1">{stripeActionError}</p>}
         </div>
       )}
       <motion.header
@@ -175,6 +169,11 @@ src={isDarkMode
       
       {/* Desktop Navigation Items */}
       <nav className="hidden md:flex items-center gap-3">
+        {!isSubscribed && (
+          <Button onClick={handleSubscribe} disabled={isSubscriptionLoading}>
+            {isSubscriptionLoading ? 'Processing...' : 'Subscribe to Pro'}
+          </Button>
+        )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm">
@@ -196,10 +195,6 @@ src={isDarkMode
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <SubscribeButton 
-            className="px-3 py-1.5 rounded-full text-sm font-medium" 
-            showIcon={true} 
-        />
         {isAuthenticated && !loadingProfile && ( // Stripe related UI restored
           <>
             <DropdownMenu>
@@ -212,14 +207,12 @@ src={isDarkMode
                 <DropdownMenuLabel>Stripe Connect</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {!isStripeConnected ? (
-                  <DropdownMenuItem onClick={handleCreateStripeConnectAccount} disabled={isStripeActionLoading}>
-                    <ExternalLink className="mr-2 h-4 w-4" />
-                    {isStripeActionLoading ? 'Processing...' : 'Create Business Account'}
+                  <DropdownMenuItem>
+                    <OnboardingButton />
                   </DropdownMenuItem>
                 ) : (
-                  <DropdownMenuItem onClick={handleManageStripeAccount} disabled={isStripeActionLoading}>
-                    <ExternalLink className="mr-2 h-4 w-4" /> {/* Changed Icon to ExternalLink for consistency */}
-                    {isStripeActionLoading ? 'Processing...' : 'Dashboard'}
+                  <DropdownMenuItem>
+                    <ManageAccountButton />
                   </DropdownMenuItem>
                 )}
                 {isSubscribed && (
@@ -228,7 +221,6 @@ src={isDarkMode
                     {isPortalLoading ? 'Loading...' : 'Manage Billing'}
                   </DropdownMenuItem>
                 )}
-                {stripeActionError && <DropdownMenuItem disabled><p className="text-xs text-destructive">{stripeActionError}</p></DropdownMenuItem>}
                 {portalError && <DropdownMenuItem disabled><p className="text-xs text-destructive">{portalError}</p></DropdownMenuItem>}
               </DropdownMenuContent>
             </DropdownMenu>
@@ -331,29 +323,18 @@ src={isDarkMode
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <SubscribeButton 
-                className="w-full justify-start px-3 py-2 text-base" 
-                showIcon={true} 
-            />
           {isAuthenticated && !loadingProfile && ( // Stripe related UI restored
             <>
               {!isStripeConnected ? (
-                <Button variant="outline" onClick={handleCreateStripeConnectAccount} disabled={isStripeActionLoading} className="w-full justify-start px-3 py-2 text-base">
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  {isStripeActionLoading ? 'Processing...' : 'Create Business Account'}
-                </Button>
+                <OnboardingButton />
               ) : (
-                <Button variant="outline" onClick={handleManageStripeAccount} disabled={isStripeActionLoading} className="w-full justify-start px-3 py-2 text-base">
-                  <ExternalLink className="mr-2 h-4 w-4" /> {/* Changed Icon to ExternalLink for consistency */}
-                  {isStripeActionLoading ? 'Processing...' : 'Dashboard'}
-                </Button>
+                <ManageAccountButton />
               )}
               {isSubscribed && (
                 <Button variant="outline" onClick={handleManageBilling} disabled={isPortalLoading} className="w-full justify-start px-3 py-2 text-base">
                   <Settings className="mr-2 h-4 w-4" /> {isPortalLoading ? 'Loading...' : 'Manage Billing'}
                 </Button>
               )}
-               {stripeActionError && <p className="text-xs text-destructive px-3 py-1">{stripeActionError}</p>}
                {portalError && <p className="text-xs text-destructive px-3 py-1">{portalError}</p>}
             </>
           )}

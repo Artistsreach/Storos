@@ -50,12 +50,6 @@
       "fileHash": "25b5b3ba",
       "needsInterop": false
     },
-    "@stripe/stripe-js": {
-      "src": "../../node_modules/@stripe/stripe-js/lib/index.mjs",
-      "file": "@stripe_stripe-js.js",
-      "fileHash": "ac8a98c9",
-      "needsInterop": false
-    },
     "firebase/storage": {
       "src": "../../node_modules/firebase/storage/dist/esm/index.esm.js",
       "file": "firebase_storage.js",

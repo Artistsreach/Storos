@@ -349,6 +349,11 @@ const ProductDetail = () => {
       toast({ title: "Error", description: "Product or store data is incomplete for checkout.", variant: "destructive" });
       return;
     }
+    if (!store.merchant_id) {
+      console.error("Store merchant_id is missing.", store);
+      toast({ title: "Error", description: "Store owner information is missing.", variant: "destructive" });
+      return;
+    }
     setIsCreatingCheckout(true);
     try {
       const galleryImageUrls = imageGallery
@@ -356,37 +361,22 @@ const ProductDetail = () => {
         .filter(url => url && !url.includes('via.placeholder.com') && !url.startsWith('data:'))
         .slice(0, 8);
       
-      const productPageUrl = `${window.location.origin}/${storeName}/product/${productIdFromUrl}`;
-      
-      const createStripePaymentLinkFunction = httpsCallable(functions, 'createStripePaymentLink');
-      
-      const params = {
+      const createProductCheckoutSession = httpsCallable(functions, 'createProductCheckoutSession');
+      const result = await createProductCheckoutSession({
         productName: product.name,
-        description: product.description || `High-quality ${product.name}`,
-        images: galleryImageUrls.length > 0 ? galleryImageUrls : (displayImageUrl && !displayImageUrl.includes('via.placeholder.com') && !displayImageUrl.startsWith('data:') ? [displayImageUrl] : []),
-        unitAmount: Math.round(displayPrice * 100),
+        productDescription: product.description,
+        productImage: displayImageUrl,
+        amount: displayPrice * 100, // amount in cents
         currency: displayCurrencyCode.toLowerCase(),
-        productUrl: productPageUrl,
-        productMetadata: {
-          productId: product.id,
-          storeId: store.id,
-          storeName: store.name,
-        },
-        quantity: quantity,
-        successUrl: `${window.location.origin}/order-confirmation?storeId=${store.id}&source=paymentlink&product_id=${product.id}`,
-      };
+        storeOwnerId: store.merchant_id,
+      });
 
-      const result = await createStripePaymentLinkFunction(params);
-      const { paymentLinkUrl, error: functionError } = result.data;
-
-      if (functionError) {
-        throw new Error(functionError.message || 'Failed to create Stripe Payment Link.');
+      const data = result.data;
+      if (data && data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('Failed to create checkout session.');
       }
-      if (!paymentLinkUrl) {
-        throw new Error('Stripe Payment Link URL not received.');
-      }
-
-      window.location.href = paymentLinkUrl;
     } catch (error) {
       console.error("Error creating Stripe Payment Link or redirecting:", error);
       toast({ title: "Checkout Setup Failed", description: error.message || "Could not prepare for checkout.", variant: "destructive" });
@@ -582,15 +572,7 @@ const ProductDetail = () => {
   const displayPrice = currentResolvedSku?.price?.amount !== undefined ? parseFloat(currentResolvedSku.price.amount) : product.price;
   const displayCurrencyCode = currentResolvedSku?.price?.currencyCode || product.currencyCode || 'USD';
   
-  // Prioritize inventory_count, then stock, then availableForSale
-  let productStock;
-  if (product.inventory_count !== undefined) {
-    productStock = product.inventory_count;
-  } else if (product.stock !== undefined) {
-    productStock = product.stock;
-  } else {
-    productStock = product.availableForSale ? 1 : 0; 
-  }
+  const productStock = 10;
   
   const themePrimaryColor = store?.theme?.primaryColor || '#000000';
 

@@ -80,7 +80,7 @@ export const AuthProvider = ({ children }) => {
     loadingRole: loading, // Corresponds to 'loadingRole' in ProtectedRoute
     logout, // Add logout function to context
     // Mock subscriptionStatus for now, can be integrated later
-    subscriptionStatus: 'active', 
+    subscriptionStatus: 'inactive', 
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

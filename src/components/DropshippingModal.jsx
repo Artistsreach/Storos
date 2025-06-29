@@ -31,16 +31,12 @@ const DropshippingModal = ({ isOpen, onClose, onAddProducts }) => {
     if (!searchTerm.trim()) return;
     setIsLoading(true);
     setProducts([]);
-
     try {
-      // Use the Firebase Function proxy
       const response = await fetch(`https://us-central1-freshfront-c3181.cloudfunctions.net/aliexpressProxy?keywords=${encodeURIComponent(searchTerm)}`);
       const data = await response.json();
-
-      if (data && data.products && Array.isArray(data.products.product)) {
-        setProducts(data.products.product);
+      if (data.result && data.result.docs) {
+        setProducts(data.result.docs);
       } else {
-        // If the expected structure is not there, log the actual response for debugging
         console.warn("Unexpected API response structure:", data);
         setProducts([]);
       }
@@ -52,38 +48,17 @@ const DropshippingModal = ({ isOpen, onClose, onAddProducts }) => {
     }
   };
 
-  const handleProductSelect = async (product) => {
+  const handleProductSelect = (product) => {
     const isSelected = selectedProducts.some(p => p.product_id === product.product_id);
-
     if (isSelected) {
       setSelectedProducts(prev => prev.filter(p => p.product_id !== product.product_id));
     } else {
       setSelectedProducts(prev => [...prev, product]);
-      if (!detailedProducts[product.product_id]) {
-        try {
-          const response = await fetch(`https://us-central1-freshfront-c3181.cloudfunctions.net/aliexpressProxy?productId=${product.product_id}`);
-          const data = await response.json();
-          if (data && data.product_description) {
-            setDetailedProducts(prev => ({ ...prev, [product.product_id]: data }));
-          }
-        } catch (error) {
-          console.error('Error fetching product details:', error);
-        }
-      }
     }
   };
 
   const handleAddSelectedProducts = () => {
-    const productsWithDetails = selectedProducts.map(p => {
-      const details = detailedProducts[p.product_id] || {};
-      return {
-        ...p,
-        ...details,
-        // Ensure product_photos from details is used if available
-        product_photos: details.product_photos || [p.product_main_image_url],
-      };
-    });
-    onAddProducts(productsWithDetails);
+    onAddProducts(selectedProducts);
     onClose();
   };
 
@@ -109,42 +84,33 @@ const DropshippingModal = ({ isOpen, onClose, onAddProducts }) => {
           {isLoading && <div className="flex justify-center items-center h-full"><Loader2 className="animate-spin h-8 w-8" /></div>}
           {!isLoading && products.length === 0 && <div className="text-center text-gray-500">No products found.</div>}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {products.map((product) => {
-              const originalPrice = parseFloat(product.target_sale_price);
-              const sellingPrice = (originalPrice * 1.5).toFixed(2);
-              const profit = (sellingPrice - originalPrice).toFixed(2);
-
-              return (
-                <div
-                  key={product.product_id}
-                  className={`border rounded-lg p-2 cursor-pointer ${selectedProducts.some(p => p.product_id === product.product_id) ? 'border-blue-500 ring-2 ring-blue-500' : ''}`}
-                  onClick={() => handleProductSelect(product)}
-                >
-                  <img src={product.product_main_image_url} alt={product.product_title} className="w-full h-40 object-cover rounded-md mb-2" />
-                  <h3 className="text-sm font-semibold truncate">{product.product_title}</h3>
-                  <div className="text-lg font-bold text-blue-600">
-                    <span>${sellingPrice}</span>
-                    <span className="text-sm text-green-500 ml-2">(Profit: ${profit})</span>
-                  </div>
-                  <p className="text-xs text-gray-500 truncate">by {product.shop_name}</p>
-                  <div className="flex items-center mt-1">
-                    <StarRating rating={parseFloat(product.evaluate_rate) / 20} />
-                    <span className="text-xs text-gray-500 ml-1">({product.evaluate_rate})</span>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full mt-2"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      window.open(product.product_detail_url, '_blank');
-                    }}
-                  >
-                    Visit
-                  </Button>
+            {products.map((product) => (
+              <div
+                key={product.product_id}
+                className={`border rounded-lg p-2 cursor-pointer ${selectedProducts.some(p => p.product_id === product.product_id) ? 'border-blue-500 ring-2 ring-blue-500' : ''}`}
+                onClick={() => handleProductSelect(product)}
+              >
+                <img src={product.product_main_image_url} alt={product.product_title} className="w-full h-40 object-cover rounded-md mb-2" />
+                <h3 className="text-sm font-semibold truncate">{product.product_title}</h3>
+                <p className="text-lg font-bold text-blue-600">${product.target_sale_price}</p>
+                <p className="text-xs text-gray-500 truncate">by {product.shop_name}</p>
+                <div className="flex items-center mt-1">
+                  <StarRating rating={parseFloat(product.evaluate_rate) / 20} />
+                  <span className="text-xs text-gray-500 ml-1">({product.evaluate_rate})</span>
                 </div>
-              );
-            })}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full mt-2"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(product.product_detail_url, '_blank');
+                  }}
+                >
+                  Visit
+                </Button>
+              </div>
+            ))}
           </div>
         </div>
         <DialogFooter className="p-4 border-t">
