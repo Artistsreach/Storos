@@ -153,10 +153,10 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
         const query = currentItem.title || currentItem.description || "abstract background"; // Use item title/desc for query
         try {
           console.log(`[Premium StoreFeatures] Fetching Pexels video for active feature "${query}"`);
-          const result = await searchPexelsVideos(query, 1);
-          if (result && result.videos && result.videos.length > 0) {
-            setCurrentPexelsVideoUrl(result.videos[0].videoUrl);
-            setCurrentPexelsVideoPosterUrl(result.videos[0].imageUrl);
+          const result = await searchPexelsVideos(query);
+          if (result && result.video) {
+            setCurrentPexelsVideoUrl(result.video.videoUrl);
+            setCurrentPexelsVideoPosterUrl(result.video.imageUrl);
           } else {
             console.warn(`No Pexels video found for query: "${query}". Clearing previous Pexels video.`);
             setCurrentPexelsVideoUrl(null);

@@ -35,11 +35,11 @@ const VideoLeftSection = ({ store, isPublishedView = false }) => {
       if (!content?.videoLeftSectionVideoUrl) {
         const query = name || sectionTitle || sectionSubtitle || "craftsmanship";
         try {
-          const result = await searchPexelsVideos(query, 1);
-          if (result.videos && result.videos.length > 0 && result.videos[0].videoUrl) {
-            setDisplayVideoUrl(result.videos[0].videoUrl);
-            if (result.videos[0].imageUrl) {
-              setDisplayVideoPosterUrl(result.videos[0].imageUrl);
+          const result = await searchPexelsVideos(query);
+          if (result.video && result.video.videoUrl) {
+            setDisplayVideoUrl(result.video.videoUrl);
+            if (result.video.imageUrl) {
+              setDisplayVideoPosterUrl(result.video.imageUrl);
             } else {
               setDisplayVideoPosterUrl(fallbackPosterUrl); // Use fallback if Pexels video has no poster
             }
@@ -67,9 +67,9 @@ const VideoLeftSection = ({ store, isPublishedView = false }) => {
         try {
             const videoId = newVideoUrl.match(/pexels\.com\/video-files\/(\d+)\//i);
             if (videoId && videoId[1]) {
-                 const pexelsResult = await searchPexelsVideos(videoId[1], 1);
-                 if (pexelsResult.videos && pexelsResult.videos.length > 0 && pexelsResult.videos[0].imageUrl) {
-                    newPosterUrl = pexelsResult.videos[0].imageUrl;
+                 const pexelsResult = await searchPexelsVideos(videoId[1]);
+                 if (pexelsResult.video && pexelsResult.video.imageUrl) {
+                    newPosterUrl = pexelsResult.video.imageUrl;
                  }
             } else {
               newPosterUrl = ""; // Clear poster if not a Pexels video or no specific poster found

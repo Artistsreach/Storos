@@ -1,1 +1,0 @@
-import{o}from"./index-ed27cf41.js";const a=o("Crown",[["path",{d:"m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14",key:"zkxr6b"}]]),n=o("Minus",[["path",{d:"M5 12h14",key:"1ays0h"}]]);export{a as C,n as M};

@@ -3,23 +3,17 @@ import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import StoreCard from '../components/StoreCard';
 import { useStore } from '../contexts/StoreContext';
-import { Button } from '../components/ui/button';
-import { RefreshCw } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext'; // Import useAuth to get the correct user object
 
 const StoreList = () => {
   const { stores, loadStores, isLoadingStores } = useStore();
   const { user } = useAuth(); // Get user from AuthContext
 
-  const handleRefreshStores = () => {
-    console.log("[StoreList] handleRefreshStores called. User:", user);
-    if (user && user.uid) {
-      console.log(`[StoreList] Calling loadStores for user UID: ${user.uid}`);
+  useEffect(() => {
+    if (user?.uid) {
       loadStores(user.uid);
-    } else {
-      console.warn("[StoreList] handleRefreshStores: No user or user.uid found, cannot refresh stores.");
     }
-  };
+  }, [user, loadStores]);
 
   // Conditional rendering for loading and empty states is handled below,
   // so no need to return null early if stores.length is 0 initially.
@@ -35,11 +29,7 @@ const StoreList = () => {
       className="w-full max-w-6xl mx-auto mt-8"
     >
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">Your Stores</h2>
-        <Button onClick={handleRefreshStores} variant="outline" disabled={!user || isLoadingStores}>
-          <RefreshCw className={`mr-2 h-4 w-4 ${isLoadingStores ? 'animate-spin' : ''}`} />
-          {isLoadingStores ? 'Loading...' : 'Load Stores'}
-        </Button>
+        <h2 className="text-2xl font-bold">Browse Stores</h2>
       </div>
       {isLoadingStores && stores.length === 0 && (
         <div className="text-center py-10">

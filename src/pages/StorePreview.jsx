@@ -25,10 +25,11 @@ const StorePreview = () => {
   console.log('[StorePreview] storeName from params:', storeName);
   // Use updateStore from context instead of a separate updateStoreInContext
   // Assuming getStoreByName will be available in StoreContext
-  const { getStoreByName, getStoreById, currentStore: contextCurrentStore, setCurrentStore, updateStore, viewMode, isLoadingStores, user } = useStore(); 
+  const { getStoreByName, getStoreBySlug, getStoreById, currentStore: contextCurrentStore, setCurrentStore, updateStore, viewMode, isLoadingStores, user } = useStore(); 
   const { toast } = useToast();
   
   const [store, setStore] = useState(null); // Local state for the store being previewed
+  const [isFetchingStore, setIsFetchingStore] = useState(false);
   const [previewTemplateVersion, setPreviewTemplateVersion] = useState(null); // For manual template switching
 
   // Classic Template (formerly V1) Components - these will use the existing StoreHeader, StoreHero etc. states
@@ -105,111 +106,37 @@ const StorePreview = () => {
 
   // Effect to initialize and update the local 'store' state for preview
   useEffect(() => {
-    console.log('[StorePreview] Sync effect triggered. isLoadingStores:', isLoadingStores, 'storeName (slug from URL):', storeName, 'contextCurrentStore ID:', contextCurrentStore?.id, 'contextCurrentStore slug:', contextCurrentStore?.urlSlug);
-    
-    let sourceStoreData = null;
+    const fetchStoreData = async () => {
+      if (!storeName || isFetchingStore) return;
 
-    // Priority 1: If contextCurrentStore matches the slug from URL, use it.
-    // This is the most reliable way to get the store immediately after creation.
-    if (contextCurrentStore && storeName && contextCurrentStore.urlSlug === storeName) {
-      sourceStoreData = contextCurrentStore;
-      console.log('[StorePreview] Using contextCurrentStore for local preview state (slug match). ID:', sourceStoreData.id);
-    } 
-    // Priority 2: If not, and storeName (slug) is provided, try to find it in the stores list.
-    else if (storeName && !isLoadingStores) {
-      const fetchedStore = getStoreByName(storeName); // storeName is the slug
-      if (fetchedStore) {
-        sourceStoreData = fetchedStore;
-        console.log('[StorePreview] Fetched store by name (slug) for local preview state:', fetchedStore.name, 'ID:', fetchedStore.id);
-        // If context is stale or for a different store, update it.
-        // This ensures contextCurrentStore is also up-to-date if we found it via getStoreByName.
-        if (!contextCurrentStore || contextCurrentStore.id !== fetchedStore.id) {
-          setCurrentStore(fetchedStore); 
-          console.log('[StorePreview] Updated global currentStore with fetched data (found by slug in stores list).');
-        }
+      setIsFetchingStore(true);
+
+      let sourceStoreData = null;
+
+      if (contextCurrentStore && contextCurrentStore.urlSlug === storeName) {
+        sourceStoreData = contextCurrentStore;
       } else {
-        console.log('[StorePreview] Store not found by getStoreByName for slug:', storeName, "and contextCurrentStore didn't match.");
-        if (!isLoadingStores) { // Avoid toast if initial load is still happening
-          toast({ title: 'Store Not Found', description: `Could not find store with slug: ${storeName}`, variant: 'destructive' });
+        sourceStoreData = getStoreByName(storeName);
+        if (!sourceStoreData) {
+          sourceStoreData = await getStoreBySlug(storeName);
         }
-        setStore(null); // Explicitly clear local store
-        setPreviewTemplateVersion(null); // Clear template version
-        setIsAuthenticated(false); // Reset auth state
-        return; // Exit if no store data
       }
-    } 
-    // Priority 3: If storeName is not in URL, but contextCurrentStore exists (e.g. navigating back or direct link to a generic preview page)
-    // This case might be less relevant if storeName (slug) is always expected in the URL for specific store previews.
-    // else if (!storeName && contextCurrentStore) {
-    //   sourceStoreData = contextCurrentStore;
-    //   console.log('[StorePreview] No storeName in URL, using existing contextCurrentStore for preview.');
-    // }
-    else {
-      console.log('[StorePreview] Waiting for stores to load, or no storeName in URL, or contextCurrentStore does not match.');
-      if (!isLoadingStores && !storeName) { // Only clear if no storeName and not loading
-        setStore(null);
-        setPreviewTemplateVersion(null);
-        setIsAuthenticated(false);
-      }
-      // If storeName is present but isLoadingStores is true, or other conditions not met, just return and wait.
-      return;
-    }
 
-    if (sourceStoreData) {
-      // Default to 'classic' if no template_version is set, or if it's 'v1'
-      let uiTemplateVersion = sourceStoreData.template_version || 'v1'; 
-      if (uiTemplateVersion === 'v1') {
-        uiTemplateVersion = 'classic'; // Map 'v1' from DB to 'classic' for UI
-      }
-      // Any other value (e.g., 'modern', 'premium') remains as is.
-      // If a new store is created and template_version is null, it will default to 'classic'.
-      // If the task implies new stores should default to 'modern', this initial value for `uiTemplateVersion` might need adjustment.
-      // For now, sticking to 'v1' (old default) -> 'classic'.
-      
-      console.log(`[StorePreview] Setting local store state for preview. DB Template: ${sourceStoreData.template_version}, UI Template: ${uiTemplateVersion}, Store ID: ${sourceStoreData.id}`);
-      
-      const actualStoreUITemplate = sourceStoreData.template_version === 'v1' || !sourceStoreData.template_version 
-                                   ? 'classic' 
-                                   : sourceStoreData.template_version;
-
-      // Update local store state
-      setStore(sourceStoreData);
-
-      // Initialize previewTemplateVersion if it's null (first load) or if the store ID has changed.
-      // This ensures that navigating to a new store resets the preview to that store's actual template.
-      // It avoids resetting if only content changes for the same store, preserving user's temporary preview choice.
-      if (previewTemplateVersion === null || (store && store.id !== sourceStoreData.id)) {
-        console.log(`[StorePreview] Sync effect: Initializing/Resetting previewTemplateVersion to DB version: ${actualStoreUITemplate}`);
-        setPreviewTemplateVersion(actualStoreUITemplate);
-      }
-      // If the actual store template_version in the database changed (e.g. saved via EditStoreForm),
-      // then we should update previewTemplateVersion to reflect that saved change.
-      // Also, ensure that if we just loaded sourceStoreData, and it's different from the local 'store' state's ID,
-      // we reset previewTemplateVersion to the new store's actual template.
-      if (previewTemplateVersion === null || (store && store.id !== sourceStoreData.id) || (store && store.id === sourceStoreData.id && store.template_version !== sourceStoreData.template_version)) {
-        console.log(`[StorePreview] Sync effect: Initializing/Resetting previewTemplateVersion to DB version: ${actualStoreUITemplate} for store ${sourceStoreData.id}`);
-        setPreviewTemplateVersion(actualStoreUITemplate);
-      }
-      // Otherwise, if previewTemplateVersion is already set and store ID is same, user's temporary choice is kept.
-
-      // Pass key authentication logic
-      if (!sourceStoreData.pass_key || (user && sourceStoreData.merchant_id === user.id)) {
-        setIsAuthenticated(true);
-        console.log('[StorePreview] Authenticated (no passkey or user is owner).');
-      } else {
-        setIsAuthenticated(false);
-        console.log('[StorePreview] Not authenticated (passkey required).');
-      }
-    } else {
-      console.log('[StorePreview] No sourceStoreData available after checks, clearing local store.');
-      setStore(null);
-      setPreviewTemplateVersion(null);
-      setIsAuthenticated(false);
-      if (!isLoadingStores && storeName) { // Check storeName here
+      if (sourceStoreData) {
+        setStore(sourceStoreData);
+        if (!contextCurrentStore || contextCurrentStore.id !== sourceStoreData.id) {
+          setCurrentStore(sourceStoreData);
+        }
+      } else if (!isLoadingStores) {
         toast({ title: 'Store Not Found', description: `Could not find store with slug: ${storeName}`, variant: 'destructive' });
+        setStore(null);
       }
-    }
-  }, [storeName, getStoreByName, setCurrentStore, toast, isLoadingStores, user, contextCurrentStore]);
+      
+      setIsFetchingStore(false);
+    };
+
+    fetchStoreData();
+  }, [storeName, isLoadingStores, isFetchingStore, contextCurrentStore, getStoreByName, getStoreBySlug, setCurrentStore, toast]);
 
 
   // Effect to update CSS variables when store theme changes and handle sharp dark mode
@@ -281,8 +208,8 @@ const StorePreview = () => {
 
   // Effect for dynamically loading template components based on previewTemplateVersion
   useEffect(() => {
-    if (store && previewTemplateVersion) { // Only run if store data and a preview template are available
-      const templateVersionToLoad = previewTemplateVersion;
+    if (store) { // Only run if store data is available
+      const templateVersionToLoad = previewTemplateVersion || store.template_version || 'classic';
       console.log(`[StorePreview] Loading components for template: ${templateVersionToLoad}`);
 
       // Reset all template component states initially
@@ -610,13 +537,15 @@ const StorePreview = () => {
         ) : null /* Fallback or default rendering if needed, though covered by 'classic' default */ }
       </Suspense>
       
-      <PreviewControls
-        store={store}
-        onEdit={() => setIsEditOpen(true)}
-        currentTemplate={previewTemplateVersion}
-        onTemplateChange={setPreviewTemplateVersion} // Pass the setter
-        availableTemplates={['classic', 'modern', 'premium', 'sharp', 'fresh', 'sleek']} // Updated available templates
-      />
+      {user && store && user.uid === store.merchant_id && (
+        <PreviewControls
+          store={store}
+          onEdit={() => setIsEditOpen(true)}
+          currentTemplate={previewTemplateVersion}
+          onTemplateChange={setPreviewTemplateVersion} // Pass the setter
+          availableTemplates={['classic', 'modern', 'premium', 'sharp', 'fresh', 'sleek']} // Updated available templates
+        />
+      )}
       
       {!isPublished && store && ( // Ensure store is not null before rendering EditStoreForm
         <EditStoreForm 

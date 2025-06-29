@@ -211,9 +211,9 @@ const prepareStoresForLocalStorage = (storesArray) => {
   });
 };
 
-  const loadStores = useCallback(async (userId) => {
+  const loadStores = useCallback(async () => {
     setIsLoadingStores(true);
-    console.log(`[StoreContext] loadStores called for userId: ${userId || 'Guest'}`);
+    console.log(`[StoreContext] loadStores called for all public stores.`);
     let localStores = [];
     let cloudStores = [];
 
@@ -233,17 +233,15 @@ const prepareStoresForLocalStorage = (storesArray) => {
     // Set initial stores to local ones for immediate display
     setStores(localStores);
 
-    // 2. If user is logged in, asynchronously fetch from Firestore
-    if (userId) {
-      console.log(`[StoreContext] Fetching cloud stores for userId: ${userId}`);
-      try {
-        const storesRef = collection(db, 'stores');
-        const q = query(storesRef, where('merchant_id', '==', userId));
-        const querySnapshot = await getDocs(q);
+    // 2. Asynchronously fetch all stores from Firestore regardless of login status
+    console.log(`[StoreContext] Fetching all public stores from Firestore.`);
+    try {
+      const storesRef = collection(db, 'stores');
+      const querySnapshot = await getDocs(storesRef);
 
-        if (querySnapshot.empty) {
-          console.log('[StoreContext] No cloud stores found for this user.');
-        } else {
+      if (querySnapshot.empty) {
+        console.log('[StoreContext] No public stores found in Firestore.');
+      } else {
           console.log(`[StoreContext] Fetched ${querySnapshot.size} stores from Firestore. Processing details...`);
           const storesFromDb = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
@@ -329,9 +327,6 @@ const prepareStoresForLocalStorage = (storesArray) => {
           duration: 7000,
         });
       }
-    } else {
-      console.log('[StoreContext] No user logged in. Displaying local stores only.');
-    }
 
     setIsLoadingStores(false);
     console.log(`[StoreContext] loadStores finished. isLoadingStores: false. Final stores count: ${stores.length}`);
@@ -1233,9 +1228,9 @@ const fetchBigCommerceWizardSettings = useCallback(async (domain, token) => {
     setBigCommerceImportError(error.message || 'Failed to fetch store settings.');
     toast({ title: 'BigCommerce Settings Fetch Failed', description: error.message, variant: 'destructive' });
   } finally {
-    setIsFetchingBigCommercePreviewData(false);
+    setIsFetchingShopifyPreviewData(false);
   }
-}, [bigCommerceStoreDomain, bigCommerceApiToken, toast, setBigCommerceImportError, setBigCommercePreviewSettings, setIsFetchingBigCommercePreviewData]);
+}, [bigCommerceStoreDomain, bigCommerceApiToken, toast, setBigCommerceImportError, setBigCommercePreviewSettings, setIsFetchingShopifyPreviewData]);
 
 const startBigCommerceImportWizard = useCallback(async (domain, token) => {
   setBigCommerceStoreDomain(domain);
@@ -1537,6 +1532,68 @@ const finalizeBigCommerceImportFromWizard = useCallback(async () => {
     const foundStore = stores.find(store => generateStoreUrl(store.name) === name);
     return foundStore ? { ...foundStore } : null; // Return a new object
   }, [stores]);
+
+  const getStoreBySlug = async (slug) => {
+    console.log(`[StoreContext] getStoreBySlug called for slug: ${slug}`);
+    try {
+      const storesRef = collection(db, 'stores');
+      const q = query(storesRef, where('urlSlug', '==', slug));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        console.log(`[StoreContext] No store found with slug: ${slug}`);
+        return null;
+      }
+
+      const storeDoc = querySnapshot.docs[0];
+      const storeData = { id: storeDoc.id, ...storeDoc.data() };
+      console.log(`[StoreContext] Found store with slug ${slug}. Fetching details...`);
+
+      // Fetching products
+      const productsRef = collection(db, 'stores', storeData.id, 'products');
+      const productsSnapshot = await getDocs(productsRef);
+      const productsFromDb = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const mappedProducts = productsFromDb.map(dbProduct => ({
+        ...dbProduct,
+        price: dbProduct.priceAmount,
+        image: { src: { large: dbProduct.images?.[0] || '', medium: dbProduct.images?.[0] || '' } },
+        variants: dbProduct.variants || [],
+      }));
+
+      // Fetching collections
+      const collectionsRef = collection(db, 'stores', storeData.id, 'collections');
+      const collectionsSnapshot = await getDocs(collectionsRef);
+      const rawCollectionsFromDb = collectionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const mappedCollections = await Promise.all(rawCollectionsFromDb.map(async (collectionDoc) => {
+        const collectionProducts = mappedProducts.filter(p => collectionDoc.product_ids?.includes(p.id));
+        return {
+          ...collectionDoc,
+          image: { src: collectionDoc.image_url || '' },
+          products: collectionProducts,
+        };
+      }));
+
+      const fullStoreData = { ...storeData, products: mappedProducts, collections: mappedCollections };
+      
+      // Add the fetched store to the local state to avoid re-fetching
+      setStores(prevStores => {
+        const existingIndex = prevStores.findIndex(s => s.id === fullStoreData.id);
+        if (existingIndex > -1) {
+          const updatedStores = [...prevStores];
+          updatedStores[existingIndex] = fullStoreData;
+          return updatedStores;
+        }
+        return [...prevStores, fullStoreData];
+      });
+
+
+      return fullStoreData;
+    } catch (error) {
+      console.error(`[StoreContext] Error fetching store by slug ${slug}:`, error);
+      toast({ title: 'Error Fetching Store', description: 'Could not retrieve store data from the server.', variant: 'destructive' });
+      return null;
+    }
+  };
   
   const getProductById = useCallback((storeId, productId) => {
     const store = getStoreById(storeId); // This will now use the useCallback version of getStoreById
@@ -2014,7 +2071,7 @@ const finalizeBigCommerceImportFromWizard = useCallback(async () => {
     generateStore, updateStoreTextContent, // Added updateStoreTextContent
     checkStoreNameAvailability, // Expose the new function
     // importShopifyStore, // Replaced by wizard functions
-    getStoreById, getStoreByName, updateStore, deleteStore, setCurrentStore, updateStorePassKey, assignStoreManager, updateStoreTemplateVersion,
+    getStoreById, getStoreByName, getStoreBySlug, updateStore, deleteStore, setCurrentStore, updateStorePassKey, assignStoreManager, updateStoreTemplateVersion,
     getProductById, updateProductImage, generateStoreFromWizard,
     addToCart, removeFromCart, updateQuantity, clearCart,
     generateAIProducts: generateAIProductsData,

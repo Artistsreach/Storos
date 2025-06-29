@@ -25,7 +25,7 @@ const ReplaceVideoModal = ({ open, onOpenChange, storeId, currentVideoUrl, onVid
 
   // Pexels Search State
   const [pexelsQuery, setPexelsQuery] = useState('');
-  const [pexelsVideos, setPexelsVideos] = useState([]);
+  const [pexelsVideo, setPexelsVideo] = useState(null); // Changed to single video
   const [isPexelsLoading, setIsPexelsLoading] = useState(false);
   const [pexelsError, setPexelsError] = useState(null);
 
@@ -42,7 +42,7 @@ const ReplaceVideoModal = ({ open, onOpenChange, storeId, currentVideoUrl, onVid
       setIsAiLoading(false);
       setAiError(null);
       setPexelsQuery('');
-      setPexelsVideos([]);
+      setPexelsVideo(null); // Reset single video
       setIsPexelsLoading(false);
       setPexelsError(null);
       setUploadedVideoFile(null);
@@ -82,17 +82,15 @@ const ReplaceVideoModal = ({ open, onOpenChange, storeId, currentVideoUrl, onVid
     }
     setIsPexelsLoading(true);
     setPexelsError(null);
-    setPexelsVideos([]);
+    setPexelsVideo(null);
     try {
       const result = await searchPexelsVideos(pexelsQuery);
       if (result.error) {
         setPexelsError(result.error);
-        setPexelsVideos([]);
+      } else if (result.video) {
+        setPexelsVideo(result.video);
       } else {
-        setPexelsVideos(result.videos || []);
-        if ((result.videos || []).length === 0) {
-          setPexelsError('No videos found for your query.');
-        }
+        setPexelsError('No video found for your query.');
       }
     } catch (err) {
       console.error('Error searching Pexels videos:', err);
@@ -212,22 +210,19 @@ const ReplaceVideoModal = ({ open, onOpenChange, storeId, currentVideoUrl, onVid
               </Button>
             </div>
             {pexelsError && <p className="text-sm text-red-500 text-center">{pexelsError}</p>}
-            {isPexelsLoading && <p className="text-sm text-muted-foreground text-center">Loading Pexels videos...</p>}
+            {isPexelsLoading && <p className="text-sm text-muted-foreground text-center">Loading Pexels video...</p>}
             
-            {!isPexelsLoading && pexelsVideos.length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[300px] overflow-y-auto pr-2">
-                {pexelsVideos.map((video) => (
-                  <div 
-                    key={video.id} 
-                    className="relative aspect-video rounded-md overflow-hidden cursor-pointer group border hover:border-primary"
-                    onClick={() => handlePexelsVideoSelect(video.videoUrl)}
-                  >
-                    <img src={video.imageUrl} alt={`Pexels video by ${video.photographer}`} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
-                    <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-colors flex items-center justify-center">
-                      <p className="text-white text-xs text-center p-1 bg-black/50 rounded">Use Video</p>
-                    </div>
+            {!isPexelsLoading && pexelsVideo && (
+              <div className="flex justify-center">
+                <div 
+                  className="relative aspect-video rounded-md overflow-hidden cursor-pointer group border hover:border-primary w-full max-w-md"
+                  onClick={() => handlePexelsVideoSelect(pexelsVideo.videoUrl)}
+                >
+                  <img src={pexelsVideo.imageUrl} alt={`Pexels video by ${pexelsVideo.photographer}`} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                  <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-colors flex items-center justify-center">
+                    <p className="text-white text-lg font-semibold text-center p-2 bg-black/50 rounded">Use This Video</p>
                   </div>
-                ))}
+                </div>
               </div>
             )}
              <DialogFooter className="justify-start pt-4">

@@ -34,12 +34,14 @@ const ProductEditModal = ({ isOpen, onClose, product: initialProduct, onSave, st
     if (initialProduct) {
       setProductData({
         ...initialProduct,
-        name: initialProduct.product_title,
-        description: initialProduct.product_description || '',
-        price: initialProduct.target_sale_price * 1.5,
-        cost: initialProduct.target_sale_price,
-        shipping: initialProduct.shipping_cost || 0,
-        images: [initialProduct.product_main_image_url],
+        name: initialProduct.name || initialProduct.product_title,
+        description: initialProduct.description || initialProduct.product_description || '',
+        price: initialProduct.price || initialProduct.target_sale_price * 1.5,
+        cost: initialProduct.cost || initialProduct.target_sale_price,
+        shipping: initialProduct.shipping || initialProduct.shipping_cost || 0,
+        images: initialProduct.images || [initialProduct.product_main_image_url],
+        variants: initialProduct.variants || [],
+        inventory_count: initialProduct.inventory_count || 0,
       });
     }
   }, [initialProduct]);

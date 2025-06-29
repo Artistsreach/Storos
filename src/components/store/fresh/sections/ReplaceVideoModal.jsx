@@ -29,7 +29,7 @@ const FreshReplaceVideoModal = ({ open, onOpenChange, storeId, currentVideoUrl, 
 
   // Pexels Search State
   const [pexelsQuery, setPexelsQuery] = useState('');
-  const [pexelsVideos, setPexelsVideos] = useState([]);
+  const [pexelsVideo, setPexelsVideo] = useState(null); // Changed to single video
   const [isPexelsLoading, setIsPexelsLoading] = useState(false);
   const [pexelsError, setPexelsError] = useState(null);
 
@@ -41,7 +41,7 @@ const FreshReplaceVideoModal = ({ open, onOpenChange, storeId, currentVideoUrl, 
   useEffect(() => {
     if (open) {
       setAiPrompt(''); setIsAiLoading(false); setAiError(null);
-      setPexelsQuery(''); setPexelsVideos([]); setIsPexelsLoading(false); setPexelsError(null);
+      setPexelsQuery(''); setPexelsVideo(null); setIsPexelsLoading(false); setPexelsError(null);
       setUploadedVideoFile(null); setUploadError(null); setIsUploading(false);
     }
   }, [open]);
@@ -59,13 +59,14 @@ const FreshReplaceVideoModal = ({ open, onOpenChange, storeId, currentVideoUrl, 
 
   const handlePexelsSearch = async () => {
     if (!pexelsQuery.trim()) { setPexelsError('Please enter a search query.'); return; }
-    setIsPexelsLoading(true); setPexelsError(null); setPexelsVideos([]);
+    setIsPexelsLoading(true); setPexelsError(null); setPexelsVideo(null);
     try {
       const result = await searchPexelsVideos(pexelsQuery);
       if (result.error) { setPexelsError(result.error); }
-      else { 
-        setPexelsVideos(result.videos || []);
-        if ((result.videos || []).length === 0) setPexelsError('No videos found.');
+      else if (result.video) {
+        setPexelsVideo(result.video);
+      } else {
+        setPexelsError('No video found for your query.');
       }
     } catch (err) { setPexelsError(err.message || 'Failed to search Pexels.'); }
     finally { setIsPexelsLoading(false); }
@@ -148,18 +149,20 @@ const FreshReplaceVideoModal = ({ open, onOpenChange, storeId, currentVideoUrl, 
               </Button>
             </div>
             {pexelsError && <p className="text-xs text-red-500 text-center">{pexelsError}</p>}
-            {isPexelsLoading && <p className="text-xs text-slate-500 dark:text-slate-400 text-center">Loading videos...</p>}
+            {isPexelsLoading && <p className="text-xs text-slate-500 dark:text-slate-400 text-center">Loading video...</p>}
             
-            {!isPexelsLoading && pexelsVideos.length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-[280px] overflow-y-auto pr-1 rounded-lg border border-slate-200 dark:border-slate-700 p-2 bg-slate-100 dark:bg-slate-700/30">
-                {pexelsVideos.map((video) => (
-                  <div key={video.id} className="relative aspect-video rounded-md overflow-hidden cursor-pointer group border-2 border-transparent hover:border-primary transition-all" onClick={() => handlePexelsVideoSelect(video.videoUrl)} style={{'--hover-border-color': primaryColor}}>
-                    <img src={video.imageUrl} alt={`Pexels video by ${video.photographer}`} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
-                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                      <Play className="w-6 h-6 text-white" />
-                    </div>
+            {!isPexelsLoading && pexelsVideo && (
+              <div className="flex justify-center">
+                <div 
+                  className="relative aspect-video rounded-md overflow-hidden cursor-pointer group border-2 border-transparent hover:border-primary transition-all w-full max-w-md" 
+                  onClick={() => handlePexelsVideoSelect(pexelsVideo.videoUrl)} 
+                  style={{'--hover-border-color': primaryColor}}
+                >
+                  <img src={pexelsVideo.imageUrl} alt={`Pexels video by ${pexelsVideo.photographer}`} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                  <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                    <Play className="w-8 h-8 text-white" />
                   </div>
-                ))}
+                </div>
               </div>
             )}
              <DialogFooter className="justify-start pt-2">

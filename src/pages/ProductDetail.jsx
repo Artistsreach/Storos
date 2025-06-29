@@ -48,6 +48,7 @@ const ProductDetail = () => {
   const [isImageLoading, setIsImageLoading] = useState(false);
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
   const [imageEditPrompt, setImageEditPrompt] = useState('');
   const [isEditingImage, setIsEditingImage] = useState(false);
 
@@ -259,24 +260,33 @@ const ProductDetail = () => {
         if (currentProduct.images && Array.isArray(currentProduct.images) && currentProduct.images.length > 0) {
           gallerySource = currentProduct.images.map((imgUrl, index) => ({
             id: `gallery-img-${currentProduct.id}-${index}-${generateId()}`,
-            src: { medium: imgUrl, large: imgUrl }, 
+            src: { medium: imgUrl, large: imgUrl },
             alt: `${currentProduct.name || 'Product'} image ${index + 1}`
           }));
-        } else if (currentProduct.image && currentProduct.image.src) { 
+        } else if (currentProduct.image && currentProduct.image.src) {
           gallerySource = [{
             id: currentProduct.image.id || `gallery-img-${currentProduct.id}-0-${generateId()}`,
             src: currentProduct.image.src,
             alt: currentProduct.image.alt || `${currentProduct.name || 'Product'} image`
           }];
-        } else { 
+        } else {
           gallerySource = [{
             id: `placeholder-${currentProduct.id || generateId()}`,
-            src: { 
-              medium: `https://via.placeholder.com/600x600.png?text=${encodeURIComponent(currentProduct.name || 'Product')}`, 
-              large: `https://via.placeholder.com/600x600.png?text=${encodeURIComponent(currentProduct.name || 'Product')}` 
-            }, 
+            src: {
+              medium: `https://via.placeholder.com/600x600.png?text=${encodeURIComponent(currentProduct.name || 'Product')}`,
+              large: `https://via.placeholder.com/600x600.png?text=${encodeURIComponent(currentProduct.name || 'Product')}`
+            },
             alt: currentProduct.name || 'Product image'
           }];
+        }
+
+        if (currentProduct.video_url) {
+          gallerySource.push({
+            id: `video-${currentProduct.id}-${generateId()}`,
+            src: { medium: currentProduct.video_url, large: currentProduct.video_url },
+            alt: `${currentProduct.name} video`,
+            type: 'video',
+          });
         }
         setImageGallery(gallerySource);
         setActiveImageUrl(gallerySource[0]?.src?.large || gallerySource[0]?.src?.medium || '');
@@ -467,14 +477,30 @@ const ProductDetail = () => {
 
   const handleProductVideoGenerated = async (newVideoUrl) => {
     if (!store || !product) return;
+    
+    const videoObject = {
+      id: `video-${product.id}-${generateId()}`,
+      src: { medium: newVideoUrl, large: newVideoUrl },
+      alt: `${product.name} video`,
+      type: 'video',
+    };
+
+    const updatedGallery = [...imageGallery, videoObject];
+    setImageGallery(updatedGallery);
+
+    const allImageUrlsForProduct = updatedGallery
+      .filter(item => item.type !== 'video')
+      .map(img => img.src.large || img.src.medium);
+
     const updatedProducts = store.products.map(p =>
-      p.id === productId ? { ...p, video_url: newVideoUrl } : p
+      p.id === productId ? { ...p, video_url: newVideoUrl, images: allImageUrlsForProduct } : p
     );
+
     try {
       if (store && store.id) {
         await updateStore(store.id, { products: updatedProducts });
-        setCurrentProductVideoUrl(newVideoUrl); 
-        toast({ title: "Product Video Generated", description: "The video has been added to the product." });
+        setCurrentProductVideoUrl(newVideoUrl);
+        toast({ title: "Product Video Generated", description: "The video has been added to the product gallery." });
       } else {
         toast({ title: "Error", description: "Store ID not available for video update.", variant: "destructive" });
       }
@@ -643,12 +669,26 @@ const ProductDetail = () => {
             className="flex flex-col items-center" 
           >
             <div className="relative group w-full">
-              <img
-                key={activeImageUrl} 
-                src={displayImageUrl} 
-                alt={displayImageAlt}
-                className="w-full h-auto aspect-square object-cover rounded-xl shadow-lg border"
-              />
+              {activeImageUrl && imageGallery.find(item => (item.src.large === activeImageUrl || item.src.medium === activeImageUrl) && item.type === 'video') ? (
+                <video
+                  key={activeImageUrl}
+                  src={activeImageUrl}
+                  controls
+                  autoPlay
+                  loop
+                  playsInline
+                  className="w-full h-auto aspect-square object-cover rounded-xl shadow-lg border"
+                >
+                  Your browser does not support the video tag.
+                </video>
+              ) : (
+                <img
+                  key={activeImageUrl}
+                  src={displayImageUrl}
+                  alt={displayImageAlt}
+                  className="w-full h-auto aspect-square object-cover rounded-xl shadow-lg border"
+                />
+              )}
               {!isPublishedView && (
                 <>
                   <Button 
@@ -661,10 +701,13 @@ const ProductDetail = () => {
                   <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={() => setIsEditModalOpen(true)}
+                    onClick={() => {
+                      setEditingProduct(product);
+                      setIsEditModalOpen(true);
+                    }}
                     className="absolute top-16 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-md"
                   >
-                    <Edit3 className="mr-2 h-4 w-4" /> Edit Image
+                    <Edit3 className="mr-2 h-4 w-4" /> Edit Product
                   </Button>
                   <Button 
                     variant="outline" 
@@ -705,11 +748,24 @@ const ProductDetail = () => {
                                     ${(img.src.large === activeImageUrl || img.src.medium === activeImageUrl) ? 'border-primary shadow-sm' : 'border-transparent'}`}
                         onClick={() => setActiveImageUrl(img.src.large || img.src.medium)}
                       >
-                        <img 
-                          src={img.src.medium || img.src.large} 
-                          alt={img.alt || `Product image ${index + 1}`}
-                          className="w-full h-full object-cover" 
-                        />
+                        {img.type === 'video' ? (
+                          <div className="relative w-full h-full">
+                            <video
+                              src={img.src.medium || img.src.large}
+                              className="w-full h-full object-cover"
+                              poster={product.image?.src?.medium || `https://via.placeholder.com/600x600.png?text=${encodeURIComponent(product.name)}`}
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
+                              <VideoIcon className="h-8 w-8 text-white" />
+                            </div>
+                          </div>
+                        ) : (
+                          <img
+                            src={img.src.medium || img.src.large}
+                            alt={img.alt || `Product image ${index + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                        )}
                       </div>
                       {!isPublishedView && imageGallery.length > 1 && !img.src.medium.includes('via.placeholder.com') && ( 
                         <Button
@@ -741,27 +797,6 @@ const ProductDetail = () => {
             )}
           </motion.div> 
   
-  {currentProductVideoUrl && (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.3 }}
-      className="md:col-span-2 lg:col-span-1 aspect-video rounded-xl overflow-hidden shadow-lg border relative mt-4 md:mt-0"
-    >
-      <video
-        key={currentProductVideoUrl} 
-        src={currentProductVideoUrl}
-        controls
-        autoPlay={false} 
-        loop
-        playsInline
-        className="w-full h-full object-cover"
-        poster={displayImageUrl} 
-      >
-        Your browser does not support the video tag.
-      </video>
-    </motion.div>
-  )}
 
   <motion.div 
     initial={{ opacity: 0, x: 50 }}
@@ -985,39 +1020,23 @@ const ProductDetail = () => {
             </DialogContent>
           </Dialog>
 
-          <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Edit Product Image</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                {product && activeImageUrl && ( // Use activeImageUrl for preview
-                  <div className="flex items-center space-x-2 mb-4">
-                    <img src={activeImageUrl} alt="Current product to edit" className="h-20 w-20 object-cover rounded border"/>
-                    <p className="text-sm text-muted-foreground">Editing: {product.name}</p>
-                  </div>
-                )}
-                <Label htmlFor="editPrompt" className="text-left">Edit Instruction:</Label>
-                <Textarea
-                  id="editPrompt"
-                  placeholder="e.g., 'make the background blue', 'add sunglasses to the person'"
-                  value={imageEditPrompt}
-                  onChange={(e) => setImageEditPrompt(e.target.value)}
-                  rows={3}
-                  className="resize-none"
-                />
-              </div>
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button type="button" variant="outline" disabled={isEditingImage}>Cancel</Button>
-                </DialogClose>
-                <Button onClick={handleImageEditSave} disabled={isEditingImage || !imageEditPrompt.trim()}>
-                  {isEditingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand className="mr-2 h-4 w-4" />}
-                  Apply Edit
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          {editingProduct && (
+            <ProductEditModal
+              isOpen={isEditModalOpen}
+              onClose={() => setIsEditModalOpen(false)}
+              product={editingProduct}
+              onSave={async (updatedProduct) => {
+                if (!store || !product) return;
+                const updatedProducts = store.products.map(p =>
+                  p.id === updatedProduct.id ? { ...p, ...updatedProduct } : p
+                );
+                await updateStore(store.id, { products: updatedProducts });
+                setProduct(updatedProduct);
+                toast({ title: "Product Updated", description: "Your product has been successfully updated." });
+              }}
+              storeId={store.id}
+            />
+          )}
 
           {product && (
             <GenerateProductVideoModal

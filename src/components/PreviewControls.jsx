@@ -232,71 +232,19 @@ const PreviewControls = ({ store, onEdit, currentTemplate, onTemplateChange, ava
       transition={{ duration: 0.3 }}
       className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-md border-t z-50 py-3"
     >
-      <div className="container mx-auto px-4 flex items-center justify-between">
-        <Button 
-          variant="outline" 
-          size="icon" // Changed to icon
-          onClick={() => navigate('/')}
-          title="Back" // Added title for accessibility
-        >
-          <ArrowLeft className="h-4 w-4" /> {/* Removed margin */}
-        </Button>
-        
+      <div className="container mx-auto px-4 flex items-center justify-between overflow-x-auto">
         <div className="flex items-center gap-2">
-          {/* Controls previously shown only in edit mode are now always available when this bar is shown */}
           <Button 
             variant="outline" 
-            size="icon" // Changed to icon
-            onClick={handleCopyLink}
-            title="Copy Link" // Added title for accessibility
+            size="icon"
+            className="aspect-square"
+            onClick={() => navigate('/')}
+            title="Back"
           >
-            <Copy className="h-4 w-4" /> {/* Removed margin */}
+            <ArrowLeft className="h-4 w-4" />
           </Button>
           
-          {currentStore && currentStore.stripe_account_id ? (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleStripeDashboard}
-            >
-              Dashboard
-              <ExternalLink className="ml-2 h-4 w-4" />
-            </Button>
-          ) : (
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm">
-                  Dashboard
-                  <ExternalLink className="ml-2 h-4 w-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80">
-                <div className="grid gap-4">
-                  <div className="space-y-2">
-                    <h4 className="font-medium leading-none">No active business account</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Connect with Stripe to manage your payments and payouts.
-                    </p>
-                  </div>
-                  <Button onClick={handleStripeOnboarding}>
-                    Onboard with <img src="https://firebasestorage.googleapis.com/v0/b/freshfront-c3181.firebasestorage.app/o/Stripelogo.PNG?alt=media&token=7b989f42-b2c9-4a3c-a7e1-9ed280b6a9ea" alt="Stripe" className="inline-block h-4 ml-2" />
-                  </Button>
-                </div>
-              </PopoverContent>
-            </Popover>
-          )}
-
-          <Button asChild size="sm" variant="outline" disabled={!currentStore || !currentStore.name}>
-            <Link 
-              to={currentStore && currentStore.name ? `/${currentStore.name}/content-creation` : '#'}
-              state={{ storeData: currentStore }} // Pass currentStore in state
-            >
-              <Sparkles className="mr-2 h-4 w-4" />
-              Create
-            </Link>
-          </Button>
-          
-          <div className="flex items-center gap-1">
+          <div className="hidden sm:flex items-center gap-1">
             <Select
               value={currentTemplate || ''}
               onValueChange={handlePreviewTemplateChange}
@@ -326,31 +274,109 @@ const PreviewControls = ({ store, onEdit, currentTemplate, onTemplateChange, ava
             )}
           </div>
 
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <div className="sm:hidden">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <Palette className="h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-48">
+                <div className="grid gap-2">
+                  {availableTemplates.map((template) => (
+                    <Button
+                      key={template}
+                      variant={currentTemplate === template ? 'solid' : 'ghost'}
+                      onClick={() => handlePreviewTemplateChange(template)}
+                      className="w-full justify-start"
+                    >
+                      {template.charAt(0).toUpperCase() + template.slice(1)}
+                    </Button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+          <Button 
+            variant="outline" 
+            size="icon"
+            onClick={handleCopyLink}
+            title="Copy Link"
+          >
+            <Copy className="h-4 w-4" />
+          </Button>
+          
+          {currentStore && currentStore.stripe_account_id ? (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleStripeDashboard}
+            >
+              <span className="hidden sm:inline">Dashboard</span>
+              <ExternalLink className="sm:ml-2 h-4 w-4" />
+            </Button>
+          ) : (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <span className="hidden sm:inline">Dashboard</span>
+                  <ExternalLink className="sm:ml-2 h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80">
+                <div className="grid gap-4">
+                  <div className="space-y-2">
+                    <h4 className="font-medium leading-none">No active business account</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Connect with Stripe to manage your payments and payouts.
+                    </p>
+                  </div>
+                  <Button onClick={handleStripeOnboarding}>
+                    Onboard with <img src="https://firebasestorage.googleapis.com/v0/b/freshfront-c3181.firebasestorage.app/o/Stripelogo.PNG?alt=media&token=7b989f42-b2c9-4a3c-a7e1-9ed280b6a9ea" alt="Stripe" className="inline-block h-4 ml-2" />
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
+
+          <Button asChild size="sm" variant="outline" disabled={!currentStore || !currentStore.name}>
+            <Link 
+              to={currentStore && currentStore.name ? `/${currentStore.name}/content-creation` : '#'}
+              state={{ storeData: currentStore }}
+            >
+              <Sparkles className="sm:mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Create</span>
+            </Link>
+          </Button>
+
           <Button
             size="sm"
             onClick={handleEditStoreClick}
           >
-            <Edit className="mr-2 h-4 w-4" />
-            Edit
+            <Edit className="sm:mr-2 h-4 w-4" />
+            <span className="hidden sm:inline">Edit</span>
           </Button>
 
           <Button 
             size="sm"
-            onClick={handleToggleViewMode} // This will switch to 'published' mode
+            onClick={handleToggleViewMode}
             variant="outline"
             className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700"
           >
-            <Eye className="mr-2 h-4 w-4" /> Customer
+            <Eye className="sm:mr-2 h-4 w-4" />
+            <span className="hidden sm:inline">Customer</span>
           </Button>
 
-          {/* Publish button is now part of the admin controls bar */}
           <Button
             size="sm"
             onClick={handlePublish}
-            className="bg-green-500 hover:bg-green-600 text-white"
+            className="bg-green-500 hover:bg-green-600 text-white hidden sm:flex"
           >
-            <UploadCloud className="mr-2 h-4 w-4" />
-            Publish
+            <UploadCloud className="sm:mr-2 h-4 w-4" />
+            <span className="hidden sm:inline">Publish</span>
           </Button>
         </div>
       </div>
