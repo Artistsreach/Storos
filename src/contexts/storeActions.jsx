@@ -200,6 +200,7 @@ export const generateStoreFromWizardData = async (wizardData, { fetchPexelsImage
       name: storeName,
       template_version: templateVersion, 
       type: productType,
+      niche: productType,
       // Use heroDescription from finalContent if available, otherwise from baseAiContent
       description: finalContent.heroDescription || baseAiContent.heroDescription, 
       prompt: prompt || `A ${productType} store called ${storeName}`,
@@ -621,6 +622,7 @@ export const generateStoreFromPromptData = async (
     name: brandName,
     template_version: templateVersion, 
     type: storeType,
+    niche: storeType,
     description: (generatedHeroContent && !generatedHeroContent.error ? generatedHeroContent.heroDescription : baseAiContent.heroDescription),
     prompt: finalPrompt,
     products: generatedProducts,

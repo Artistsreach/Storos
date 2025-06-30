@@ -16,9 +16,7 @@ import {
   Edit, 
   Trash2, 
   ShoppingBag, 
-  Calendar,
-  Lock,
-  UserPlus // Added for assigning manager
+  Calendar
 } from 'lucide-react';
 import { Input } from '../components/ui/input';
 // import { fetchPexelsImages } from '../lib/utils.jsx'; // Commented out as it's not used and generateStoreUrl is from utils.js
@@ -38,10 +36,7 @@ import { useStore } from '../contexts/StoreContext';
 
 const StoreCard = ({ store }) => {
   const navigate = useNavigate();
-  const { deleteStore, updateStorePassKey, assignStoreManager, updateStoreTemplateVersion } = useStore(); 
-  const [passKey, setPassKey] = React.useState('');
-  const [managerEmail, setManagerEmail] = React.useState('');
-  const [isAssigningManager, setIsAssigningManager] = React.useState(false); // New state for toggling manager input
+  const { deleteStore, updateStoreTemplateVersion } = useStore(); 
 
   let productImageUrl = null;
   if (store.products && store.products.length > 0) {
@@ -51,24 +46,6 @@ const StoreCard = ({ store }) => {
       || (Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : null);
   }
   const backgroundImageUrl = productImageUrl || store.card_background_url;
-
-  const handleLockStore = () => {
-    if (updateStorePassKey && passKey && store.id) {
-      updateStorePassKey(store.id, passKey);
-      // Optionally clear the input after setting or give feedback
-      // setPassKey(''); 
-      // Consider adding a toast notification for success
-    }
-  };
-
-  const handleAssignManager = () => {
-    if (assignStoreManager && managerEmail && store.id) {
-      assignStoreManager(store.id, managerEmail);
-      // Optionally clear the input after setting or give feedback
-      // setManagerEmail('');
-      // Consider adding a toast notification for success
-    }
-  };
   
   const formatDate = (dateString) => {
     if (!dateString) {
@@ -91,8 +68,8 @@ const StoreCard = ({ store }) => {
     }
   };
   
-  const getStoreTypeIcon = (type) => {
-    switch (type) {
+  const getStoreTypeIcon = (niche) => {
+    switch (niche) {
       case 'fashion':
         return <ShoppingBag className="h-5 w-5 text-pink-500" />;
       case 'electronics':
@@ -135,12 +112,12 @@ const StoreCard = ({ store }) => {
                     <img src={store.logo_url} alt={`${store.name} logo`} className="w-full h-full object-cover" />
                   </div>
                 ) : (
-                  getStoreTypeIcon(store.type) // This will use its own colors, might need adjustment
+                  getStoreTypeIcon(store.niche) // This will use its own colors, might need adjustment
                 )}
                 <CardTitle className="text-xl text-white drop-shadow-md">{store.name}</CardTitle>
               </div>
               <span className="px-2 py-1 bg-white/10 text-white text-xs rounded-full backdrop-blur-xs">
-                {store.type.charAt(0).toUpperCase() + store.type.slice(1)}
+                {store.niche ? store.niche.charAt(0).toUpperCase() + store.niche.slice(1) : 'General'}
               </span>
             </div>
             <CardDescription className="line-clamp-2 mt-1 text-white drop-shadow-sm">
@@ -155,17 +132,28 @@ const StoreCard = ({ store }) => {
             
             <div className="grid grid-cols-2 gap-2">
             {store && store.products && Array.isArray(store.products) && store.products.length > 0 ? (
-              store.products.slice(0, 4).map((product) => ( 
-                <div 
-                  key={product.id} 
-                  className="bg-white/10 p-2 rounded-md text-xs flex flex-col backdrop-blur-xs"
-                >
-                  <span className="font-medium truncate text-white">{product.name || 'Unnamed Product'}</span>
-                  <span className="text-sky-300"> {/* Using a specific bright color for price */}
-                    {typeof product.price === 'number' ? `$${product.price.toFixed(2)}` : 'Price N/A'}
-                  </span>
-                </div>
-              ))
+              store.products.slice(0, 4).map((product) => {
+                const productImageUrl = product.image?.src?.medium 
+                  || product.image?.url 
+                  || (Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : null);
+                
+                return (
+                  <div 
+                    key={product.id} 
+                    className="bg-white/10 p-2 rounded-md text-xs flex items-center gap-2 backdrop-blur-xs"
+                  >
+                    {productImageUrl && (
+                      <img src={productImageUrl} alt={product.name} className="w-8 h-8 object-cover rounded-sm" />
+                    )}
+                    <div className="flex flex-col overflow-hidden">
+                      <span className="font-medium truncate text-white">{product.name || 'Unnamed Product'}</span>
+                      <span className="text-white">
+                        {typeof product.price === 'number' ? `$${product.price.toFixed(2)}` : 'Price N/A'}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
             ) : (
               <p className="text-xs text-white col-span-2">
                 {store && store.products && store.products.length === 0 ? 'No products yet.' : 'Product data unavailable.'}
@@ -229,63 +217,6 @@ const StoreCard = ({ store }) => {
                 </AlertDialogContent>
               </AlertDialog>
             </div>
-          </div>
-          <div className="flex w-full items-center gap-2 mt-2">
-            <Input 
-              type="password" 
-              placeholder="Set Pass Key" 
-              value={passKey}
-              onChange={(e) => setPassKey(e.target.value)}
-              className="h-8 text-xs flex-grow bg-neutral-700/60 dark:bg-neutral-800/60 border-neutral-500 dark:border-neutral-600 placeholder-zinc-400 text-white focus:outline-none"
-            />
-            <Button 
-              variant="outline" 
-              size="icon" 
-              className="h-8 w-8 bg-white/90 hover:bg-white text-slate-800 border-slate-300 hover:border-slate-400"
-              onClick={handleLockStore}
-              disabled={!passKey.trim()} 
-            >
-              <Lock className="h-4 w-4" />
-              <span className="sr-only">Set Pass Key</span>
-            </Button>
-          </div>
-
-          {/* Assign Manager Section */}
-          <div className="w-full mt-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full bg-white/10 hover:bg-white/20 text-gray-200 border-gray-500 hover:border-gray-400"
-              onClick={() => setIsAssigningManager(!isAssigningManager)}
-            >
-              {isAssigningManager ? 'Cancel Assignment' : 'Assign Manager'}
-            </Button>
-            {isAssigningManager && (
-              <div className="flex w-full items-center gap-2 mt-2">
-                <Input 
-                  type="email" 
-                  placeholder="Manager Email" 
-                  value={managerEmail}
-                  onChange={(e) => setManagerEmail(e.target.value)}
-                  className="h-8 text-xs flex-grow bg-neutral-700/60 dark:bg-neutral-800/60 border-neutral-500 dark:border-neutral-600 placeholder-zinc-400 text-white focus:outline-none"
-                />
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  className="h-8 w-8 bg-white/90 hover:bg-white text-slate-800 border-slate-300 hover:border-slate-400"
-                  onClick={() => {
-                    handleAssignManager();
-                    // Optionally hide the input after submission attempt
-                    // setIsAssigningManager(false); 
-                    // setManagerEmail('');
-                  }}
-                  disabled={!managerEmail.trim()} 
-                >
-                  <UserPlus className="h-4 w-4" />
-                  <span className="sr-only">Confirm Assign Manager</span>
-                </Button>
-              </div>
-            )}
           </div>
         </CardFooter>
         </div> 

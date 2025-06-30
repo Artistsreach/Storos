@@ -38,7 +38,7 @@ const PodcastPage = () => {
       setProgress(75);
       const ttsResponse = await ai.models.generateContent({
         model: "gemini-2.5-flash-preview-tts",
-        contents: [{ parts: [{ text: transcript }] }],
+        contents: transcript,
         config: {
           responseModalities: ['AUDIO'],
           speechConfig: {
@@ -62,9 +62,14 @@ const PodcastPage = () => {
         }
       });
 
-      const data = ttsResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-      const audioBuffer = Buffer.from(data, 'base64');
-      const audioBlob = new Blob([audioBuffer], { type: 'audio/wav' });
+      const data = ttsResponse.candidates[0].content.parts[0].inline_data.data;
+      const byteCharacters = atob(data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const audioBlob = new Blob([byteArray], { type: 'audio/wav' });
       const url = URL.createObjectURL(audioBlob);
       setAudioUrl(url);
       setLogs(prev => [...prev, "Audio generated."]);
@@ -115,6 +120,9 @@ const PodcastPage = () => {
         <div className="w-full max-w-md p-8 space-y-6 bg-white dark:bg-neutral-800 rounded-lg shadow-md">
           <h1 className="text-3xl font-bold text-center">Your Podcast</h1>
           <audio controls src={audioUrl} className="w-full" />
+          <Button onClick={() => setAudioUrl('')} className="w-full bg-blue-600 hover:bg-blue-700">
+            Go Back
+          </Button>
         </div>
       )}
     </div>

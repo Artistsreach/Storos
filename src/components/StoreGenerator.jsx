@@ -23,8 +23,8 @@ import DropshippingModal from './DropshippingModal';
 import ProductEditModal from './store/ProductEditModal';
 
 const promptExamples = [
-  "Create a luxury jewelry store called 'Elegance' with diamond rings and gold necklaces, featuring a dark, sophisticated theme.",
-  "Build a tech gadget store named 'FutureTech' with the latest smartphones and accessories, using a futuristic blue and silver color scheme.",
+  "Create a custom name jewelry store called 'Elegance' with diamond rings and gold necklaces, featuring a dark, sophisticated theme.",
+  "Build a website for my digital marketing, content creation and web development services, using modern glassmorphism and minimalist styles.",
   "Design an organic food market 'GreenHarvest' with fresh produce and healthy snacks, emphasizing natural textures and earthy tones.",
   "Make a trendy fashion boutique 'Urban Threads' with summer dresses and casual wear, aiming for a bright, minimalist aesthetic."
 ];
