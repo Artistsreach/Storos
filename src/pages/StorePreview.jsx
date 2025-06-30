@@ -32,6 +32,12 @@ const StorePreview = () => {
   const [isFetchingStore, setIsFetchingStore] = useState(false);
   const [previewTemplateVersion, setPreviewTemplateVersion] = useState(null); // For manual template switching
 
+  useEffect(() => {
+    if (store) {
+      setPreviewTemplateVersion(store.template_version);
+    }
+  }, [store]);
+
   // Classic Template (formerly V1) Components - these will use the existing StoreHeader, StoreHero etc. states
   
   // Modern Template Components

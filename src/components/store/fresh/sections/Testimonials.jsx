@@ -30,7 +30,7 @@ const TestimonialCard = ({ testimonial, className, isAdmin, onSave, index }) => 
   return (
     <motion.div
       className={cn(
-        "bg-white dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 p-6 rounded-2xl shadow-lg flex flex-col",
+        "bg-white dark:bg-neutral-700/50 border border-neutral-200 dark:border-neutral-600 p-6 rounded-2xl shadow-lg flex flex-col",
         className
       )}
       initial={{ opacity: 0, y: 20 }}
@@ -169,7 +169,7 @@ const StoreTestimonials = ({ store, isPublishedView = false }) => {
 
 
   return (
-    <section id={`testimonials-${storeId || 'store-testimonials'}`} className="py-16 md:py-24 bg-slate-50 dark:bg-slate-800">
+    <section id={`testimonials-${storeId || 'store-testimonials'}`} className="py-16 md:py-24 bg-neutral-50 dark:bg-neutral-800">
       <div className="container mx-auto px-4">
         <motion.h2 
           className="text-3xl font-bold tracking-tight text-center mb-12 md:mb-16 text-foreground"

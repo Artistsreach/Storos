@@ -433,7 +433,7 @@ The content should include:
 2.  A short, engaging subtitle (1-2 sentences).
 3.  3 to 4 feature items, each with:
     *   A unique and highly relevant emoji that visually represents the feature (e.g., ✨ for innovation,  for eco-friendly,  for smart tech). This emoji is mandatory and must be specific to the feature's theme.
-    *   A short, catchy, and descriptive title for the feature (2-5 words, e.g., "Innovative Designs", "Sustainable Materials", "Smart Home Solutions"). This title will be used to search for a relevant background video, so make it evocative.
+    *   A short, catchy, and descriptive title for the feature (2-5 words, e.g., "Innovative Designs", "Sustainable Materials", "Smart Home Solutions"). This title will be used to search for a relevant background video, so make it evocative. The features should be specific to the store's niche and not generic e-commerce benefits like "Fast Shipping" or "Secure Payments" unless they are a core, unique part of the brand.
     *   A brief description (10-20 words) explaining the benefit of the feature.
 4.  Up to 4 secondary feature items (the system will ensure 4 by adding defaults if fewer are provided by AI), each with:
     *   An \`iconName\` string representing a Lucide icon (e.g., "GlobeIcon", "AwardIcon", "UsersIcon", "HeartIcon"). Choose an icon name that best fits the feature. Examples: GlobeIcon, AwardIcon, UsersIcon, HeartIcon, PackageIcon, ShieldIcon, ZapIcon.
@@ -752,5 +752,126 @@ Return the description as a JSON object matching the schema.`;
   } catch (error) {
     console.error("Error generating product description:", error);
     return { error: `Error generating product description: ${error.message}` };
+  }
+}
+
+export async function generatePexelsVideoQuery(storeInfo) {
+  if (!apiKey) {
+    console.error("API Key not configured. Cannot generate Pexels video query.");
+    return { error: "API Key not configured." };
+  }
+
+  const genAI = new GoogleGenAI({ apiKey });
+
+  const pexelsQueryResponseSchema = {
+    type: Type.OBJECT,
+    properties: {
+      query: { type: Type.STRING, description: 'A concise and relevant search query for Pexels videos.' },
+    },
+    required: ['query'],
+  };
+
+  const { name, niche, description } = storeInfo;
+
+  let promptContent = `Generate a concise and relevant search query for Pexels videos for an online store.
+Store Name: ${name || 'N/A'}
+Niche: ${niche || 'General E-commerce'}
+Description/Keywords: ${description || 'A variety of products.'}
+
+The query should be 2-3 words and capture the essence of the store's brand and products.
+Return the query as a JSON object matching the schema.`;
+
+  try {
+    const response = await genAI.models.generateContent({
+      model: "gemini-2.0-flash",
+      contents: [{ role: "user", parts: [{text: promptContent}]}],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: pexelsQueryResponseSchema,
+      }
+    });
+
+    const responseText = response.text;
+    if (typeof responseText !== 'string' || responseText.trim() === '') {
+        console.error("Model did not return a text response for Pexels query. Response:", JSON.stringify(response));
+        throw new Error("Model response for Pexels query was empty or not a string.");
+    }
+
+    try {
+      const parsedContent = JSON.parse(responseText);
+      if (parsedContent && typeof parsedContent.query === 'string') {
+        return { query: parsedContent.query };
+      } else {
+        console.error("Parsed Pexels query is not in the expected format:", parsedContent);
+        return { error: "AI response was not in the expected format for Pexels query.", rawResponse: responseText };
+      }
+    } catch (parseError) {
+      console.error("Failed to parse JSON response for Pexels query:", responseText, "ParseError:", parseError);
+      return { error: "Failed to parse Pexels query from AI.", rawResponse: responseText };
+    }
+  } catch (error) {
+    console.error("Error generating Pexels video query:", error);
+    return { error: `Error generating Pexels video query: ${error.message}` };
+  }
+}
+
+export async function generateThemeColors(storeInfo) {
+  if (!apiKey) {
+    console.error("API Key not configured. Cannot generate theme colors.");
+    return { error: "API Key not configured." };
+  }
+
+  const genAI = new GoogleGenAI({ apiKey });
+
+  const themeColorsResponseSchema = {
+    type: Type.OBJECT,
+    properties: {
+      primaryColor: { type: Type.STRING, description: 'The hex code for the primary color.' },
+      secondaryColor: { type: Type.STRING, description: 'The hex code for the secondary color.' },
+    },
+    required: ['primaryColor', 'secondaryColor'],
+  };
+
+  const { name, niche, description } = storeInfo;
+
+  let promptContent = `Generate a primary and secondary color for a store's theme.
+Store Name: ${name || 'N/A'}
+Niche: ${niche || 'General E-commerce'}
+Description/Keywords: ${description || 'A variety of products.'}
+
+The colors should be represented as hex codes.
+Return the colors as a JSON object matching the schema.`;
+
+  try {
+    const response = await genAI.models.generateContent({
+      model: "gemini-2.0-flash",
+      contents: [{ role: "user", parts: [{text: promptContent}]}],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: themeColorsResponseSchema,
+      }
+    });
+
+    const responseText = response.text;
+    if (typeof responseText !== 'string' || responseText.trim() === '') {
+        console.error("Model did not return a text response for theme colors. Response:", JSON.stringify(response));
+        throw new Error("Model response for theme colors was empty or not a string.");
+    }
+
+    try {
+      const parsedContent = JSON.parse(responseText);
+      if (parsedContent && typeof parsedContent.primaryColor === 'string' && typeof parsedContent.secondaryColor === 'string') {
+        return { primaryColor: parsedContent.primaryColor, secondaryColor: parsedContent.secondaryColor };
+      } else {
+        console.error("Parsed theme colors are not in the expected format:", parsedContent);
+        return { error: "AI response was not in the expected format for theme colors.", rawResponse: responseText };
+      }
+    } catch (parseError) {
+      console.error("Failed to parse JSON response for theme colors:", responseText, "ParseError:", parseError);
+      return { error: "Failed to parse theme colors from AI.", rawResponse: responseText };
+    }
+  } catch (error) {
+    console.error("Error generating theme colors:", error);
+    return { error: `Error generating theme colors: ${error.message}` };
   }
 }

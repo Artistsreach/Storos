@@ -164,7 +164,7 @@ export const fetchPexelsVideos = async (query, perPage = 1, orientation = 'lands
 };
 
 import { GoogleGenAI, Modality, HarmCategory, HarmBlockThreshold } from "@google/genai"; // Import for actual Gemini call
-import { generateStoreFeaturesContent } from './gemini';
+import { generateStoreFeaturesContent, generatePexelsVideoQuery } from './gemini';
 
 
 export const generateImageWithGemini = async (prompt) => {
@@ -311,7 +311,8 @@ export const generateAIStoreContent = async (storeType, storeName, description =
       content.featureDescriptions = featuresContent.items.map(item => item.description);
       if (content.featureTitles.length > 0) {
         // Create a more descriptive query for the video
-        content.featuresVideoQuery = `${storeName} ${storeType} ${content.featureTitles[0]}`;
+        const pexelsQueryResponse = await generatePexelsVideoQuery(storeInfo);
+        content.featuresVideoQuery = pexelsQueryResponse.query || `${storeName} ${storeType} ${content.featureTitles[0]}`;
       }
     }
   } catch (error) {

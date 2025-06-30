@@ -966,7 +966,7 @@ const RealtimeChatbot = () => {
       {isOpen && (
         <Card className="fixed bottom-[96px] right-4 w-full max-w-md h-[70vh] max-h-[600px] shadow-xl z-[1000] flex flex-col bg-background border rounded-lg">
           <CardHeader className="flex flex-row items-center justify-between p-3 border-b">
-            <CardTitle className="text-md font-semibold">Gemini Assistant</CardTitle>
+            <CardTitle className="text-md font-semibold">AI Assistant</CardTitle>
             <div className="flex items-center gap-1">
               {(userRole === 'admin' || viewMode === 'edit') && ( // Updated condition
                 <Button variant="ghost" size="icon" onClick={toggleKnowledgeBaseInput} title="Set Knowledge Base">

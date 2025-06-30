@@ -34,7 +34,7 @@ const Footer = ({ store, isPublishedView = false }) => { // Added isPublishedVie
   const primaryColor = theme?.primaryColor || "#3B82F6";
 
   return (
-    <footer className="bg-slate-100 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700/50 text-slate-600 dark:text-slate-400 pt-16 pb-8">
+    <footer className="bg-neutral-100 dark:bg-neutral-900 border-t border-neutral-200 dark:border-neutral-700/50 text-neutral-600 dark:text-neutral-400 pt-16 pb-8">
       <div className="container mx-auto px-4 sm:px-6">
         <motion.div 
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-12"
@@ -49,7 +49,7 @@ const Footer = ({ store, isPublishedView = false }) => { // Added isPublishedVie
               {logoUrl && (
                 <img src={logoUrl} alt={`${name} Logo`} className="h-10 w-10 object-contain rounded-lg" />
               )}
-              <span className="font-semibold text-xl text-slate-800 dark:text-white group-hover:text-primary dark:group-hover:text-primary-light transition-colors">
+              <span className="font-semibold text-xl text-neutral-800 dark:text-white group-hover:text-primary dark:group-hover:text-primary-light transition-colors">
                 {name}
               </span>
             </Link>
@@ -73,7 +73,7 @@ const Footer = ({ store, isPublishedView = false }) => { // Added isPublishedVie
               identifier="content.footerNavigateTitle"
               isPublishedView={isPublishedView}
               as="h5"
-              className="font-semibold text-slate-700 dark:text-slate-200 mb-4 text-sm uppercase tracking-wider"
+              className="font-semibold text-neutral-700 dark:text-neutral-200 mb-4 text-sm uppercase tracking-wider"
             >
               {content?.footerNavigateTitle || "Navigate"}
             </InlineTextEdit>
@@ -104,7 +104,7 @@ const Footer = ({ store, isPublishedView = false }) => { // Added isPublishedVie
               identifier="content.footerConnectTitle"
               isPublishedView={isPublishedView}
               as="h5"
-              className="font-semibold text-slate-700 dark:text-slate-200 mb-4 text-sm uppercase tracking-wider"
+              className="font-semibold text-neutral-700 dark:text-neutral-200 mb-4 text-sm uppercase tracking-wider"
             >
               {content?.footerConnectTitle || "Connect"}
             </InlineTextEdit>
@@ -115,7 +115,7 @@ const Footer = ({ store, isPublishedView = false }) => { // Added isPublishedVie
                   href={social.href} 
                   target="_blank" 
                   rel="noopener noreferrer" 
-                  className="text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-primary-light transition-colors"
+                  className="text-neutral-500 dark:text-neutral-400 hover:text-primary dark:hover:text-primary-light transition-colors"
                   aria-label={social.platform}
                 >
                   <social.icon className="w-5 h-5" />
@@ -136,7 +136,7 @@ const Footer = ({ store, isPublishedView = false }) => { // Added isPublishedVie
         </motion.div>
 
         <motion.div 
-          className="border-t border-slate-200/80 dark:border-slate-700/60 pt-8 text-center sm:flex sm:justify-between sm:items-center"
+          className="border-t border-neutral-200/80 dark:border-neutral-700/60 pt-8 text-center sm:flex sm:justify-between sm:items-center"
           initial={{ opacity: 0, y:15 }}
           whileInView={{ opacity: 1, y:0 }}
           viewport={{ once: true }}

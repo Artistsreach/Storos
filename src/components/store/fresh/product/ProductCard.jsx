@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ShoppingCart, Heart, Eye, Star, Sparkles, Plus, Edit } from "lucide-react"; // Added Edit
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import ProductEditModal from "@/components/store/ProductEditModal"; // Import Edit Modal
+import ProductEditModalStore from "@/components/store/ProductEditModalStore"; // Import Edit Modal
 import { useStore } from "@/contexts/StoreContext";
 import { Link } from "react-router-dom";
 
@@ -111,11 +111,11 @@ const ProductCard = ({
         variants={cardVariants}
         initial="hidden"
         animate="visible"
-        className="group bg-white/70 dark:bg-slate-800/70 backdrop-blur-md rounded-2xl border border-slate-200/70 dark:border-slate-700/70 hover:border-primary/40 transition-all duration-300 shadow-sm hover:shadow-xl hover:shadow-primary/10 flex"
+        className="group bg-white/70 dark:bg-neutral-800/70 backdrop-blur-md rounded-2xl border border-neutral-200/70 dark:border-neutral-700/70 hover:border-primary/40 transition-all duration-300 shadow-sm hover:shadow-xl hover:shadow-primary/10 flex"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <Link to={`/${storeName}/product/${productId}`} className="w-1/3 sm:w-40 md:w-48 block relative overflow-hidden rounded-l-2xl bg-slate-100 dark:bg-slate-700"> {/* Use storeName */}
+        <Link to={`/${storeName}/product/${productId}`} className="w-1/3 sm:w-40 md:w-48 block relative overflow-hidden rounded-l-2xl bg-neutral-100 dark:bg-neutral-700"> {/* Use storeName */}
           {(displayProduct.image?.src?.medium || (Array.isArray(displayProduct.images) && displayProduct.images.length > 0 && displayProduct.images[0])) ? (
             <motion.img
               src={displayProduct.image?.src?.medium || displayProduct.images[0]}
@@ -128,7 +128,7 @@ const ProductCard = ({
               animate={imageLoaded ? "visible" : "hidden"}
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500 text-3xl font-semibold">
+            <div className="w-full h-full flex items-center justify-center bg-neutral-100 dark:bg-neutral-700 text-neutral-400 dark:text-neutral-500 text-3xl font-semibold">
               {displayProduct.name?.charAt(0) || "?"}
             </div>
           )}
@@ -137,16 +137,16 @@ const ProductCard = ({
         <div className="w-2/3 p-4 sm:p-5 flex flex-col justify-between">
           <div>
             <Link to={`/${storeName}/product/${productId}`}> {/* Use storeName */}
-              <h3 className="text-base sm:text-lg font-semibold text-slate-800 dark:text-white hover:text-primary dark:hover:text-primary-light transition-colors mb-1 line-clamp-2">
+              <h3 className="text-base sm:text-lg font-semibold text-neutral-800 dark:text-white hover:text-primary dark:hover:text-primary-light transition-colors mb-1 line-clamp-2">
                 {displayProduct.name}
               </h3>
             </Link>
-            <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mb-2 line-clamp-2 leading-snug">
+            <p className="text-neutral-500 dark:text-neutral-400 text-xs sm:text-sm mb-2 line-clamp-2 leading-snug">
               {displayProduct.description}
             </p>
             <div className="flex items-center gap-1 mb-1">
               {[...Array(5)].map((star) => (
-                <Star key={star} className={`w-3.5 h-3.5 ${star < (displayProduct.rating || 4) ? 'fill-yellow-400 text-yellow-400' : 'fill-slate-300 dark:fill-slate-600 text-slate-300 dark:text-slate-600'}`} />
+                <Star key={star} className={`w-3.5 h-3.5 ${star < (displayProduct.rating || 4) ? 'fill-yellow-400 text-yellow-400' : 'fill-neutral-300 dark:fill-neutral-600 text-neutral-300 dark:text-neutral-600'}`} />
               ))}
             </div>
           </div>
@@ -179,7 +179,7 @@ const ProductCard = ({
         </div>
       </motion.div>
       {isEditModalOpen && (
-        <ProductEditModal
+        <ProductEditModalStore
           product={product}
           isOpen={isEditModalOpen}
           onClose={handleCloseEditModal}
@@ -199,13 +199,13 @@ const ProductCard = ({
       variants={cardVariants}
       initial="hidden"
       animate="visible"
-      className="group relative bg-white/70 dark:bg-slate-800/70 backdrop-blur-md rounded-2xl overflow-hidden border border-slate-200/70 dark:border-slate-700/70 hover:border-primary/40 transition-all duration-300 shadow-sm hover:shadow-xl hover:shadow-primary/10"
+      className="group relative bg-white/70 dark:bg-neutral-800/70 backdrop-blur-md rounded-2xl overflow-hidden border border-neutral-200/70 dark:border-neutral-700/70 hover:border-primary/40 transition-all duration-300 shadow-sm hover:shadow-xl hover:shadow-primary/10"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       whileHover={{ y: -6 }}
       >
         <Link to={`/${storeName}/product/${productId}`} className="block"> {/* Use storeName */}
-          <div className="aspect-square relative overflow-hidden bg-slate-100 dark:bg-slate-700">
+          <div className="aspect-square relative overflow-hidden bg-neutral-100 dark:bg-neutral-700">
             {(displayProduct.image?.src?.medium || (Array.isArray(displayProduct.images) && displayProduct.images.length > 0 && displayProduct.images[0])) ? (
               <motion.img
                 src={displayProduct.image?.src?.medium || displayProduct.images[0]}
@@ -218,7 +218,7 @@ const ProductCard = ({
               animate={imageLoaded ? "visible" : "hidden"}
             />
           ) : (
-              <div className="w-full h-full flex items-center justify-center bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500 text-5xl font-semibold">
+              <div className="w-full h-full flex items-center justify-center bg-neutral-100 dark:bg-neutral-700 text-neutral-400 dark:text-neutral-500 text-5xl font-semibold">
                 {displayProduct.name?.charAt(0) || "?"}
               </div>
             )}
@@ -228,10 +228,10 @@ const ProductCard = ({
                 variants={quickActionsVariants} initial="hidden" animate="visible" exit="hidden"
                 className="absolute top-2.5 right-2.5 flex flex-col gap-1.5 z-10"
               >
-                <Button variant="outline" size="icon" className="h-8 w-8 bg-white/80 dark:bg-slate-800/80 border-slate-300/70 dark:border-slate-600/70 text-slate-600 dark:text-slate-300 hover:text-primary dark:hover:text-primary-light hover:border-primary/50 backdrop-blur-sm rounded-lg shadow-sm">
+                <Button variant="outline" size="icon" className="h-8 w-8 bg-white/80 dark:bg-neutral-800/80 border-neutral-300/70 dark:border-neutral-600/70 text-neutral-600 dark:text-neutral-300 hover:text-primary dark:hover:text-primary-light hover:border-primary/50 backdrop-blur-sm rounded-lg shadow-sm">
                   <Eye className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="icon" onClick={handleLike} className={`h-8 w-8 bg-white/80 dark:bg-slate-800/80 border-slate-300/70 dark:border-slate-600/70 text-slate-600 dark:text-slate-300 hover:text-red-500 dark:hover:text-red-400 hover:border-red-500/50 backdrop-blur-sm rounded-lg shadow-sm ${isLiked ? "text-red-500 dark:text-red-400 border-red-500/50" : ""}`}>
+                <Button variant="outline" size="icon" onClick={handleLike} className={`h-8 w-8 bg-white/80 dark:bg-neutral-800/80 border-neutral-300/70 dark:border-neutral-600/70 text-neutral-600 dark:text-neutral-300 hover:text-red-500 dark:hover:text-red-400 hover:border-red-500/50 backdrop-blur-sm rounded-lg shadow-sm ${isLiked ? "text-red-500 dark:text-red-400 border-red-500/50" : ""}`}>
                   <Heart className={`h-4 w-4 transition-colors ${isLiked ? "fill-red-500" : ""}`} />
                 </Button>
               </motion.div>
@@ -247,16 +247,16 @@ const ProductCard = ({
 
       <div className="p-4 sm:p-5">
         <Link to={`/${storeName}/product/${productId}`}> {/* Use storeName */}
-          <h3 className="text-sm sm:text-base font-semibold text-slate-800 dark:text-white hover:text-primary dark:hover:text-primary-light transition-colors mb-1 line-clamp-2">
+          <h3 className="text-sm sm:text-base font-semibold text-neutral-800 dark:text-white hover:text-primary dark:hover:text-primary-light transition-colors mb-1 line-clamp-2">
             {displayProduct.name}
           </h3>
         </Link>
-        <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mb-2 line-clamp-2 leading-snug">
+        <p className="text-neutral-500 dark:text-neutral-400 text-xs sm:text-sm mb-2 line-clamp-2 leading-snug">
           {displayProduct.description}
         </p>
         <div className="flex items-center gap-1 mb-1">
           {[...Array(5)].map((_, i) => (
-            <Star key={i} className={`w-3.5 h-3.5 ${i < (displayProduct.rating || 4) ? 'fill-yellow-400 text-yellow-400' : 'fill-slate-300 dark:fill-slate-600 text-slate-300 dark:text-slate-600'}`} />
+            <Star key={i} className={`w-3.5 h-3.5 ${i < (displayProduct.rating || 4) ? 'fill-yellow-400 text-yellow-400' : 'fill-neutral-300 dark:fill-neutral-600 text-neutral-300 dark:text-neutral-600'}`} />
           ))}
         </div>
         <div className="flex items-center justify-between">
@@ -266,7 +266,7 @@ const ProductCard = ({
           <Button
             onClick={handleAddToCart}
             size="sm"
-            className="bg-primary hover:bg-primary/90 text-white border-0 rounded-lg px-3 py-1.5 text-xs"
+            className="bg-primary hover:bg-primary/90 text-white dark:bg-neutral-300 dark:text-neutral-800 border-0 rounded-lg px-3 py-1.5 text-xs"
             disabled={inventory_count !== undefined && inventory_count <= 0}
           >
             <Plus className="h-3.5 w-3.5 mr-1" />
@@ -287,7 +287,7 @@ const ProductCard = ({
       </div>
     </motion.div>
     {isEditModalOpen && (
-      <ProductEditModal
+      <ProductEditModalStore
         product={displayProduct}
         isOpen={isEditModalOpen}
         onClose={handleCloseEditModal}

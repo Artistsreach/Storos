@@ -45,7 +45,7 @@
     --card-foreground: 0 0% 97%; /* very light grey / off-white */
     --popover: 0 0% 7%; /* slightly lighter than background */
     --popover-foreground: 0 0% 97%; /* very light grey / off-white */
-    --primary: 0 0% 15%; /* slightly lighter dark grey */
+    --primary: 0 0% 80%; /* very light grey */
     --primary-foreground: 0 0% 10%; /* dark grey for text on primary in dark mode */
     --secondary: 0 0% 12%; /* dark grey, lighter than background but still dark */
     --secondary-foreground: 0 0% 92%; /* light grey for text on secondary */

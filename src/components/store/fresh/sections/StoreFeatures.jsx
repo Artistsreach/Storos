@@ -343,7 +343,7 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
 
           <motion.h2
             variants={itemVariants}
-            className="text-4xl md:text-5xl lg:text-6xl font-bold text-slate-800 dark:text-white mb-6 tracking-tight"
+            className="text-4xl md:text-5xl lg:text-6xl font-bold text-neutral-800 dark:text-white mb-6 tracking-tight"
           >
             <InlineTextEdit
               initialText={sectionData.title}
@@ -351,13 +351,13 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
               isAdmin={isAdmin}
               placeholder="Section Title"
               as="span"
-              textClassName="text-slate-800 dark:text-white"
+              textClassName="text-neutral-800 dark:text-white"
             />
           </motion.h2>
 
           <motion.p
             variants={itemVariants}
-            className="text-xl text-slate-600 dark:text-slate-300 max-w-3xl mx-auto leading-relaxed"
+            className="text-xl text-neutral-600 dark:text-neutral-300 max-w-3xl mx-auto leading-relaxed"
           >
             <InlineTextEdit
               initialText={sectionData.subtitle}
@@ -387,8 +387,8 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
                   key={feature.title + index} // Ensure unique key
                   className={`p-6 rounded-2xl border transition-all duration-300 cursor-pointer ${
                     isActive
-                      ? "bg-white dark:bg-slate-700 border-primary dark:border-primary shadow-xl ring-2 ring-primary"
-                      : "bg-white dark:bg-slate-700/50 border-slate-200 dark:border-slate-600 shadow-lg hover:shadow-md"
+                      ? "bg-white dark:bg-neutral-700 border-primary dark:border-primary shadow-xl ring-2 ring-primary"
+                      : "bg-white dark:bg-neutral-700/50 border-neutral-200 dark:border-neutral-600 shadow-lg hover:shadow-md"
                   }`}
                   onClick={() => setActiveFeature(index)}
                   whileHover={{ scale: 1.02, y: -5 }}
@@ -407,7 +407,7 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
                     
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-xl font-bold text-slate-800 dark:text-white">
+                        <h3 className="text-xl font-bold text-neutral-800 dark:text-white">
                            <InlineTextEdit
                             initialText={feature.title}
                             onSave={(newText) => handleSaveText('itemTitle', newText, index)}
@@ -426,7 +426,7 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
                         )}
                       </div>
                       
-                      <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
+                      <p className="text-neutral-600 dark:text-neutral-400 leading-relaxed">
                         <InlineTextEdit
                           initialText={feature.description}
                           onSave={(newText) => handleSaveText('itemDescription', newText, index)}
@@ -441,7 +441,7 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
                           initial={{ opacity: 0, height: 0 }}
                           animate={{ opacity: 1, height: "auto" }}
                           exit={{ opacity: 0, height: 0 }}
-                          className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-600"
+                          className="mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-600"
                         >
                           <Button
                             variant="link"
@@ -562,7 +562,7 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
 
               {/* Decorative elements - Adjusted for Fresh theme */}
                 <motion.div
-                  className="absolute -top-3 -right-3 w-20 h-20 bg-white/80 dark:bg-slate-700/80 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/30 dark:border-slate-600 shadow-lg z-10" // Added z-10
+                  className="absolute -top-3 -right-3 w-20 h-20 bg-white/80 dark:bg-neutral-700/80 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/30 dark:border-neutral-600 shadow-lg z-10" // Added z-10
                   animate={{
                     y: [-8, 8, -8],
                   rotate: [0, 10, 0],
@@ -588,7 +588,7 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
               <motion.div
                 key={feature.title + index}
                 variants={itemVariants}
-                className="text-center p-6 bg-white dark:bg-slate-700/50 rounded-2xl border border-slate-200 dark:border-slate-600 shadow-md hover:shadow-lg transition-all duration-300"
+                className="text-center p-6 bg-white dark:bg-neutral-700/50 rounded-2xl border border-neutral-200 dark:border-neutral-600 shadow-md hover:shadow-lg transition-all duration-300"
                 whileHover={{ scale: 1.05, y: -5 }}
               >
                 <div
@@ -597,7 +597,7 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
                 >
                   <IconComponent className="w-8 h-8 text-white" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">
+                <h3 className="text-lg font-bold text-neutral-800 dark:text-white mb-2">
                    <InlineTextEdit
                     initialText={feature.title}
                     onSave={(newText) => handleSaveText(`secondaryItemTitle.${index}`, newText)}
@@ -605,7 +605,7 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
                     placeholder="Feature Title"
                   />
                 </h3>
-                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                <p className="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">
                   <InlineTextEdit
                     initialText={feature.description}
                     onSave={(newText) => handleSaveText(`secondaryItemDescription.${index}`, newText)}
@@ -624,7 +624,7 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
           variants={containerVariants}
           initial="hidden"
           animate={isInView ? "visible" : "hidden"}
-          className="grid grid-cols-2 md:grid-cols-4 gap-8 p-8 bg-white dark:bg-slate-700/50 rounded-2xl border border-slate-200 dark:border-slate-600 shadow-md"
+          className="grid grid-cols-2 md:grid-cols-4 gap-8 p-8 bg-white dark:bg-neutral-700/50 rounded-2xl border border-neutral-200 dark:border-neutral-600 shadow-md"
         >
           {(sectionData.statsItems || []).map((stat, index) => {
             const IconComponent = iconMap[stat.iconName] || Package;
@@ -640,7 +640,7 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
                 >
                   <IconComponent className="w-6 h-6" style={{ color: primaryColor }} />
                 </div>
-                <div className="text-3xl font-bold text-slate-800 dark:text-white mb-1">
+                <div className="text-3xl font-bold text-neutral-800 dark:text-white mb-1">
                   <InlineTextEdit
                     initialText={stat.number}
                     onSave={(newText) => handleSaveText('statsItemNumber', newText, index)}
@@ -648,7 +648,7 @@ const StoreFeatures = ({ store, isPublishedView = false }) => {
                     placeholder="Stat Number"
                   />
                 </div>
-                <div className="text-sm text-slate-600 dark:text-slate-400">
+                <div className="text-sm text-neutral-600 dark:text-neutral-400">
                   <InlineTextEdit
                     initialText={stat.label}
                     onSave={(newText) => handleSaveText('statsItemLabel', newText, index)}

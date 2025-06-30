@@ -17,7 +17,9 @@ import {
     generateStoreWayContent, 
     generateStoreFeaturesContent,
     generateImageRightSectionContent, // Added
-    generateVideoLeftSectionContent  // Added
+    generateVideoLeftSectionContent,  // Added
+    generatePexelsVideoQuery,
+    generateThemeColors
 } from '../lib/gemini';
 import { generateStoreDetailsFromPhotos } from '../lib/geminiImageUnderstanding';
 import { analyzeMultipleUrls } from '../lib/geminiUrlAnalysis';
@@ -541,7 +543,10 @@ export const generateStoreFromPromptData = async (
   const heroSlideShowImagesPrompt = await fetchPexelsImages(`${storeType} ${brandName} hero slideshow ${prompt}`, heroSlideShowImagesCountPrompt, 'landscape');
   const heroMainImagePrompt = heroSlideShowImagesPrompt.length > 0 ? heroSlideShowImagesPrompt[0] : { src: { large: 'https://via.placeholder.com/1200x800.png?text=Hero+Image' }, alt: 'Placeholder Hero Image' };
   
-  const heroVideos = await fetchPexelsVideos(`${storeType} ${brandName} store ambiance ${prompt}`, 1, 'landscape');
+  const pexelsQueryResponse = await generatePexelsVideoQuery({ name: brandName, niche: storeType, description: finalPrompt });
+  const pexelsQuery = pexelsQueryResponse.query || `${storeType} ${brandName} store ambiance ${prompt}`;
+
+  const heroVideos = await fetchPexelsVideos(pexelsQuery, 1, 'landscape');
   const heroFollowUpVideos = await fetchPexelsVideos(`${brandName} ${storeType} product showcase`, 1, 'landscape');
   const videoLeftSectionVideos = await fetchPexelsVideos(`${brandName} ${storeType} craftsmanship process`, 1, 'landscape');
   
@@ -627,8 +632,8 @@ export const generateStoreFromPromptData = async (
     logo_url_light: finalLogoUrlLight, // Logo for dark backgrounds
     logo_url_dark: finalLogoUrlDark,   // Logo for light backgrounds
     theme: {
-      primaryColor: nicheDetails?.primaryColor || getRandomColor(),
-      secondaryColor: nicheDetails?.secondaryColor || getRandomColor(),
+      primaryColor: nicheDetails?.primaryColor || (await generateThemeColors(storeInfoForContent)).primaryColor || getRandomColor(),
+      secondaryColor: nicheDetails?.secondaryColor || (await generateThemeColors(storeInfoForContent)).secondaryColor || getRandomColor(),
       fontFamily: getRandomFont(), // Font could also be part of nicheDetails if desired
       layout: getRandomLayout(),   // Layout could also be part of nicheDetails
     },

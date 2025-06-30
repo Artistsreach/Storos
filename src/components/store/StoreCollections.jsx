@@ -12,7 +12,7 @@ const CollectionCard = ({ collection, onCollectionClick, isAdmin, onSaveCollecti
 
   const collectionTitle = collection?.name || "Unnamed Collection"; // Use name as primary
   const collectionDescription = collection?.description || `Explore our ${collectionTitle} collection.`;
-  const collectionImageSrc = collection?.imageUrl || placeholderImage; // Use imageUrl
+  const collectionImageSrc = collection?.image?.src || placeholderImage;
   const collectionImageAlt = `Image for ${collectionTitle}`;
 
   return (
@@ -207,7 +207,9 @@ const StoreCollections = ({ store, isPublishedView = false }) => {
           isOpen={isDialogOpen}
           onClose={handleCloseDialog}
           collection={selectedCollection}
+          store={store}
           storeId={storeId}
+          isPublishedView={isPublishedView}
         />
       )}
     </>

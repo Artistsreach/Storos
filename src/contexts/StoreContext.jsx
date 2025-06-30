@@ -400,6 +400,63 @@ const prepareStoresForLocalStorage = (storesArray) => {
     }
   }, [stores, user, toast, currentStore, setCurrentStore, setStores, setIsLoadingStores, prepareStoresForLocalStorage]);
 
+  const updateStoreCollections = async (storeId, collectionId, updatedProducts, user, toast) => {
+    if (!user) {
+      toast({
+        title: 'Authentication Required',
+        description: 'You must be logged in to update collections.',
+        variant: 'destructive',
+      });
+      return;
+    }
+  
+    setStores(prevStores => {
+      const newStores = prevStores.map(store => {
+        if (store.id === storeId) {
+          const newCollections = store.collections.map(c => {
+            if (c.id === collectionId) {
+              return { ...c, products: updatedProducts };
+            }
+            return c;
+          });
+          return { ...store, collections: newCollections };
+        }
+        return store;
+      });
+      localStorage.setItem('ecommerce-stores', JSON.stringify(prepareStoresForLocalStorage(newStores)));
+      return newStores;
+    });
+
+    if (currentStore && currentStore.id === storeId) {
+      setCurrentStore(prevCurrent => {
+        const newCollections = prevCurrent.collections.map(c => {
+          if (c.id === collectionId) {
+            return { ...c, products: updatedProducts };
+          }
+          return c;
+        });
+        return { ...prevCurrent, collections: newCollections };
+      });
+    }
+
+    try {
+      const collectionRef = doc(db, 'stores', storeId, 'collections', collectionId);
+      const updatedProductIds = updatedProducts.map(p => p.id);
+      await updateDoc(collectionRef, { product_ids: updatedProductIds });
+      toast({
+        title: 'Collection Updated',
+        description: 'Your collection has been successfully updated.',
+      });
+    } catch (error) {
+      console.error('Error updating collection in Firestore:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update the collection in the cloud.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const updateStoreTextContent = useCallback(async (identifier, newText) => {
     if (!currentStore || !currentStore.id) {
       toast({ title: 'Error', description: 'No current store selected to update.', variant: 'destructive' });
@@ -498,7 +555,7 @@ const prepareStoresForLocalStorage = (storesArray) => {
     // urlSlug is now set from nameCheckResult
 
     const clientGeneratedStoreId = storeToCreate.id || generateId();
-    const newStoreLocal = { 
+    let newStoreLocal = { 
       ...storeToCreate, 
       id: clientGeneratedStoreId, 
       createdAt: new Date().toISOString(),
@@ -518,6 +575,7 @@ const prepareStoresForLocalStorage = (storesArray) => {
     });
 
     if (user && user.uid) { 
+      newStoreLocal.merchant_id = user.uid; // Ensure merchant_id is on the local object
       try {
         const { id: localId, settings, products, collections, user_id, ...restOfStoreData } = newStoreLocal;
         const storeDocRef = doc(db, 'stores', localId); 
@@ -891,11 +949,11 @@ const prepareStoresForLocalStorage = (storesArray) => {
         
         // Now, add the dropshipping products to the generated store data
         const formattedDropshippingProducts = dropshippingProducts.map(p => ({
-          id: String(p.product_id),
-          name: p.product_title,
-          description: p.product_description,
-          price: parseFloat(p.target_sale_price) || 0,
-          images: p.product_photos,
+          id: String(p.item.itemId),
+          name: p.item.title,
+          description: p.item.title,
+          price: parseFloat(p.item.sku.def.promotionPrice) || 0,
+          images: [p.item.image],
           isDropshipping: true,
           inventory: 10,
         }));
@@ -2126,7 +2184,7 @@ const finalizeBigCommerceImportFromWizard = useCallback(async () => {
         return { ...prev, edges: newEdges };
       });
     },
-
+    updateStoreCollections: (storeId, collectionId, updatedProducts) => updateStoreCollections(storeId, collectionId, updatedProducts, user, toast),
     // Auth Modal
     isAuthModalOpen,
     openAuthModal: () => setIsAuthModalOpen(true),

@@ -42,8 +42,15 @@ const StoreCard = ({ store }) => {
   const [passKey, setPassKey] = React.useState('');
   const [managerEmail, setManagerEmail] = React.useState('');
   const [isAssigningManager, setIsAssigningManager] = React.useState(false); // New state for toggling manager input
-  // backgroundImageUrl and isBgLoading state and useEffect are removed,
-  // as card_background_url will come directly from the store object.
+
+  let productImageUrl = null;
+  if (store.products && store.products.length > 0) {
+    const product = store.products[0];
+    productImageUrl = product.image?.src?.medium 
+      || product.image?.url 
+      || (Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : null);
+  }
+  const backgroundImageUrl = productImageUrl || store.card_background_url;
 
   const handleLockStore = () => {
     if (updateStorePassKey && passKey && store.id) {
@@ -105,8 +112,14 @@ const StoreCard = ({ store }) => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
       className="store-preview relative bg-cover bg-center rounded-[15px] overflow-hidden" // Apply background to motion.div, ensure overflow hidden for rounded corners
-      style={store.card_background_url ? { backgroundImage: `url(${store.card_background_url})` } : { backgroundColor: '#374151' }} // Dark gray fallback
+      style={backgroundImageUrl ? { backgroundImage: `url(${backgroundImageUrl})` } : { backgroundColor: '#374151' }} // Dark gray fallback
     >
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundColor: store.theme?.primaryColor ? `${store.theme.primaryColor}4D` : 'transparent', // 4D is 30% opacity in hex
+        }}
+      />
       {/* This div is now for the overlay effect if needed, or can be removed if Card handles it all */}
       {/* <div className="absolute inset-0 bg-black/10" /> */} 
 
@@ -118,23 +131,25 @@ const StoreCard = ({ store }) => {
             <div className="flex justify-between items-start">
               <div className="flex items-center gap-2">
                 {store.logo_url ? (
-                  <img src={store.logo_url} alt={`${store.name} logo`} className="h-6 w-6 rounded-sm object-contain bg-white/30 p-0.5" />
+                  <div className="h-12 w-12 overflow-hidden rounded-sm">
+                    <img src={store.logo_url} alt={`${store.name} logo`} className="w-full h-full object-cover" />
+                  </div>
                 ) : (
                   getStoreTypeIcon(store.type) // This will use its own colors, might need adjustment
                 )}
                 <CardTitle className="text-xl text-white drop-shadow-md">{store.name}</CardTitle>
               </div>
-              <span className="px-2 py-1 bg-white/10 text-gray-200 text-xs rounded-full backdrop-blur-xs">
+              <span className="px-2 py-1 bg-white/10 text-white text-xs rounded-full backdrop-blur-xs">
                 {store.type.charAt(0).toUpperCase() + store.type.slice(1)}
               </span>
             </div>
-            <CardDescription className="line-clamp-2 mt-1 text-gray-300 drop-shadow-sm">
+            <CardDescription className="line-clamp-2 mt-1 text-white drop-shadow-sm">
               {store.description}
             </CardDescription>
           </CardHeader>
           <CardContent className="pb-2">
-            <div className="flex items-center text-sm text-gray-300 drop-shadow-sm gap-1 mb-3">
-              <Calendar className="h-3.5 w-3.5 mr-1 text-gray-400" />
+            <div className="flex items-center text-sm text-white drop-shadow-sm gap-1 mb-3">
+              <Calendar className="h-3.5 w-3.5 mr-1 text-white" />
               Created on {formatDate(store.created_at || store.createdAt)}
             </div>
             
@@ -145,14 +160,14 @@ const StoreCard = ({ store }) => {
                   key={product.id} 
                   className="bg-white/10 p-2 rounded-md text-xs flex flex-col backdrop-blur-xs"
                 >
-                  <span className="font-medium truncate text-gray-200">{product.name || 'Unnamed Product'}</span>
+                  <span className="font-medium truncate text-white">{product.name || 'Unnamed Product'}</span>
                   <span className="text-sky-300"> {/* Using a specific bright color for price */}
                     {typeof product.price === 'number' ? `$${product.price.toFixed(2)}` : 'Price N/A'}
                   </span>
                 </div>
               ))
             ) : (
-              <p className="text-xs text-gray-400 col-span-2">
+              <p className="text-xs text-white col-span-2">
                 {store && store.products && store.products.length === 0 ? 'No products yet.' : 'Product data unavailable.'}
               </p>
             )}

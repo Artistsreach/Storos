@@ -180,7 +180,7 @@ const StoreCollections = ({ store, isPublishedView = false }) => {
               <a href={`#collection-${collection.id}`} className="block"> {/* Basic link, can be improved */}
                 <div className="aspect-[4/3] w-full overflow-hidden">
                   <img
-                    src={collection.image_url || `https://via.placeholder.com/400x300.png?text=${encodeURIComponent(collection.name || 'Collection')}`}
+                    src={collection.image?.src || `https://via.placeholder.com/400x300.png?text=${encodeURIComponent(collection.name || 'Collection')}`}
                     alt={collection.name || 'Collection Image'}
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                   />

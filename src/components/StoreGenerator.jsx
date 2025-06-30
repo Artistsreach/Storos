@@ -318,8 +318,8 @@ const StoreGenerator = ({ generatedImage }) => {
     setIsEditModalOpen(true);
   };
 
-  const handleSaveProduct = (updatedProduct) => {
-    setDropshippingProducts(dropshippingProducts.map(p => p.product_id === updatedProduct.product_id ? updatedProduct : p));
+  const handleSaveProduct = (updatedProduct, productId) => {
+    setDropshippingProducts(dropshippingProducts.map(p => p.item.itemId === productId ? updatedProduct : p));
     setIsEditModalOpen(false);
   };
 
@@ -531,9 +531,9 @@ const StoreGenerator = ({ generatedImage }) => {
                 <h3 className="text-lg font-semibold mb-2">Selected Dropshipping Products</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {dropshippingProducts.map((product) => (
-                    <div key={product.product_id} className="border rounded-lg p-2 cursor-pointer" onClick={() => handleEditProduct(product)}>
-                      <img src={product.product_main_image_url} alt={product.product_title} className="w-full h-24 object-cover rounded-md mb-2" />
-                      <p className="text-sm truncate">{product.product_title}</p>
+                    <div key={product.item.itemId} className="border rounded-lg p-2 cursor-pointer" onClick={() => handleEditProduct(product)}>
+                      <img src={product.item.image} alt={product.item.title} className="w-full h-24 object-cover rounded-md mb-2" />
+                      <p className="text-sm truncate">{product.item.title}</p>
                     </div>
                   ))}
                 </div>

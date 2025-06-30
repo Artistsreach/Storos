@@ -1,19 +1,19 @@
 
 import React, { useState, useEffect } from 'react'; // Added useEffect
 import { motion } from 'framer-motion';
-import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
-import { Textarea } from '../../components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Card } from '../../components/ui/card';
-import { Badge } from '../../components/ui/badge'; // Added Badge
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge'; // Added Badge
 import { Loader2, Wand2, Sparkles, PlusCircle, Trash2, UploadCloud, AlertTriangle, CheckCircle, X, Edit3 } from 'lucide-react'; // Added Edit3, CheckCircle, X
-import ManageCollectionProductsModal from '../../components/store/ManageCollectionProductsModal'; // Import the modal
+import ManageCollectionProductsModal from '@/components/store/ManageCollectionProductsModal'; // Import the modal
 import EditAiProductModal from './EditAiProductModal'; // Import the new modal
-import { generateImageFromPromptForPod, visualizeImageOnProductWithGemini } from '../../lib/geminiImageGeneration'; // Import the new functions
+import { generateImageFromPromptForPod, visualizeImageOnProductWithGemini } from '@/lib/geminiImageGeneration'; // Import the new functions
 import { useToast } from "@/components/ui/use-toast"; // For showing errors
-import { podProductsList, productTypeOptions as ptoFromConstants } from '../../lib/constants'; // Import from constants
+import { podProductsList, productTypeOptions as ptoFromConstants } from '@/lib/constants'; // Import from constants
 
 // Helper function to convert file to data URL
 const fileToBase64 = (file) => {

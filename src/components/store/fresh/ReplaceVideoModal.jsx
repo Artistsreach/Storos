@@ -163,12 +163,12 @@ const ReplaceVideoModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[90vw] sm:max-w-[672px] bg-slate-900 border-slate-700">
+      <DialogContent className="w-[90vw] sm:max-w-[672px] bg-neutral-900 border-neutral-700">
         <DialogHeader className="text-left">
           <DialogTitle className="text-white font-mono uppercase tracking-wide">
             Replace Hero Video
           </DialogTitle>
-          <DialogDescription className="text-left text-slate-400">
+          <DialogDescription className="text-left text-neutral-400">
             Current video:{" "}
             <a
               href={currentVideoUrl}
@@ -182,22 +182,22 @@ const ReplaceVideoModal = ({
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-slate-800 border-slate-700">
+          <TabsList className="grid w-full grid-cols-3 bg-neutral-800 border-neutral-700">
             <TabsTrigger
               value="ai"
-              className="text-slate-300 data-[state=active]:bg-red-600 data-[state=active]:text-white font-mono"
+              className="text-neutral-300 data-[state=active]:bg-red-600 data-[state=active]:text-white font-mono"
             >
               AI Generation (Veo)
             </TabsTrigger>
             <TabsTrigger
               value="pexels"
-              className="text-slate-300 data-[state=active]:bg-red-600 data-[state=active]:text-white font-mono"
+              className="text-neutral-300 data-[state=active]:bg-red-600 data-[state=active]:text-white font-mono"
             >
               Search Pexels
             </TabsTrigger>
             <TabsTrigger
               value="upload"
-              className="text-slate-300 data-[state=active]:bg-red-600 data-[state=active]:text-white font-mono"
+              className="text-neutral-300 data-[state=active]:bg-red-600 data-[state=active]:text-white font-mono"
             >
               Upload Video
             </TabsTrigger>
@@ -207,7 +207,7 @@ const ReplaceVideoModal = ({
             <div>
               <Label
                 htmlFor="aiPrompt"
-                className="text-left block mb-1 text-slate-300 font-mono"
+                className="text-left block mb-1 text-neutral-300 font-mono"
               >
                 AI Video Prompt
               </Label>
@@ -217,7 +217,7 @@ const ReplaceVideoModal = ({
                 onChange={(e) => setAiPrompt(e.target.value)}
                 placeholder="e.g., Military tactical gear in action"
                 disabled={isAiLoading}
-                className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-400 font-mono"
+                className="bg-neutral-800 border-neutral-600 text-white placeholder:text-neutral-400 font-mono"
               />
             </div>
             {aiError && (
@@ -230,7 +230,7 @@ const ReplaceVideoModal = ({
                 variant="outline"
                 onClick={() => onOpenChange(false)}
                 disabled={isAiLoading}
-                className="border-slate-600 text-slate-300 hover:bg-slate-800 font-mono"
+                className="border-neutral-600 text-neutral-300 hover:bg-neutral-800 font-mono"
               >
                 Cancel
               </Button>
@@ -252,7 +252,7 @@ const ReplaceVideoModal = ({
                 onChange={(e) => setPexelsQuery(e.target.value)}
                 placeholder="e.g., Military, Tactical, Combat"
                 disabled={isPexelsLoading}
-                className="flex-grow bg-slate-800 border-slate-600 text-white placeholder:text-slate-400 font-mono"
+                className="flex-grow bg-neutral-800 border-neutral-600 text-white placeholder:text-neutral-400 font-mono"
               />
               <Button
                 onClick={handlePexelsSearch}
@@ -268,7 +268,7 @@ const ReplaceVideoModal = ({
               </p>
             )}
             {isPexelsLoading && (
-              <p className="text-sm text-slate-400 text-center font-mono">
+              <p className="text-sm text-neutral-400 text-center font-mono">
                 Loading Pexels videos...
               </p>
             )}
@@ -278,7 +278,7 @@ const ReplaceVideoModal = ({
                 {pexelsVideos.map((video) => (
                   <div
                     key={video.id}
-                    className="relative aspect-video rounded-md overflow-hidden cursor-pointer group border border-slate-700 hover:border-red-600"
+                    className="relative aspect-video rounded-md overflow-hidden cursor-pointer group border border-neutral-700 hover:border-red-600"
                     onClick={() => handlePexelsVideoSelect(video.videoUrl)}
                   >
                     <img
@@ -300,7 +300,7 @@ const ReplaceVideoModal = ({
                 variant="outline"
                 onClick={() => onOpenChange(false)}
                 disabled={isPexelsLoading}
-                className="border-slate-600 text-slate-300 hover:bg-slate-800 font-mono"
+                className="border-neutral-600 text-neutral-300 hover:bg-neutral-800 font-mono"
               >
                 Cancel
               </Button>
@@ -311,7 +311,7 @@ const ReplaceVideoModal = ({
             <div>
               <Label
                 htmlFor="video-upload-input"
-                className="text-left block mb-1 text-slate-300 font-mono"
+                className="text-left block mb-1 text-neutral-300 font-mono"
               >
                 Select Video File
               </Label>
@@ -321,12 +321,12 @@ const ReplaceVideoModal = ({
                   type="file"
                   accept="video/*"
                   onChange={handleVideoFileUpload}
-                  className="flex-grow bg-slate-800 border-slate-600 text-white font-mono"
+                  className="flex-grow bg-neutral-800 border-neutral-600 text-white font-mono"
                   disabled={isUploading}
                 />
               </div>
               {uploadedVideoFile && (
-                <p className="text-sm text-slate-400 mt-2 font-mono">
+                <p className="text-sm text-neutral-400 mt-2 font-mono">
                   Selected: {uploadedVideoFile.name} (
                   {(uploadedVideoFile.size / 1024 / 1024).toFixed(2)} MB)
                 </p>
@@ -342,7 +342,7 @@ const ReplaceVideoModal = ({
                 variant="outline"
                 onClick={() => onOpenChange(false)}
                 disabled={isUploading}
-                className="border-slate-600 text-slate-300 hover:bg-slate-800 font-mono"
+                className="border-neutral-600 text-neutral-300 hover:bg-neutral-800 font-mono"
               >
                 Cancel
               </Button>

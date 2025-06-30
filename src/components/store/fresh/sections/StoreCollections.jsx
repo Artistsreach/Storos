@@ -16,7 +16,7 @@ const FreshCollectionCard = ({ collection, onCollectionClick, isAdmin, onSaveCol
 
   return (
     <motion.div
-      className="group relative block overflow-hidden rounded-2xl shadow-lg cursor-pointer border border-slate-200/60 dark:border-slate-700/60 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm"
+      className="group relative block overflow-hidden rounded-2xl shadow-lg cursor-pointer border border-neutral-200/60 dark:border-neutral-700/60 bg-white/60 dark:bg-neutral-800/60 backdrop-blur-sm"
       initial={{ opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.3 }}
@@ -136,7 +136,7 @@ const FreshStoreCollections = ({ store, isPublishedView = false }) => {
 
   return (
     <>
-      <section id={`fresh-collections-${store?.id || 'featured'}`} className="py-16 md:py-24 bg-slate-100 dark:bg-slate-900 relative overflow-hidden">
+      <section id={`fresh-collections-${store?.id || 'featured'}`} className="py-16 md:py-24 bg-neutral-100 dark:bg-neutral-900 relative overflow-hidden">
         <div className="absolute top-0 left-1/4 w-1/2 h-full bg-gradient-to-r from-primary/5 to-transparent -translate-x-1/2 blur-3xl opacity-30 dark:opacity-20" style={{ backgroundColor: `${primaryColor}0A`}} />
         <div className="absolute bottom-0 right-1/4 w-1/2 h-full bg-gradient-to-l from-primary/5 to-transparent translate-x-1/2 blur-3xl opacity-30 dark:opacity-20" style={{ backgroundColor: `${primaryColor}0A`}} />
 
@@ -168,24 +168,24 @@ const FreshStoreCollections = ({ store, isPublishedView = false }) => {
                 as="span"
               />
             </motion.div>
-            <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-3 text-slate-800 dark:text-white">
+            <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-3 text-neutral-800 dark:text-white">
               <InlineTextEdit
                 initialText={sectionTitle}
                 onSave={(newText) => handleSaveText('freshCollectionsSectionTitle', newText)}
                 isAdmin={isAdmin}
                 as="span"
-                textClassName="text-3xl md:text-5xl font-bold tracking-tight text-slate-800 dark:text-white"
-                inputClassName="text-3xl md:text-5xl font-bold tracking-tight text-slate-800 dark:text-white bg-transparent"
+                textClassName="text-3xl md:text-5xl font-bold tracking-tight text-neutral-800 dark:text-white"
+                inputClassName="text-3xl md:text-5xl font-bold tracking-tight text-neutral-800 dark:text-white bg-transparent"
               />
             </h2>
-            <p className="text-slate-600 dark:text-slate-300 max-w-xl mx-auto text-md md:text-lg leading-relaxed">
+            <p className="text-neutral-600 dark:text-neutral-300 max-w-xl mx-auto text-md md:text-lg leading-relaxed">
               <InlineTextEdit
                 initialText={sectionSubtitle}
                 onSave={(newText) => handleSaveText('freshCollectionsSectionSubtitle', newText)}
                 isAdmin={isAdmin}
                 as="span"
-                textClassName="text-slate-600 dark:text-slate-300 max-w-xl mx-auto text-md md:text-lg leading-relaxed"
-                inputClassName="text-slate-600 dark:text-slate-300 max-w-xl mx-auto text-md md:text-lg leading-relaxed bg-transparent"
+                textClassName="text-neutral-600 dark:text-neutral-300 max-w-xl mx-auto text-md md:text-lg leading-relaxed"
+                inputClassName="text-neutral-600 dark:text-neutral-300 max-w-xl mx-auto text-md md:text-lg leading-relaxed bg-transparent"
                 useTextarea={true}
               />
             </p>
@@ -193,8 +193,8 @@ const FreshStoreCollections = ({ store, isPublishedView = false }) => {
 
           {!collections || collections.length === 0 ? (
             <div className="text-center py-10">
-              <ShoppingBag className="w-12 h-12 mx-auto mb-4 text-slate-400 dark:text-slate-500" />
-              <p className="text-slate-600 dark:text-slate-400">No collections to display yet.</p>
+              <ShoppingBag className="w-12 h-12 mx-auto mb-4 text-neutral-400 dark:text-neutral-500" />
+              <p className="text-neutral-600 dark:text-neutral-400">No collections to display yet.</p>
               {!isPublishedView && (
                 <Button variant="outline" className="mt-4">Manage Collections</Button>
               )}

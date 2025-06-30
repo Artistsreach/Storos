@@ -100,7 +100,7 @@ const CategoryShowcase = ({ store: storeProp, isPublishedView = false }) => { //
                   )}
                 </div>
                 <InlineTextEdit
-                  initialText={collection.title || ""}
+                  initialText={collection.name || ""}
                   placeholder="Collection Title"
                   onSave={(newText) => handleCollectionTitleSave(collection.id, newText)}
                   isAdmin={!isPublishedView && viewMode === 'edit'}

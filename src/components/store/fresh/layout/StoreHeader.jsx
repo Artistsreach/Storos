@@ -133,7 +133,7 @@ const StoreHeader = ({ store, isPublishedView = false }) => {
         className={cn(
           "fixed top-0 z-50 w-full transition-all duration-300", // Adjusted duration
           isScrolled
-            ? "bg-white/90 dark:bg-slate-900/90 backdrop-blur-lg border-b border-slate-200/70 dark:border-slate-700/70 shadow-sm" // Softer shadow
+            ? "bg-white/90 dark:bg-neutral-900/90 backdrop-blur-lg border-b border-neutral-200/70 dark:border-neutral-700/70 shadow-sm" // Softer shadow
             : "bg-transparent",
         )}
       >
@@ -159,7 +159,7 @@ const StoreHeader = ({ store, isPublishedView = false }) => {
                 identifier="name"
                 isPublishedView={isPublishedView}
                 as="span"
-                className="font-semibold text-lg tracking-normal bg-gradient-to-r from-slate-800 to-slate-500 dark:from-white dark:to-slate-400 bg-clip-text text-transparent group-hover:from-primary group-hover:to-primary/70 transition-all duration-300"
+                className="font-semibold text-lg tracking-normal bg-gradient-to-r from-neutral-800 to-neutral-500 dark:from-white dark:to-neutral-400 bg-clip-text text-transparent group-hover:from-primary group-hover:to-primary/70 transition-all duration-300"
               />
             </Link>
 
@@ -179,7 +179,7 @@ const StoreHeader = ({ store, isPublishedView = false }) => {
                     as="a"
                     href={link.href}
                     onClick={(e) => handleNavLinkClick(e, link.href)}
-                    className="relative text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-primary-light transition-colors duration-200 group"
+                    className="relative text-sm font-medium text-neutral-500 dark:text-neutral-400 hover:text-primary dark:hover:text-primary-light transition-colors duration-200 group"
                   >
                     {link.label}
                     <span className="absolute -bottom-0.5 left-0 w-0 h-[1.5px] bg-primary transition-all duration-300 group-hover:w-full" />
@@ -193,7 +193,7 @@ const StoreHeader = ({ store, isPublishedView = false }) => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-primary dark:hover:text-primary-light"
+                  className="rounded-lg text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-primary dark:hover:text-primary-light"
                 >
                   <Search className="h-[18px] w-[18px]" /> {/* Slightly smaller icons */}
                 </Button>
@@ -205,7 +205,7 @@ const StoreHeader = ({ store, isPublishedView = false }) => {
                     variant="ghost"
                     size="icon"
                     onClick={toggleTheme}
-                    className="rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-primary dark:hover:text-primary-light"
+                    className="rounded-lg text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-primary dark:hover:text-primary-light"
                   >
                     {isDarkMode ? <Moon className="h-[18px] w-[18px]" /> : <Sun className="h-[18px] w-[18px]" />}
                   </Button>
@@ -215,7 +215,7 @@ const StoreHeader = ({ store, isPublishedView = false }) => {
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Button
                   onClick={() => setIsCartOpen(true)}
-                  className="relative rounded-lg bg-primary hover:bg-primary/90 text-white px-3.5 py-2 text-sm" // Adjusted padding and size
+                  className="relative rounded-lg bg-primary hover:bg-primary/90 text-white dark:bg-neutral-300 dark:text-neutral-800 px-3.5 py-2 text-sm" // Adjusted padding and size
                 >
                   <ShoppingCart className="h-4 w-4 mr-1.5" />
                   <span className="hidden sm:inline">Cart</span>
@@ -256,7 +256,7 @@ const StoreHeader = ({ store, isPublishedView = false }) => {
             <motion.div
               initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="absolute right-0 top-0 h-full w-72 bg-white dark:bg-slate-900 shadow-xl border-l dark:border-slate-700/50"
+                  className="absolute right-0 top-0 h-full w-72 bg-white dark:bg-neutral-900 shadow-xl border-l dark:border-neutral-700/50"
             >
               <div className="p-5">
                 <div className="flex justify-between items-center mb-6">
@@ -266,7 +266,7 @@ const StoreHeader = ({ store, isPublishedView = false }) => {
                 <nav className="space-y-2">
                   {navLinks.map((link) => (
                     <a key={link.identifier} href={link.href} onClick={(e) => handleNavLinkClick(e, link.href)}
-                       className="block py-2 px-3 text-base font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-primary rounded-md transition-colors">
+                       className="block py-2 px-3 text-base font-medium text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-primary rounded-md transition-colors">
                       {link.label}
                     </a>
                   ))}
@@ -285,17 +285,17 @@ const StoreHeader = ({ store, isPublishedView = false }) => {
             <motion.div
               initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="absolute right-0 top-0 h-full w-full max-w-sm bg-white dark:bg-slate-900 shadow-xl border-l dark:border-slate-700/50 flex flex-col"
+              className="absolute right-0 top-0 h-full w-full max-w-sm bg-white dark:bg-neutral-900 shadow-xl border-l dark:border-neutral-700/50 flex flex-col"
             >
-              <div className="flex items-center justify-between p-5 border-b dark:border-slate-700/50">
+              <div className="flex items-center justify-between p-5 border-b dark:border-neutral-700/50">
                 <h2 className="text-lg font-semibold">Shopping Cart</h2>
                 <Button variant="ghost" size="icon" onClick={() => setIsCartOpen(false)} className="rounded-lg"><X className="h-5 w-5" /></Button>
               </div>
               {storeCartItems.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-                  <ShoppingCart className="h-10 w-10 text-slate-400 mb-3" />
+                  <ShoppingCart className="h-10 w-10 text-neutral-400 mb-3" />
                   <h3 className="text-lg font-medium mb-1">Your cart is empty</h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">Add items to get started.</p>
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400">Add items to get started.</p>
                 </div>
               ) : (
                 <>
@@ -303,20 +303,20 @@ const StoreHeader = ({ store, isPublishedView = false }) => {
                     <div className="space-y-4">
                       {storeCartItems.map((item) => (
                         <div key={item.id} className="flex items-start gap-3">
-                          <img src={item.image?.src?.tiny || `https://via.placeholder.com/48x48.png?text=${item.name.charAt(0)}`} alt={item.name} className="w-12 h-12 object-cover rounded-md border dark:border-slate-700" />
+                          <img src={item.image?.src?.tiny || `https://via.placeholder.com/48x48.png?text=${item.name.charAt(0)}`} alt={item.name} className="w-12 h-12 object-cover rounded-md border dark:border-neutral-700" />
                           <div className="flex-1">
                             <h4 className="text-sm font-medium line-clamp-1">{item.name}</h4>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">${item.price.toFixed(2)} x {item.quantity}</p>
+                            <p className="text-xs text-neutral-500 dark:text-neutral-400">${item.price.toFixed(2)} x {item.quantity}</p>
                           </div>
                           <div className="text-right">
                             <p className="text-sm font-medium">${(item.price * item.quantity).toFixed(2)}</p>
-                            <Button variant="ghost" size="icon" className="h-6 w-6 mt-0.5 text-slate-400 hover:text-red-500" onClick={() => removeFromCart(item.id, storeId)}><Trash2 className="h-3 w-3" /></Button>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 mt-0.5 text-neutral-400 hover:text-red-500" onClick={() => removeFromCart(item.id, storeId)}><Trash2 className="h-3 w-3" /></Button>
                           </div>
                         </div>
                       ))}
                     </div>
                   </ScrollArea>
-                  <div className="border-t dark:border-slate-700/50 p-5 space-y-3">
+                  <div className="border-t dark:border-neutral-700/50 p-5 space-y-3">
                     <div className="flex justify-between text-sm font-medium">
                       <span>Subtotal</span>
                       <span>${cartTotal.toFixed(2)}</span>

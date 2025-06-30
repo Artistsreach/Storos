@@ -159,8 +159,8 @@ const StoreHero = ({ store, isPublishedView = false }) => {
         ))
       )}
       {!videoUrl && slideshowImages.length === 0 && ( // Fallback if no images loaded
-          <div className="absolute inset-0 bg-slate-800 flex items-center justify-center">
-            <p className="text-slate-500">Loading background...</p>
+          <div className="absolute inset-0 bg-neutral-800 flex items-center justify-center">
+            <p className="text-neutral-500">Loading background...</p>
           </div>
       )}
       {!videoUrl && slideshowImages.length > 0 && <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-black/10 to-transparent" />}
@@ -244,7 +244,7 @@ const StoreHero = ({ store, isPublishedView = false }) => {
               <Button
                 onClick={scrollToProducts}
                 size="lg"
-                className="group relative overflow-hidden bg-white text-slate-900 hover:bg-slate-50 border-0 rounded-xl px-7 py-3 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300 w-full sm:w-auto"
+                className="group relative overflow-hidden bg-white text-neutral-900 hover:bg-neutral-50 border-0 rounded-xl px-7 py-3 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300 w-full sm:w-auto"
               >
                 <InlineTextEdit
                   initialText={primaryCtaText}

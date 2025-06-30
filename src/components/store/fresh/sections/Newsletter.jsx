@@ -49,7 +49,7 @@ const StoreNewsletter = ({ store, isPublishedView = false }) => {
   };
 
   return (
-    <section id={`newsletter-${storeId}`} className="py-16 md:py-24 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-800/90 relative overflow-hidden">
+    <section id={`newsletter-${storeId}`} className="py-16 md:py-24 bg-gradient-to-br from-neutral-100 to-neutral-200 dark:from-neutral-800 dark:to-neutral-800/90 relative overflow-hidden">
       <div className="absolute top-0 left-1/4 w-1/2 h-full bg-gradient-to-r from-primary/5 via-transparent to-primary/5 opacity-30 dark:opacity-20 blur-3xl animate-pulse-slow" />
       
       <div className="container mx-auto px-4 sm:px-6 relative z-10">
@@ -58,7 +58,7 @@ const StoreNewsletter = ({ store, isPublishedView = false }) => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.2 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
-          className="max-w-3xl mx-auto bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl p-8 sm:p-10 md:p-12 rounded-3xl border border-slate-200/70 dark:border-slate-700/70 shadow-xl"
+          className="max-w-3xl mx-auto bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl p-8 sm:p-10 md:p-12 rounded-3xl border border-neutral-200/70 dark:border-neutral-700/70 shadow-xl"
         >
           <div className="text-center">
             <motion.div
@@ -77,18 +77,18 @@ const StoreNewsletter = ({ store, isPublishedView = false }) => {
               onSave={(newText) => updateStoreTextContent('newsletterHeading', newText)}
               isAdmin={!isPublishedView && viewMode === 'edit'}
               as="h2"
-              textClassName="text-2xl md:text-3xl lg:text-4xl font-bold mb-3 tracking-tight text-slate-800 dark:text-white"
-              inputClassName="text-2xl md:text-3xl lg:text-4xl font-bold mb-3 tracking-tight text-slate-800 dark:text-white bg-transparent"
-              className="text-2xl md:text-3xl lg:text-4xl font-bold mb-3 tracking-tight text-slate-800 dark:text-white"
+              textClassName="text-2xl md:text-3xl lg:text-4xl font-bold mb-3 tracking-tight text-neutral-800 dark:text-white"
+              inputClassName="text-2xl md:text-3xl lg:text-4xl font-bold mb-3 tracking-tight text-neutral-800 dark:text-white bg-transparent"
+              className="text-2xl md:text-3xl lg:text-4xl font-bold mb-3 tracking-tight text-neutral-800 dark:text-white"
             />
             <InlineTextEdit
               initialText={text}
               onSave={(newText) => updateStoreTextContent('newsletterText', newText)}
               isAdmin={!isPublishedView && viewMode === 'edit'}
               as="p"
-              textClassName="text-slate-600 dark:text-slate-300 mb-8 text-md md:text-lg leading-relaxed max-w-xl mx-auto"
-              inputClassName="text-slate-600 dark:text-slate-300 mb-8 text-md md:text-lg leading-relaxed max-w-xl mx-auto bg-transparent"
-              className="text-slate-600 dark:text-slate-300 mb-8 text-md md:text-lg leading-relaxed max-w-xl mx-auto"
+              textClassName="text-neutral-600 dark:text-neutral-300 mb-8 text-md md:text-lg leading-relaxed max-w-xl mx-auto"
+              inputClassName="text-neutral-600 dark:text-neutral-300 mb-8 text-md md:text-lg leading-relaxed max-w-xl mx-auto bg-transparent"
+              className="text-neutral-600 dark:text-neutral-300 mb-8 text-md md:text-lg leading-relaxed max-w-xl mx-auto"
               useTextarea={true}
             />
 
@@ -100,7 +100,7 @@ const StoreNewsletter = ({ store, isPublishedView = false }) => {
                 <Input
                   type="email"
                   placeholder={inputPlaceholderText}
-                  className="h-12 text-sm bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-slate-300/80 dark:border-slate-600/80 rounded-xl focus:ring-primary/30 focus:border-primary/60 transition-all duration-300 pl-5 pr-5 text-slate-700 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400"
+                  className="h-12 text-sm bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm border-neutral-300/80 dark:border-neutral-600/80 rounded-xl focus:ring-primary/30 focus:border-primary/60 transition-all duration-300 pl-5 pr-5 text-neutral-700 dark:text-neutral-100 placeholder-neutral-500 dark:placeholder-neutral-400"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={isSubmitting}
@@ -138,9 +138,9 @@ const StoreNewsletter = ({ store, isPublishedView = false }) => {
               onSave={(newText) => updateStoreTextContent('newsletterPrivacyText', newText)}
               isAdmin={!isPublishedView && viewMode === 'edit'}
               as="p"
-              textClassName="text-xs text-slate-500 dark:text-slate-400 mt-4"
-              inputClassName="text-xs text-slate-500 dark:text-slate-400 mt-4 bg-transparent"
-              className="text-xs text-slate-500 dark:text-slate-400 mt-4"
+              textClassName="text-xs text-neutral-500 dark:text-neutral-400 mt-4"
+              inputClassName="text-xs text-neutral-500 dark:text-neutral-400 mt-4 bg-transparent"
+              className="text-xs text-neutral-500 dark:text-neutral-400 mt-4"
             />
           </div>
         </motion.div>

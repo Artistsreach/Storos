@@ -78,7 +78,7 @@ const PodcastPage = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen bg-gray-100 relative">
+    <div className="flex flex-col items-center justify-center h-screen bg-neutral-100 dark:bg-neutral-900 relative text-neutral-900 dark:text-neutral-100">
       <Link to="/" className="absolute top-4 left-4">
         <Button variant="ghost" size="icon">
           <ArrowLeft />
@@ -93,7 +93,7 @@ const PodcastPage = () => {
               placeholder="Enter a topic, ex. 2025 print on demand trends..."
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
-              className="w-full bg-gray-200/50 rounded-[18px]"
+              className="w-full bg-neutral-200/50 dark:bg-neutral-800/50 rounded-[18px] border-neutral-300 dark:border-neutral-700"
             />
           </div>
           <Button onClick={handleCreate} className="w-full bg-blue-600 hover:bg-blue-700">
@@ -112,7 +112,7 @@ const PodcastPage = () => {
         </div>
       )}
       {audioUrl && !isLoading && (
-        <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
+        <div className="w-full max-w-md p-8 space-y-6 bg-white dark:bg-neutral-800 rounded-lg shadow-md">
           <h1 className="text-3xl font-bold text-center">Your Podcast</h1>
           <audio controls src={audioUrl} className="w-full" />
         </div>

@@ -1,8 +1,14 @@
 {
-  "functions": {
-    "codebase": "stripe",
-    "source": "stripe"
-  },
+  "functions": [
+    {
+      "codebase": "default",
+      "source": "functions"
+    },
+    {
+      "codebase": "stripe",
+      "source": "stripe"
+    }
+  ],
   "firestore": {
     "rules": "firestore.rules"
   },

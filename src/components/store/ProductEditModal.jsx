@@ -32,17 +32,33 @@ const ProductEditModal = ({ isOpen, onClose, product: initialProduct, onSave, st
 
   useEffect(() => {
     if (initialProduct) {
-      setProductData({
-        ...initialProduct,
-        name: initialProduct.name || initialProduct.product_title,
-        description: initialProduct.description || initialProduct.product_description || '',
-        price: initialProduct.price || initialProduct.target_sale_price * 1.5,
-        cost: initialProduct.cost || initialProduct.target_sale_price,
-        shipping: initialProduct.shipping || initialProduct.shipping_cost || 0,
-        images: initialProduct.images || [initialProduct.product_main_image_url],
-        variants: initialProduct.variants || [],
-        inventory_count: initialProduct.inventory_count || 0,
-      });
+      const isNewApi = initialProduct.item && initialProduct.item.itemId;
+      if (isNewApi) {
+        setProductData({
+          ...initialProduct,
+          id: initialProduct.item.itemId,
+          name: initialProduct.item.title,
+          description: initialProduct.item.title,
+          price: initialProduct.item.sku.def.promotionPrice * 1.5,
+          cost: initialProduct.item.sku.def.promotionPrice,
+          shipping: 0, // Not available in new API
+          images: [initialProduct.item.image],
+          variants: [], // Not available in new API
+          inventory_count: 0, // Not available in new API
+        });
+      } else {
+        setProductData({
+          ...initialProduct,
+          name: initialProduct.name || initialProduct.product_title,
+          description: initialProduct.description || initialProduct.product_description || '',
+          price: initialProduct.price || initialProduct.target_sale_price * 1.5,
+          cost: initialProduct.cost || initialProduct.target_sale_price,
+          shipping: initialProduct.shipping || initialProduct.shipping_cost || 0,
+          images: initialProduct.images || [initialProduct.product_main_image_url],
+          variants: initialProduct.variants || [],
+          inventory_count: initialProduct.inventory_count || 0,
+        });
+      }
     }
   }, [initialProduct]);
 
@@ -227,7 +243,7 @@ const ProductEditModal = ({ isOpen, onClose, product: initialProduct, onSave, st
         shipping_cost: productData.shipping,
         product_main_image_url: productData.images[0],
       };
-      await onSave(updatedProduct);
+      await onSave(updatedProduct, initialProduct.id);
       onClose();
     } catch (error) {
       toast({ title: "Save Error", description: "Could not save product changes.", variant: "destructive" });
@@ -251,7 +267,7 @@ const ProductEditModal = ({ isOpen, onClose, product: initialProduct, onSave, st
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Edit Product: {initialProduct.product_title}</DialogTitle>
+            <DialogTitle>Edit Product: {initialProduct.item ? initialProduct.item.title : initialProduct.product_title}</DialogTitle>
             <DialogDescription>
               Make changes to the product details below.
             </DialogDescription>
