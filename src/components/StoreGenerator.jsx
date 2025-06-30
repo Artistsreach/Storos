@@ -6,12 +6,11 @@ import { Button } from '../components/ui/button';
 import { Wand2, Loader2, AlertCircle, CheckCircle, Sparkles, Upload, X, Paperclip, FileText } from 'lucide-react'; // Added Upload, X, Paperclip, FileText
 import { useStore } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
-import { cn, useDebounce } from "@/lib/utils"; // For conditional class names
+import { cn, useDebounce } from '../lib/utils'; // For conditional class names
 import { isStoreNameTaken } from '../lib/firebaseClient'; // Import the Firestore check function
 import { generateStoreNameSuggestions } from '../lib/gemini';
 import { generateImageFromPromptForPod, visualizeImageOnProductWithGemini } from '../lib/geminiImageGeneration';
 import { podProductsList as allPodProductOptions } from '../lib/constants';
-import { generateId } from '../lib/utils.jsx';
 import { 
   Card, 
   CardContent, 
@@ -438,12 +437,17 @@ const StoreGenerator = ({ generatedImage }) => {
                       type="checkbox"
                       id="printOnDemandCheckbox"
                       checked={isPrintOnDemand}
-                      onChange={(e) => setIsPrintOnDemand(e.target.checked)}
+                      onChange={(e) => {
+                        setIsPrintOnDemand(e.target.checked);
+                        if (e.target.checked) {
+                          setIsDropshipping(false);
+                        }
+                      }}
                       className={cn(
-                        "appearance-none h-4 w-4 border rounded-full checked:border-transparent focus:outline-none focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-gray-900 cursor-pointer",
-                        "border-gray-400 dark:border-gray-500",
+                        "appearance-none h-4 w-4 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-gray-900 cursor-pointer",
+                        !isPrintOnDemand && "border border-gray-400 dark:border-gray-500",
                         "focus:ring-orange-500",
-                        isPrintOnDemand && "bg-orange-500 border-orange-500 animate-radiate-orange"
+                        isPrintOnDemand && "bg-orange-500 border-transparent animate-radiate-orange"
                       )}
                     />
                     <label htmlFor="printOnDemandCheckbox" className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -458,14 +462,15 @@ const StoreGenerator = ({ generatedImage }) => {
                       onChange={(e) => {
                         setIsDropshipping(e.target.checked);
                         if (e.target.checked) {
+                          setIsPrintOnDemand(false);
                           setIsDropshippingModalOpen(true);
                         }
                       }}
                       className={cn(
-                        "appearance-none h-4 w-4 border rounded-full checked:border-transparent focus:outline-none focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-gray-900 cursor-pointer",
-                        "border-gray-400 dark:border-gray-500",
+                        "appearance-none h-4 w-4 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-gray-900 cursor-pointer",
+                        !isDropshipping && "border border-gray-400 dark:border-gray-500",
                         "focus:ring-blue-500",
-                        isDropshipping && "bg-blue-500 border-blue-500 animate-radiate-blue"
+                        isDropshipping && "bg-blue-500 border-transparent animate-radiate-blue"
                       )}
                     />
                     <label htmlFor="dropshippingCheckbox" className="text-sm font-medium text-gray-700 dark:text-gray-300">

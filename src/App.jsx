@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Outlet, Navigate } from 'react-router-dom'; // Changed imports
+import { Analytics } from "@vercel/analytics/react"
 import { Toaster } from './components/ui/toaster';
 import ContentCreationPage from './pages/ContentCreationPage'; 
 import StoreOwnerDashboard from './pages/StoreOwnerDashboard';
@@ -27,6 +28,7 @@ const App = () => {
         <Outlet /> {/* Child routes will render here */}
         <Toaster />
         <RealtimeChatbot /> {/* Add the chatbot to the global layout */}
+        <Analytics />
       </main>
     </StoreProvider>
   );
