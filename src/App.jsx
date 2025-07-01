@@ -24,7 +24,7 @@ const App = () => {
   return (
     <StoreProvider>
       <GenerationProgressDisplay /> {/* Add the progress display here */}
-      <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-slate-900">
+      <main className="min-h-screen bg-white dark:bg-gray-900">
         <Outlet /> {/* Child routes will render here */}
         <Toaster />
         <RealtimeChatbot /> {/* Add the chatbot to the global layout */}

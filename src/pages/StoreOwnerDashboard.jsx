@@ -64,7 +64,7 @@ const StoreOwnerDashboard = () => {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#ededed] dark:bg-[#131314]"> {/* Light mode: #ededed, Dark mode: #131314 */}
+    <div className="min-h-screen flex flex-col bg-[#ededed] dark:bg-[#0a0a0a]">
       <Header />
       
       <motion.div 

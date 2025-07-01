@@ -5,7 +5,7 @@ import { useAuth } from '../../contexts/AuthContext'; // Import useAuth
 import { Button } from '../../components/ui/button';
 import { Textarea } from '../../components/ui/textarea';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../../components/ui/card';
-import { Send, Settings2, X, MessageCircle, Mic, StopCircle } from 'lucide-react'; // Added Mic, StopCircle
+import { Send, Settings2, X, MessageCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useNavigate } from 'react-router-dom'; 
 import ProductCardInChat from './ProductCardInChat';
@@ -27,10 +27,6 @@ const RealtimeChatbot = () => {
   const [messages, setMessages] = useState([]);
   const [activeService, setActiveService] = useState(null);
   const [geminiChat, setGeminiChat] = useState(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const [audioPlayer, setAudioPlayer] = useState(null);
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
   
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null); // Ref for the hidden file input
@@ -655,7 +651,7 @@ const RealtimeChatbot = () => {
       };
 
       const chat = genAI.chats.create({
-        model: "gemini-2.0-flash", 
+        model: "gemini-2.5-flash-lite-preview-06-17", 
         history: validHistory, 
         config: configForChat, 
         generationConfig: {
@@ -849,99 +845,7 @@ const RealtimeChatbot = () => {
   };
   // --- End Click Handlers ---
 
-  // --- Speech-to-Speech Handlers ---
-  const handleToggleRecording = async () => {
-    if (isRecording) {
-      // Stop recording
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
-        mediaRecorderRef.current.stop();
-      }
-      setIsRecording(false);
-    } else {
-      // Start recording
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorderRef.current = new MediaRecorder(stream);
-        audioChunksRef.current = [];
-
-        mediaRecorderRef.current.ondataavailable = (event) => {
-          audioChunksRef.current.push(event.data);
-        };
-
-        mediaRecorderRef.current.onstop = async () => {
-          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' }); // or 'audio/wav' if possible
-          audioChunksRef.current = [];
-          // TODO: Send this audioBlob to the backend, which then uses geminiLiveApi.js
-          // For now, we'll simulate a response or log it.
-          console.log("Audio recorded:", audioBlob);
-          setMessages(prev => [...prev, { id: `user-audio-${Date.now()}`, role: 'user', text: "[User sent audio]" }]);
-          
-          // Placeholder for sending to backend and getting audio response
-          // This part needs a backend implementation that uses `geminiLiveApi.js`
-          // The backend would take the audioBlob, convert it, send to Gemini, get audio back,
-          // and then send the audio response (e.g., as base64 or a URL) back to the client.
-          
-          // Simulate receiving audio response after a delay
-          setTimeout(() => {
-            const mockAssistantAudioResponseId = `assistant-audio-${Date.now()}`;
-            setMessages(prev => [...prev, { 
-              id: mockAssistantAudioResponseId, 
-              role: 'assistant', 
-              text: "[Assistant audio response]", 
-              // audioData: "base64_encoded_audio_data_from_gemini" // This would come from backend
-            }]);
-            // If actual audioData is received, play it:
-            // playReceivedAudio(audioData); 
-          }, 2000);
-        };
-
-        mediaRecorderRef.current.start();
-        setIsRecording(true);
-        setMessages(prev => [...prev, { id: `system-rec-${Date.now()}`, role: 'system', text: "Recording started..." }]);
-      } catch (error) {
-        console.error("Error accessing microphone:", error);
-        setMessages(prev => [...prev, { id: `error-mic-${Date.now()}`, role: 'system', text: "Error: Could not access microphone." }]);
-      }
-    }
-  };
-
-  const playReceivedAudio = (base64AudioData) => {
-    // This function would take base64 audio data, decode it, and play it using Web Audio API
-    // For simplicity, this is a placeholder.
-    console.log("Attempting to play received audio data (length):", base64AudioData?.length);
-    if (!base64AudioData) return;
-
-    try {
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const audioData = Uint8Array.from(atob(base64AudioData), c => c.charCodeAt(0)).buffer;
-      
-      audioContext.decodeAudioData(audioData, (buffer) => {
-        const source = audioContext.createBufferSource();
-        source.buffer = buffer;
-        source.connect(audioContext.destination);
-        source.start(0);
-        setAudioPlayer(source); // Store player to potentially stop it later
-      }, (err) => {
-        console.error("Error decoding audio data:", err);
-      });
-    } catch (e) {
-      console.error("Error setting up audio playback:", e);
-    }
-  };
-
-  // Clean up audio player if component unmounts or audio finishes
-  useEffect(() => {
-    return () => {
-      if (audioPlayer && audioPlayer.context.state !== 'closed') {
-        // audioPlayer.stop(); // This might throw if already stopped or not started
-        audioPlayer.context.close();
-      }
-      if (mediaRecorderRef.current && mediaRecorderRef.current.stream) {
-        mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, [audioPlayer]);
-  // --- End Speech-to-Speech Handlers ---
+  // --- End Click Handlers ---
 
   return (
     <>
@@ -1044,30 +948,20 @@ const RealtimeChatbot = () => {
           
           <CardFooter className="p-3 border-t">
             <div className="flex w-full items-center gap-2">
-              <Button 
-                onClick={handleToggleRecording} 
-                size="icon" 
-                variant={isRecording ? "destructive" : "outline"}
-                title={isRecording ? "Stop Recording" : "Start Recording"}
-                disabled={!activeService || isGeminiInitializing}
-                className="p-2"
-              >
-                {isRecording ? <StopCircle size={18} /> : <Mic size={18} />}
-              </Button>
               <Textarea
-                placeholder={isRecording ? "Recording audio..." : "Type a message or use microphone..."}
+                placeholder="Type a message..."
                 value={currentMessage}
                 onChange={(e) => setCurrentMessage(e.target.value)}
                 onKeyPress={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); }}}
                 className="flex-grow resize-none text-sm p-2 rounded-md min-h-[40px] max-h-[100px]"
                 rows={1}
-                disabled={!activeService || isGeminiInitializing || isRecording} 
+                disabled={!activeService || isGeminiInitializing} 
               />
               <Button 
                 onClick={() => handleSendMessage()} 
                 size="icon" 
                 title="Send Message" 
-                disabled={!currentMessage.trim() || !activeService || isGeminiInitializing || isRecording} 
+                disabled={!currentMessage.trim() || !activeService || isGeminiInitializing} 
               >
                 <Send size={18} />
               </Button>

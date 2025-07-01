@@ -48,7 +48,7 @@ const PodcastPage = () => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "xi-api-key": "sk_568f58692c2ab38dfd3b483857d1b001eb145783dacbac5c",
+        "xi-api-key": "sk_2997175c9f408b4579a544d993417bb0069872fa26c748e8",
       },
       body: JSON.stringify({
         text: text,
