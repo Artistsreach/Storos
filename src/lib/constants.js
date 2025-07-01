@@ -24,3 +24,10 @@ export const productTypeOptions = [
   { value: "art_collectibles", label: "Art & Collectibles" },
   { value: "general", label: "General Merchandise" },
 ];
+
+export const tags = [
+  'fashion', 'quotes', 'personalized', 'print on demand', 'home decor', 'digital services', 
+  'art/design', 'jewelry', 'collectibles', 'courses', 'books', 'garden', 'electronics', 
+  'games', 'sports', 'productivity', 'toys', 'automotive', 'tools', 'marketing', 
+  'content creation', 'ui/ux design', 'web/app development'
+];

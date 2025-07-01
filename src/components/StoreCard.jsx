@@ -33,10 +33,32 @@ import {
   AlertDialogTrigger,
 } from '../components/ui/alert-dialog';
 import { useStore } from '../contexts/StoreContext';
+import { useAuth } from '../contexts/AuthContext';
+import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
+import 'react-circular-progressbar/dist/styles.css';
 
 const StoreCard = ({ store }) => {
   const navigate = useNavigate();
-  const { deleteStore, updateStoreTemplateVersion } = useStore(); 
+  const { deleteStore, updateStoreTemplateVersion, getStoreRevenue, getStoreCustomers, getStoreConversionRate, getStoreSocialScore } = useStore();
+  const { user } = useAuth();
+  const [revenue, setRevenue] = useState(null);
+  const [socialScore, setSocialScore] = useState(0);
+  const [customers, setCustomers] = useState(0);
+  const [conversionRate, setConversionRate] = useState(0);
+
+  const isUserStore = store.merchant_id === user?.uid;
+  const glowEffect = isUserStore && store.theme?.primaryColor 
+    ? { boxShadow: `0 0 10px 2px ${store.theme.primaryColor}A0` }
+    : {};
+
+  useEffect(() => {
+    if (isUserStore) {
+      getStoreRevenue(store.id).then(setRevenue);
+      getStoreCustomers(store.id).then(setCustomers);
+      getStoreConversionRate(store.id).then(setConversionRate);
+      getStoreSocialScore(store.id).then(setSocialScore);
+    }
+  }, [isUserStore, store.id, getStoreRevenue, getStoreCustomers, getStoreConversionRate, getStoreSocialScore]);
 
   let productImageUrl = null;
   if (store.products && store.products.length > 0) {
@@ -84,12 +106,25 @@ const StoreCard = ({ store }) => {
   };
   
   return (
+    <div
+      className="cursor-pointer"
+      onClick={() => {
+        if (store && store.name) {
+          navigate(`/${generateStoreUrl(store.name)}`);
+        } else {
+          console.error("Store name is missing, cannot navigate to preview.");
+        }
+      }}
+    >
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
       className="store-preview relative bg-cover bg-center rounded-[15px] overflow-hidden" // Apply background to motion.div, ensure overflow hidden for rounded corners
-      style={backgroundImageUrl ? { backgroundImage: `url(${backgroundImageUrl})` } : { backgroundColor: '#374151' }} // Dark gray fallback
+      style={{
+        ...(backgroundImageUrl ? { backgroundImage: `url(${backgroundImageUrl})` } : { backgroundColor: '#374151' }),
+        ...glowEffect
+      }}
     >
       <div
         className="absolute inset-0"
@@ -138,9 +173,13 @@ const StoreCard = ({ store }) => {
                   || (Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : null);
                 
                 return (
-                  <div 
-                    key={product.id} 
-                    className="bg-white/10 p-2 rounded-md text-xs flex items-center gap-2 backdrop-blur-xs"
+                  <div
+                    key={product.id}
+                    className="bg-white/10 p-2 rounded-md text-xs flex items-center gap-2 backdrop-blur-xs cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/${generateStoreUrl(store.name)}/product/${encodeURIComponent(product.id)}`);
+                    }}
                   >
                     {productImageUrl && (
                       <img src={productImageUrl} alt={product.name} className="w-8 h-8 object-cover rounded-sm" />
@@ -160,68 +199,56 @@ const StoreCard = ({ store }) => {
               </p>
             )}
           </div>
-        </CardContent>
-        <CardFooter className="flex flex-col items-start gap-2 pt-2">
-          <div className="flex w-full justify-between items-center">
-            <Button 
-              variant="outline" 
-              size="sm"
-              className="bg-white/90 hover:bg-white text-slate-800 border-slate-300 hover:border-slate-400"
-              onClick={() => {
-                if (store && store.name) { // Check for store.name
-                  navigate(`/${generateStoreUrl(store.name)}`); // Navigate using generateStoreUrl
-                } else {
-                  console.error("Store name is missing, cannot navigate to preview.");
-                  // Consider adding a toast message for the user here if store.name is missing
-                }
-              }}
-            >
-              Preview
-            </Button>
-            
-            <div className="flex gap-2">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8 text-gray-300 hover:text-white hover:bg-white/10"
-                onClick={() => store && store.name && navigate(`/${generateStoreUrl(store.name)}?edit=true`)} // Navigate using generateStoreUrl
-              >
-                <Edit className="h-4 w-4" />
-                <span className="sr-only">Edit</span>
-              </Button>
-              
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-500/10">
-                    <Trash2 className="h-4 w-4" />
-                    <span className="sr-only">Delete</span>
+            {isUserStore && revenue !== null && (
+              <div className="mt-4 text-left">
+                <p className="text-lg font-semibold text-white">
+                  Total Revenue: ${revenue.toFixed(2)}
+                </p>
+                <div className="flex items-center gap-4 mt-2">
+                  <div style={{ width: 50, height: 50 }}>
+                    <CircularProgressbar
+                      value={socialScore}
+                      text={`${socialScore}%`}
+                      styles={buildStyles({
+                        textColor: 'white',
+                        pathColor: 'white',
+                        trailColor: 'rgba(255, 255, 255, 0.2)',
+                      })}
+                    />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white">Social Score</p>
+                  </div>
+                </div>
+                <div className="mt-2 flex justify-between items-center">
+                  <div>
+                    <p className="text-sm text-white">Customers: {customers}</p>
+                    <p className="text-sm text-white">Conversion Rate: {conversionRate.toFixed(2)}%</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-white/90 hover:bg-white text-slate-800 border-slate-300 hover:border-slate-400"
+                    onClick={() => {
+                      if (store && store.name) { // Check for store.name
+                        navigate(`/${generateStoreUrl(store.name)}`); // Navigate using generateStoreUrl
+                      } else {
+                        console.error("Store name is missing, cannot navigate to preview.");
+                        // Consider adding a toast message for the user here if store.name is missing
+                      }
+                    }}
+                  >
+                    Preview
                   </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will permanently delete the "{store.name}" store and all its data.
-                      This action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction 
-                      className="bg-red-500 text-white hover:bg-red-600"
-                      onClick={() => deleteStore(store.id)}
-                    >
-                      Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          </div>
-        </CardFooter>
+                </div>
+              </div>
+            )}
+        </CardContent>
+        <CardFooter className="flex flex-col items-start gap-2 pt-2" />
         </div> 
       </Card>
     </motion.div>
+    </div>
   );
 };
 

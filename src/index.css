@@ -1,109 +1,89 @@
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
-/* Add other fonts like Roboto, Poppins, Open Sans if they are to be supported globally */
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Import Modern Template Styles */
-@import './styles/modern-template.css';
-
 @layer base {
   :root {
-    --background: 0 0% 100%; /* white */
-    --foreground: 0 0% 10%; /* dark grey */
-    --card: 0 0% 100%; /* white */
-    --card-foreground: 0 0% 10%; /* dark grey */
-    --popover: 0 0% 100%; /* white */
-    --popover-foreground: 0 0% 10%; /* dark grey */
-    --primary: 0 0% 20%; /* darker grey */
-    --primary-foreground: 0 0% 98%; /* off-white */
-    --secondary: 0 0% 96%; /* very light grey */
-    --secondary-foreground: 0 0% 15%; /* dark grey */
-    --muted: 0 0% 96%; /* very light grey */
-    --muted-foreground: 0 0% 40%; /* medium grey */
-    --accent: 0 0% 94%; /* light grey */
-    --accent-foreground: 0 0% 15%; /* dark grey */
-    --destructive: 0 0% 40%; /* medium grey (was red) */
-    --destructive-foreground: 0 0% 98%; /* off-white */
-    --border: 0 0% 85%; /* light grey */
-    --input: 0 0% 85%; /* light grey */
-    --ring: 0 0% 20%; /* darker grey */
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+ 
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+ 
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+ 
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+ 
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+ 
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+ 
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+ 
     --radius: 0.5rem;
-
-    /* Theme-aware gradient colors - Light Mode */
-    --gradient-start-color: hsl(var(--background));
-    --gradient-end-color: hsl(var(--secondary));
   }
-
+ 
   .dark {
-    --background: 0 0% 3%; /* very dark grey / near black */
-    --foreground: 0 0% 97%; /* very light grey / off-white */
-    --card: 0 0% 7%; /* slightly lighter than background */
-    --card-foreground: 0 0% 97%; /* very light grey / off-white */
-    --popover: 0 0% 7%; /* slightly lighter than background */
-    --popover-foreground: 0 0% 97%; /* very light grey / off-white */
-    --primary: 0 0% 80%; /* very light grey */
-    --primary-foreground: 0 0% 10%; /* dark grey for text on primary in dark mode */
-    --secondary: 0 0% 12%; /* dark grey, lighter than background but still dark */
-    --secondary-foreground: 0 0% 92%; /* light grey for text on secondary */
-    --muted: 0 0% 12%; /* same as secondary for muted elements */
-    --muted-foreground: 0 0% 85%; /* lighter grey for muted text */
-    --accent: 0 0% 18%; /* slightly lighter dark grey for accents */
-    --accent-foreground: 0 0% 92%; /* light grey for text on accent */
-    --destructive: 0 0% 25%; /* darker grey for destructive elements */
-    --destructive-foreground: 0 0% 97%; /* very light grey for text on destructive */
-    --border: 0 0% 18%; /* slightly lighter dark grey for borders */
-    --input: 0 0% 18%; /* slightly lighter dark grey for input backgrounds */
-    --ring: 0 0% 50%; /* darker grey for rings */
-
-    /* Theme-aware gradient colors - Dark Mode (overrides) */
-    --gradient-start-color: hsl(var(--background));
-    --gradient-end-color: hsl(var(--secondary));
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+ 
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+ 
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+ 
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+ 
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+ 
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+ 
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+ 
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+ 
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
   }
 }
-
+ 
 @layer base {
   * {
     @apply border-border;
   }
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
-.gradient-bg {
-  /* background: linear-gradient(135deg, #77B8B8 0%, #3B82F6 100%); */ /* Old hardcoded gradient */
-  background: linear-gradient(135deg, var(--gradient-start-color) 0%, var(--gradient-end-color) 100%); /* New theme-aware gradient */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: inset 0 0 5px 0px rgba(var(--glow-color), 0.7);
+  }
+  50% {
+    box-shadow: inset 0 0 10px 2px rgba(var(--glow-color), 0.7);
+  }
 }
 
-.glass-card {
-  background: rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.store-preview {
-  transition: all 0.3s ease;
-}
-
-.store-preview:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-}
-
-.product-card {
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.product-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-}
-
-.hero-pattern {
-  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239C92AC' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+.pulse-glow-animation {
+  animation: pulse-glow 4s infinite;
 }

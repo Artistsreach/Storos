@@ -5,9 +5,10 @@ import { db, storage } from '../lib/firebaseClient'; // Import db and storage fr
 import { collection, doc, getDoc, getDocs, query, where, addDoc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useAuth } from './AuthContext'; // Import useAuth
-import { podProductsList } from '../lib/constants'; // For POD collection generation
+import { podProductsList, tags } from '../lib/constants'; // For POD collection generation
 import { visualizeImageOnProductWithGemini } from '../lib/geminiImageGeneration'; // For POD collection generation
 import { imageSrcToBasics, fileToBasics } from '../lib/imageUtils'; // Import from shared util
+import { generateTagsForStore } from '../lib/geminiTagging';
 import { 
   generateStoreFromWizardData,
   generateStoreFromPromptData,
@@ -159,7 +160,7 @@ const uploadBase64ToFirebaseStorage = async (base64String, path) => {
 };
 
 // Helper function to prepare store data for localStorage (strip/shorten large base64 images)
-const prepareStoresForLocalStorage = (storesArray) => {
+const prepareStoresForLocalStorage = useCallback((storesArray) => {
   if (!storesArray) return [];
   return storesArray.map(store => {
     const storeForLs = { ...store };
@@ -209,7 +210,7 @@ const prepareStoresForLocalStorage = (storesArray) => {
     
     return storeForLs;
   });
-};
+}, []);
 
   const loadStores = useCallback(async () => {
     setIsLoadingStores(true);
@@ -496,10 +497,11 @@ const prepareStoresForLocalStorage = (storesArray) => {
     // Toast for successful update is handled within updateStore
   }, [currentStore, updateStore, toast]);
 
-  // Automatic store loading useEffect removed.
-  // Stores should be loaded via a manual trigger (e.g., a button calling loadStores(user.id)).
-  // The isLoadingStores state is initialized to false.
-  // The loadStores function is now exposed via the context value.
+  // Automatic store loading on mount
+  useEffect(() => {
+    console.log("[StoreContext] Component mounted, triggering loadStores.");
+    loadStores();
+  }, [loadStores]); // Re-added to load stores on initial app load for all users
 
   useEffect(() => {
     // Persist cart to localStorage
@@ -552,6 +554,19 @@ const prepareStoresForLocalStorage = (storesArray) => {
     if (!storeToCreate.template_version) {
       storeToCreate.template_version = 'v1';
     }
+
+    const generatedTags = await generateTagsForStore(storeToCreate);
+    if (generatedTags.tags && generatedTags.tags.length > 0) {
+      storeToCreate.tags = generatedTags.tags;
+    } else {
+      const storeNiche = storeToCreate.niche || '';
+      const storeTags = tags.filter(tag => storeNiche.toLowerCase().includes(tag.toLowerCase()));
+      if (storeTags.length === 0) {
+        storeTags.push('general');
+      }
+      storeToCreate.tags = storeTags;
+    }
+    storeToCreate.niche = storeToCreate.tags[0];
     // urlSlug is now set from nameCheckResult
 
     const clientGeneratedStoreId = storeToCreate.id || generateId();
@@ -628,6 +643,7 @@ const prepareStoresForLocalStorage = (storesArray) => {
           urlSlug: newStoreLocal.urlSlug, // Ensure urlSlug is saved to Firestore
           name_lowercase: newStoreLocal.name.toLowerCase(),
           card_background_url: newStoreLocal.card_background_url,
+          tags: newStoreLocal.tags,
         };
         
         await setDoc(storeDocRef, dataToInsert);
@@ -1665,6 +1681,78 @@ const finalizeBigCommerceImportFromWizard = useCallback(async () => {
     return foundProduct ? { ...foundProduct } : null; // Return a new object
   }, [getStoreById]); // Dependency is getStoreById (which depends on stores)
 
+  const getStoreRevenue = async (storeId) => {
+    if (!storeId) return 0;
+    try {
+      const ordersRef = collection(db, 'stores', storeId, 'orders');
+      const querySnapshot = await getDocs(ordersRef);
+      let totalRevenue = 0;
+      querySnapshot.forEach((doc) => {
+        const orderData = doc.data();
+        if (orderData.total && typeof orderData.total === 'number') {
+          totalRevenue += orderData.total;
+        }
+      });
+      return totalRevenue;
+    } catch (error) {
+      console.error(`Error fetching revenue for store ${storeId}:`, error);
+      return 0;
+    }
+  };
+
+  const getStoreCustomers = async (storeId) => {
+    if (!storeId) return 0;
+    try {
+      const ordersRef = collection(db, 'stores', storeId, 'orders');
+      const querySnapshot = await getDocs(ordersRef);
+      const customerIds = new Set();
+      querySnapshot.forEach((doc) => {
+        const orderData = doc.data();
+        if (orderData.userId) {
+          customerIds.add(orderData.userId);
+        }
+      });
+      return customerIds.size;
+    } catch (error) {
+      console.error(`Error fetching customers for store ${storeId}:`, error);
+      return 0;
+    }
+  };
+
+  const getStoreConversionRate = async (storeId) => {
+    if (!storeId) return 0;
+    try {
+      const storeRef = doc(db, 'stores', storeId);
+      const storeSnap = await storeRef.get();
+      const storeData = storeSnap.data();
+      const views = storeData?.views || 0;
+
+      const ordersRef = collection(db, 'stores', storeId, 'orders');
+      const ordersSnapshot = await getDocs(ordersRef);
+      const sales = ordersSnapshot.size;
+
+      if (views === 0) return 0;
+      return (sales / views) * 100;
+    } catch (error) {
+      console.error(`Error fetching conversion rate for store ${storeId}:`, error);
+      return 0;
+    }
+  };
+
+  const getStoreSocialScore = async (storeId) => {
+    if (!storeId) return 0;
+    try {
+      const storeRef = doc(db, 'stores', storeId);
+      const storeSnap = await storeRef.get();
+      const storeData = storeSnap.data();
+      const views = storeData?.views || 0;
+      return Math.floor(views / 35);
+    } catch (error) {
+      console.error(`Error fetching social score for store ${storeId}:`, error);
+      return 0;
+    }
+  };
+
   // The old updateStore location is now removed.
   // The correct updateStore is defined earlier and wrapped in useCallback.
 
@@ -2137,6 +2225,10 @@ const finalizeBigCommerceImportFromWizard = useCallback(async () => {
     // importShopifyStore, // Replaced by wizard functions
     getStoreById, getStoreByName, getStoreBySlug, updateStore, deleteStore, setCurrentStore, updateStorePassKey, assignStoreManager, updateStoreTemplateVersion,
     getProductById, updateProductImage, generateStoreFromWizard,
+    getStoreRevenue,
+    getStoreCustomers,
+    getStoreConversionRate,
+    getStoreSocialScore,
     addToCart, removeFromCart, updateQuantity, clearCart,
     generateAIProducts: generateAIProductsData,
     updateProductImagesArray, // Expose the new function

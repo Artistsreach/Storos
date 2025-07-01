@@ -310,22 +310,13 @@ const StorePreview = () => {
     }, 500);
   };
   
-  if (isLoadingStores) {
+  if (isLoadingStores || isFetchingStore || !store) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">Loading store...</p>
         </div>
-      </div>
-    );
-  }
-
-  if (!store) {
-    // This case is handled by the toast in useEffect, but good to have a fallback UI
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-xl text-destructive">Store not found.</p>
       </div>
     );
   }
@@ -383,81 +374,16 @@ const StorePreview = () => {
 
   console.log(`[StorePreview] Rendering template: ${templateVersionToRender}. Store products: ${store?.products?.length || 0}, collections: ${store?.collections?.length || 0}`);
 
-  // Loading state for template components based on templateVersionToRender
-  if (templateVersionToRender === 'classic') { 
-    if (!StoreHeader || !StoreHero || !StoreCollections || !ProductGrid || !StoreFeatures || !StoreTestimonials || !StoreNewsletter || !StoreFooter) {
-      return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading Classic Template Components...</p>
-          </div>
-        </div>
-      );
-    }
-  } else if (templateVersionToRender === 'modern') {
-    if (!ModernHeader || !ModernHero || !ModernFeatures || !ModernCollections || !ModernProductGrid || !ModernFooter) { 
-      return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading Modern Template Components...</p>
-          </div>
-        </div>
-      );
-    }
-  } else if (templateVersionToRender === 'premium') {
-    if (!PHeader || !PHero || !PFeaturedProducts || !PCategoryShowcase || !PSocialProof || !PNewsletter || !PFooter) {
-       return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading Premium Template Components...</p>
-          </div>
-        </div>
-      );
-    }
-  } else if (templateVersionToRender === 'sharp') {
-    if (!SharpHeader || !SharpHero || !SharpHeroFollowUpVideo || !SharpFeatures || !SharpProductGrid || !SharpTestimonials || !SharpImageRightSection || !SharpVideoLeftSection || !SharpNewsletter || !SharpFooter) {
-      return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading Sharp Template Components...</p>
-          </div>
-        </div>
-      );
-    }
-  } else if (templateVersionToRender === 'sleek') {
-    if (!SleekHeader || !SleekHero || !SleekProductGrid || !SleekCollections || !SleekFeatures || !SleekTestimonials || !SleekNewsletter || !SleekFooter) {
-      return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading Sleek Template Components...</p>
-          </div>
-        </div>
-      );
-    }
-  }
-  // Add similar checks for 'fresh' if its components are mandatory for initial render
-  else if (templateVersionToRender === 'fresh') {
-    if (!FreshHeader || !FreshHero || !FreshFeatures || !FreshProductGrid || !FreshStoreCollectionsComponent || !FreshNewsletter || !FreshFooter) {
-       return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading Fresh Template Components...</p>
-          </div>
-        </div>
-      );
-    }
-  }
-
-
   return (
     <div className="min-h-screen bg-background">
-      <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading Store Content...</div>}>
+      <Suspense fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading Store...</p>
+          </div>
+        </div>
+      }>
         {templateVersionToRender === 'classic' ? (
           <React.Fragment key="classic">
             {StoreHeader && <StoreHeader store={store} isPublishedView={isPublished} />}

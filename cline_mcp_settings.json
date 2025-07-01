@@ -13,6 +13,17 @@
       ],
       "disabled": false,
       "autoApprove": []
+    },
+    "github.com/elevenlabs/elevenlabs-mcp": {
+      "command": "/home/user/.local/bin/uvx",
+      "args": [
+        "elevenlabs-mcp"
+      ],
+      "env": {
+        "ELEVENLABS_API_KEY": "sk_568f58692c2ab38dfd3b483857d1b001eb145783dacbac5c"
+      },
+      "disabled": false,
+      "autoApprove": []
     }
   }
 }

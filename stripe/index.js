@@ -91,7 +91,10 @@ exports.stripeWebhookHandler = functions.runWith({ secrets: ["STRIPE_WEBHOOK_SEC
       case 'account.updated':
         await handleAccountUpdated(event.data.object);
         break;
-      //... handle other event types like 'checkout.session.completed' if needed
+      case 'checkout.session.completed':
+        await handleCheckoutSessionCompleted(event.data.object);
+        break;
+      //... handle other event types
       default:
         console.log(`Unhandled event type ${event.type}`);
     }
@@ -131,6 +134,29 @@ async function handleAccountUpdated(account) {
   // Update the user's profile
   await userDoc.ref.update(profileUpdateData);
   console.log(`Connect account status updated for user ${userDoc.id}`, profileUpdateData);
+}
+
+async function handleCheckoutSessionCompleted(session) {
+  const db = admin.firestore();
+  const storeId = session.metadata.storeId;
+  const userId = session.metadata.firebaseUID;
+
+  if (!storeId) {
+    console.error('No storeId in checkout session metadata');
+    return;
+  }
+
+  const orderData = {
+    total: session.amount_total / 100, // Convert from cents
+    currency: session.currency,
+    customer_email: session.customer_details.email,
+    created_at: admin.firestore.FieldValue.serverTimestamp(),
+    userId: userId,
+    line_items: session.line_items,
+  };
+
+  await db.collection('stores').doc(storeId).collection('orders').add(orderData);
+  console.log(`Order created for store ${storeId}`);
 }
 
 /**
@@ -219,6 +245,8 @@ exports.createProductCheckoutSession = functions.runWith({ secrets: ["STRIPE_SEC
     let stripeAccountId = null;
     if (storeOwnerProfile && storeOwnerProfile.stripe_account_id && storeOwnerProfile.stripe_charges_enabled) {
       stripeAccountId = storeOwnerProfile.stripe_account_id;
+    } else {
+      console.warn(`Store owner ${storeOwnerId} does not have a valid Stripe account. Skipping transfer.`);
     }
 
     const product = await stripe.products.create({
@@ -245,6 +273,7 @@ exports.createProductCheckoutSession = functions.runWith({ secrets: ["STRIPE_SEC
       metadata: {
         firebaseUID: userId,
         productId: product.id,
+        storeId: data.storeId,
       }
     };
 

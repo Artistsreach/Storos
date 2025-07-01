@@ -30,7 +30,7 @@ export async function generateStoreNameSuggestions(promptContent) {
     const fullPrompt = `Suggest 3 creative and catchy store name options based on the following store name: "${promptContent}". The suggestions should be relevant and similar. Return exactly 3 suggestions.`;
 
     const response = await genAI.models.generateContent({
-      model: "gemini-2.0-flash-lite-preview-02-05",
+      model: "gemini-2.5-flash-lite-preview-06-17",
       contents: [{ role: "user", parts: [{text: fullPrompt}]}],
       config: {
         responseMimeType: "application/json",
