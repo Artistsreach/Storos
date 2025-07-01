@@ -11,6 +11,8 @@ import { Progress } from '@/components/ui/progress';
 import { useToast } from "@/components/ui/use-toast";
 import { generateDifferentAnglesFromImage, editImageWithGemini } from '../../lib/geminiImageGeneration';
 import { imageSrcToBasics } from '../../lib/imageUtils';
+import { useAuth } from '../../contexts/AuthContext';
+import { deductCredits, canDeductCredits } from '../../lib/credits';
 
 // Helper function to convert file to data URL
 const fileToBase64 = (file) => {
@@ -25,6 +27,7 @@ const fileToBase64 = (file) => {
 import { useStore } from '../../contexts/StoreContext';
 
 const ProductEditModalStore = ({ isOpen, onClose, product: initialProduct, onSave, storeId, theme }) => {
+  const { user } = useAuth();
   const { updateStore, currentStore } = useStore();
   const [productData, setProductData] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -112,6 +115,13 @@ const ProductEditModalStore = ({ isOpen, onClose, product: initialProduct, onSav
     setIsGeneratingVisuals(true);
 
     try {
+      const hasEnoughCredits = await canDeductCredits(user.uid, 2);
+      if (!hasEnoughCredits) {
+        toast({ title: "Insufficient Credits", description: "You need at least 2 credits to generate more visuals.", variant: "destructive" });
+        setIsGeneratingVisuals(false);
+        return;
+      }
+
       const { base64ImageData, mimeType } = await imageSrcToBasics(baseImageSrc);
       const productName = productData.name;
       let generatedImageUrls = [];
@@ -162,6 +172,7 @@ const ProductEditModalStore = ({ isOpen, onClose, product: initialProduct, onSav
       } else {
         toast({ title: "No New Visuals", description: "Could not generate additional visuals.", variant: "default" });
       }
+      await deductCredits(user.uid, 2);
 
     } catch (error) {
       console.error("Error in handleGenerateMoreVisuals:", error);
@@ -170,6 +181,16 @@ const ProductEditModalStore = ({ isOpen, onClose, product: initialProduct, onSav
       setIsGeneratingVisuals(false);
     }
   };
+
+  const handleGenerateProductVideo = async () => {
+    const hasEnoughCredits = await canDeductCredits(user.uid, 15);
+    if (!hasEnoughCredits) {
+        toast({ title: "Insufficient Credits", description: "You need at least 15 credits to generate a video.", variant: "destructive" });
+        return;
+    }
+    await deductCredits(user.uid, 15);
+    toast({ title: "Video Generation", description: "Video generation initiated. This is a placeholder."});
+  }
 
   // Variant Handlers
   const handleVariantOptionNameChange = (optionIndex, newName) => {
@@ -379,6 +400,16 @@ const ProductEditModalStore = ({ isOpen, onClose, product: initialProduct, onSav
                             <Sparkles className="mr-2 h-4 w-4" />
                         )}
                         More Angles/Context (AI)
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleGenerateProductVideo}
+                        disabled={isProcessing || isGeneratingVisuals}
+                    >
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Generate Video (AI)
                     </Button>
                   </div>
                 </div>

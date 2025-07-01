@@ -8,9 +8,9 @@ import { generateStoreUrl } from "./utils.js"; // Explicitly import from .js fil
 // Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyAI8iWuP1P20OZDIGsUNX6BluSCF40A7AU",
-  authDomain: "freshfront-c3181.firebaseapp.com",
-  projectId: "freshfront-c3181",
-  storageBucket: "freshfront-c3181.firebasestorage.app",
+  authDomain: "fresh-dfe30.firebaseapp.com",
+  projectId: "fresh-dfe30",
+  storageBucket: "fresh-dfe30.firebasestorage.app",
   messagingSenderId: "925329325314",
   appId: "1:925329325314:web:67f69c02b9ff7580e6561b"
 };

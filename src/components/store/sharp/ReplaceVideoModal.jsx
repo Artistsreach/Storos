@@ -14,6 +14,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { generateVideoWithVeo } from "@/lib/geminiVideoGeneration";
 import { searchPexelsVideos } from "@/lib/pexels";
 import { UploadCloud } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { deductCredits, canDeductCredits } from "@/lib/credits";
 
 const ReplaceVideoModal = ({
   open,
@@ -22,6 +24,7 @@ const ReplaceVideoModal = ({
   currentVideoUrl,
   onVideoReplaced,
 }) => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("ai");
 
   // AI Generation State
@@ -64,6 +67,12 @@ const ReplaceVideoModal = ({
     setIsAiLoading(true);
     setAiError(null);
     try {
+      const hasEnoughCredits = await canDeductCredits(user.uid, 15);
+      if (!hasEnoughCredits) {
+        setAiError("You don't have enough credits to generate a video.");
+        setIsAiLoading(false);
+        return;
+      }
       console.log(
         `Generating video for store ${storeId} with prompt: "${aiPrompt}"`,
       );
@@ -71,6 +80,7 @@ const ReplaceVideoModal = ({
       if (onVideoReplaced) {
         onVideoReplaced(newVideoUrl);
       }
+      await deductCredits(user.uid, 15);
       onOpenChange(false);
       setAiPrompt("");
     } catch (err) {

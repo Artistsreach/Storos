@@ -94,6 +94,9 @@ exports.stripeWebhookHandler = functions.runWith({ secrets: ["STRIPE_WEBHOOK_SEC
       case 'checkout.session.completed':
         await handleCheckoutSessionCompleted(event.data.object);
         break;
+      case 'invoice.payment_succeeded':
+        await handleSubscriptionPaymentSucceeded(event.data.object);
+        break;
       //... handle other event types
       default:
         console.log(`Unhandled event type ${event.type}`);
@@ -159,6 +162,30 @@ async function handleCheckoutSessionCompleted(session) {
   console.log(`Order created for store ${storeId}`);
 }
 
+async function handleSubscriptionPaymentSucceeded(invoice) {
+  const db = admin.firestore();
+  const customerId = invoice.customer;
+  const subscriptionId = invoice.subscription;
+
+  // Retrieve the subscription to access its metadata
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  const userId = subscription.metadata.firebaseUID;
+
+  if (!userId) {
+    console.error('No firebaseUID in subscription metadata');
+    return;
+  }
+
+  const userCreditsRef = db.collection('users').doc(userId);
+
+  // Add 1000 credits to the user's account
+  await userCreditsRef.update({
+    credits: admin.firestore.FieldValue.increment(1000)
+  });
+
+  console.log(`1000 credits granted to user ${userId} for subscription ${subscriptionId}`);
+}
+
 /**
  * Creates a Login Link for an existing Stripe Connect Account.
  * This allows an onboarded user to access their Express Dashboard.
@@ -218,6 +245,11 @@ exports.createSubscriptionCheckout = functions.runWith({ secrets: ["STRIPE_SECRE
       mode: 'subscription',
       success_url: `${process.env.BASE_URL}/`,
       cancel_url: `${process.env.BASE_URL}/`,
+      subscription_data: {
+        metadata: {
+          firebaseUID: userId,
+        }
+      }
     });
 
     return { url: session.url };

@@ -6,6 +6,7 @@ import { Button } from '../components/ui/button';
 import { Wand2, Loader2, AlertCircle, CheckCircle, Sparkles, Upload, X, Paperclip, FileText } from 'lucide-react'; // Added Upload, X, Paperclip, FileText
 import { useStore } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
+import { deductCredits, canDeductCredits } from '../lib/credits';
 import { cn, useDebounce } from '../lib/utils'; // For conditional class names
 import { isStoreNameTaken } from '../lib/firebaseClient'; // Import the Firestore check function
 import { generateStoreNameSuggestions } from '../lib/gemini';
@@ -120,7 +121,7 @@ const StoreGenerator = ({ generatedImage }) => {
     stores,
     openAuthModal
   } = useStore();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   
   const [isCheckingName, setIsCheckingName] = useState(false);
   const [storeNameAvailability, setStoreNameAvailability] = useState(null); // { status: 'available'|'claimed'|'error', message: '...' }
@@ -283,8 +284,14 @@ const StoreGenerator = ({ generatedImage }) => {
     const nicheDetails = getStoreNicheDetails(prompt);
 
     try {
+      const hasEnoughCredits = await canDeductCredits(user.uid, 25);
+      if (!hasEnoughCredits) {
+        alert("You don't have enough credits to generate a store.");
+        return;
+      }
       // Pass the entire contextFiles array (of {file, previewUrl} objects), not just the files.
       await generateStore(prompt, storeName, nicheDetails, [], isPrintOnDemand, isDropshipping, contextFiles, dropshippingProducts);
+      await deductCredits(user.uid, 25);
     } catch (error) {
       console.error("Error calling generateStore from StoreGenerator:", error);
       alert(`An error occurred during the store generation step: ${error.message}`);

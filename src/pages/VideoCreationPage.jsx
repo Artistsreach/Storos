@@ -114,8 +114,11 @@ import {
     editImageWithOpenAI,
     dataUrlToImageFile
 } from "@/lib/openaiImageGeneration.js";
+import { useAuth } from "@/contexts/AuthContext";
+import { deductCredits, canDeductCredits } from "@/lib/credits";
 
 const VideoCreationPage = () => {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("text-to-image");
 
@@ -361,6 +364,12 @@ const VideoCreationPage = () => {
     }
     setIsConvertingToVeo(true);
     try {
+      const hasEnoughCredits = await canDeductCredits(user.uid, 15);
+      if (!hasEnoughCredits) {
+        toast({ title: "Error", description: "You don't have enough credits to generate a video.", variant: "destructive" });
+        setIsConvertingToVeo(false);
+        return;
+      }
       const { base64ImageData, mimeType } = await convertImageSrcToBasics(item.url);
       const prompt = item.caption || `Create a short video from this image`;
       
@@ -369,6 +378,7 @@ const VideoCreationPage = () => {
       const newItems = [...timelineItems];
       newItems[index] = { ...item, url: videoUrl, isVideo: true, type: "video", caption: item.caption + " (Veo Video)" };
       setTimelineItems(newItems);
+      await deductCredits(user.uid, 15);
       toast({ title: "Veo Video Generated", description: "Image converted to video using Veo." });
     } catch (error) {
       console.error("Error converting to Veo video:", error);

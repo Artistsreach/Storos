@@ -15,8 +15,11 @@ import { generateVideoWithVeo } from '@/lib/geminiVideoGeneration';
 import { searchPexelsVideos } from '@/lib/pexels';
 import { UploadCloud, Film, Search, Sparkles as AiIcon } from 'lucide-react'; // Using Film for Pexels
 import { useStore } from '@/contexts/StoreContext'; // To get theme colors
+import { useAuth } from '@/contexts/AuthContext';
+import { deductCredits, canDeductCredits } from '@/lib/credits';
 
 const FreshReplaceVideoModal = ({ open, onOpenChange, storeId, currentVideoUrl, onVideoReplaced }) => {
+  const { user } = useAuth();
   const { store } = useStore(); // Get current store for theme
   const primaryColor = store?.theme?.primaryColor || '#3B82F6'; // Default Fresh primary
 
@@ -50,8 +53,15 @@ const FreshReplaceVideoModal = ({ open, onOpenChange, storeId, currentVideoUrl, 
     if (!aiPrompt.trim()) { setAiError('Please enter a prompt.'); return; }
     setIsAiLoading(true); setAiError(null);
     try {
+      const hasEnoughCredits = await canDeductCredits(user.uid, 15);
+      if (!hasEnoughCredits) {
+        setAiError("You don't have enough credits to generate a video.");
+        setIsAiLoading(false);
+        return;
+      }
       const newVideoUrl = await generateVideoWithVeo(aiPrompt);
       if (onVideoReplaced) onVideoReplaced(newVideoUrl);
+      await deductCredits(user.uid, 15);
       onOpenChange(false); setAiPrompt('');
     } catch (err) { setAiError(err.message || 'Failed to generate video.'); }
     finally { setIsAiLoading(false); }

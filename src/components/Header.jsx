@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion'; // Added AnimatePresence
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingBag, LogIn, LogOut, Settings, Sun, Moon, Briefcase, ExternalLink, ChevronDown, Menu, X, MousePointer2 } from 'lucide-react'; // Added Menu, X
+import { ShoppingBag, LogIn, LogOut, Settings, Sun, Moon, Briefcase, ExternalLink, ChevronDown, Menu, X, MousePointer2, Coins } from 'lucide-react'; // Added Menu, X
 import { Button } from '../components/ui/button';
 import { Switch } from '../components/ui/switch';
 import {
@@ -14,10 +14,13 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu"; // Import Dropdown components
 import { useAuth } from '../contexts/AuthContext';
+import { onSnapshot, doc } from 'firebase/firestore';
+import { db } from '../lib/firebaseClient';
 import { functions } from '../lib/firebaseClient'; // Import Firebase functions instance
 import { httpsCallable } from 'firebase/functions'; // Import httpsCallable
 import OnboardingButton from './stripe/OnboardingButton';
 import ManageAccountButton from './stripe/ManageAccountButton';
+import CreditCostsModal from './CreditCostsModal';
 // import { supabase } from '../lib/supabaseClient'; // Removed Supabase import
 
 const Header = () => {
@@ -29,10 +32,27 @@ const Header = () => {
   const [isConnectLoading, setIsConnectLoading] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // State for mobile menu
+  const [credits, setCredits] = useState(0);
+  const [isCreditModalOpen, setIsCreditModalOpen] = useState(false);
 
   const isSubscribed = subscriptionStatus === 'active'; // Restored Stripe related state
   const isStripeConnected = profile?.stripe_account_id && profile?.stripe_account_details_submitted; // Restored Stripe related state
 
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      const creditsRef = doc(db, 'users', user.uid);
+      const unsubscribe = onSnapshot(creditsRef, (doc) => {
+        if (doc.exists()) {
+          setCredits(doc.data().credits);
+        } else {
+          setCredits(0);
+        }
+      });
+
+      return () => unsubscribe();
+    }
+  }, [isAuthenticated, user]);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
@@ -174,6 +194,12 @@ src={isDarkMode
             {isSubscriptionLoading ? 'Processing...' : 'Subscribe to Pro'}
           </Button>
         )}
+        {isAuthenticated && (
+          <button onClick={() => setIsCreditModalOpen(true)} className="flex items-center gap-2">
+            <Coins className="h-5 w-5 text-yellow-500" />
+            <span className="font-bold">{credits}</span>
+          </button>
+        )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm">
@@ -284,7 +310,13 @@ src={isDarkMode
       </nav>
 
       {/* Mobile Menu Button */}
-      <div className="md:hidden">
+      <div className="md:hidden flex items-center gap-2">
+        {isAuthenticated && (
+          <button onClick={() => setIsCreditModalOpen(true)} className="flex items-center gap-2">
+            <Coins className="h-5 w-5 text-yellow-500" />
+            <span className="font-bold">{credits}</span>
+          </button>
+        )}
         <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
           {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </Button>
@@ -293,6 +325,11 @@ src={isDarkMode
 
     {/* Mobile Menu Overlay */}
     <AnimatePresence>
+      <CreditCostsModal 
+        isOpen={isCreditModalOpen} 
+        onClose={() => setIsCreditModalOpen(false)} 
+        onSubscribe={handleSubscribe}
+      />
       {isMobileMenuOpen && (
         <motion.div
           initial={{ opacity: 0, y: -20 }}

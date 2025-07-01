@@ -36,6 +36,10 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
     // The old, potentially incorrect top-level rules for /products and /store_collections are removed.
     // If you had other, valid top-level collections named 'products' or 'store_collections' (unlikely given the context),
     // you would need to re-add their specific rules here.

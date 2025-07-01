@@ -32,7 +32,7 @@ const DropshippingModal = ({ isOpen, onClose, onAddProducts }) => {
     setIsLoading(true);
     setProducts([]);
     try {
-      const response = await fetch(`https://us-central1-freshfront-c3181.cloudfunctions.net/aliexpressProxy?q=${encodeURIComponent(searchTerm)}`);
+      const response = await fetch(`https://us-central1-fresh-dfe30.cloudfunctions.net/aliexpressProxy?q=${encodeURIComponent(searchTerm)}`);
       const data = await response.json();
       if (data.result && data.result.resultList) {
         setProducts(data.result.resultList);

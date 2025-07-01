@@ -8,6 +8,7 @@ import {
   signInWithPopup,
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { initializeCredits } from '../lib/credits';
 
 // Logos and Background Image
 const fixedLogoUrl = "https://static.wixstatic.com/media/bd2e29_20f2a8a94b7e492a9d76e0b8b14e623b~mv2.png";
@@ -58,6 +59,7 @@ function AuthPage() {
           role: 'store_owner', // Default role
           created_at: new Date(),
         });
+        await initializeCredits(userCredential.user.uid);
       }
       navigate('/'); // Redirect to home or dashboard on success
     } catch (e) {
@@ -86,6 +88,7 @@ function AuthPage() {
           role: 'store_owner', // Default role
           created_at: new Date(),
         });
+        await initializeCredits(user.uid);
       }
       navigate('/'); // Redirect to home or dashboard on success
     } catch (e) {

@@ -6,8 +6,11 @@ import { Link } from "react-router-dom";
 import { GoogleGenAI } from "@google/genai";
 import { Progress } from "@/components/ui/progress";
 import { generateImage } from '@/lib/geminiImageGeneration';
+import { useAuth } from '@/contexts/AuthContext';
+import { deductCredits, canDeductCredits } from '@/lib/credits';
 
 const PodcastPage = () => {
+  const { user } = useAuth();
   const [topic, setTopic] = useState('');
   const [coverImageUrl, setCoverImageUrl] = useState('');
   const [audioUrl, setAudioUrl] = useState('');
@@ -92,6 +95,12 @@ const PodcastPage = () => {
     const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
 
     try {
+      const hasEnoughCredits = await canDeductCredits(user.uid, 10);
+      if (!hasEnoughCredits) {
+        setLogs(prev => [...prev, "You don't have enough credits to create a podcast."]);
+        setIsLoading(false);
+        return;
+      }
       setLogs(prev => [...prev, "Generating transcript..."]);
       setProgress(25);
       const transcriptResponse = await ai.models.generateContent({
@@ -105,6 +114,7 @@ const PodcastPage = () => {
 
       const imageUrl = await generateCoverImage(topic);
       await generateAudio(generatedTranscript, imageUrl);
+      await deductCredits(user.uid, 10);
     } catch (error) {
       console.error("Error generating podcast:", error);
       setLogs(prev => [...prev, "Error generating podcast."]);

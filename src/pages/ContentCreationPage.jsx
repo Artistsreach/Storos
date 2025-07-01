@@ -20,6 +20,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { generateImageWithGemini, generateId } from "@/lib/utils.jsx"; 
 import { editImageWithGemini, generateCaptionForImageData } from "@/lib/geminiImageGeneration.js"; 
 import { generateVideoWithVeoFromImage } from "@/lib/geminiVideoGeneration"; 
+import { useAuth } from "@/contexts/AuthContext";
+import { deductCredits, canDeductCredits } from "@/lib/credits";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2,
@@ -119,6 +121,7 @@ import { useStore } from "@/contexts/StoreContext";
 import { useParams, useLocation } from "react-router-dom"; 
 
 const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onContentCreated }) => {
+  const { user } = useAuth();
   const { toast } = useToast();
   const { storeName: storeNameFromParams } = useParams(); 
   const location = useLocation(); 
@@ -276,6 +279,12 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
     setGeneratedImage(null);
     setActiveSelectedCaption("");
     try {
+      const hasEnoughCredits = await canDeductCredits(user.uid, 5);
+      if (!hasEnoughCredits) {
+        toast({ title: "Error", description: "You don't have enough credits to generate an image.", variant: "destructive" });
+        setIsGeneratingWithGemini(false);
+        return;
+      }
       const result = await generateImageWithGemini(textPrompt); 
       let captions = result.alt ? [result.alt] : [`Image for: ${textPrompt.substring(0,30)}`];
       if (result.url) {
@@ -289,7 +298,7 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
       }
       setGeneratedImage({ url: result.url, captions: captions, sourceApi: 'gemini' });
       if (captions && captions.length > 0) setActiveSelectedCaption(captions[0]);
-
+      await deductCredits(user.uid, 5);
     } catch (error) {
       console.error("Error generating image with Gemini:", error);
       toast({ title: "Image Generation Failed", description: error.message, variant: "destructive" });
@@ -307,6 +316,12 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
     setGeneratedImage(null);
     setActiveSelectedCaption("");
     try {
+      const hasEnoughCredits = await canDeductCredits(user.uid, 5);
+      if (!hasEnoughCredits) {
+        toast({ title: "Error", description: "You don't have enough credits to generate an image.", variant: "destructive" });
+        setIsGeneratingWithOpenAI(false);
+        return;
+      }
       const result = await generateImageWithOpenAI(openAITextPrompt); 
       const imageDataUrl = `data:image/png;base64,${result.b64_json}`; 
       let captions = result.alt ? [result.alt] : [`OpenAI image for: ${openAITextPrompt.substring(0,30)}`];
@@ -319,6 +334,7 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
       }
       setGeneratedImage({ url: imageDataUrl, captions: captions, sourceApi: 'openai' });
       if (captions && captions.length > 0) setActiveSelectedCaption(captions[0]);
+      await deductCredits(user.uid, 5);
       toast({ title: "Image Generated (OpenAI)", description: "Image successfully generated using OpenAI." });
     } catch (error) {
       console.error("Error generating image with OpenAI:", error);
@@ -341,6 +357,12 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
     setEditedImage(null);
     setActiveSelectedCaption("");
     try {
+        const hasEnoughCredits = await canDeductCredits(user.uid, 2);
+        if (!hasEnoughCredits) {
+            toast({ title: "Error", description: "You don't have enough credits to edit an image.", variant: "destructive" });
+            setIsEditingWithGemini(false);
+            return;
+        }
         const { base64ImageData, mimeType } = await convertImageSrcToBasics(itemToEdit.url);
         const result = await editImageWithGemini(base64ImageData, mimeType, editPromptForGemini); 
         if (result && result.editedImageData) {
@@ -353,6 +375,7 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
             }
             setEditedImage({ url: newImageDataUrl, captions: captions, sourceApi: 'gemini' });
             if (captions && captions.length > 0) setActiveSelectedCaption(captions[0]);
+            await deductCredits(user.uid, 2);
             toast({ title: "Image Edited (Gemini)", description: "Image successfully edited with Gemini." });
         } else {
             throw new Error("Gemini image edit did not return image data.");

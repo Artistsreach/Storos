@@ -335,7 +335,7 @@ const PreviewControls = ({ store, onEdit, currentTemplate, onTemplateChange, ava
                     </p>
                   </div>
                   <Button onClick={handleStripeOnboarding}>
-                    Onboard with <img src="https://firebasestorage.googleapis.com/v0/b/freshfront-c3181.firebasestorage.app/o/Stripelogo.PNG?alt=media&token=7b989f42-b2c9-4a3c-a7e1-9ed280b6a9ea" alt="Stripe" className="inline-block h-4 ml-2" />
+                    Onboard with <img src="https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/Stripelogo.PNG?alt=media&token=7b989f42-b2c9-4a3c-a7e1-9ed280b6a9ea" alt="Stripe" className="inline-block h-4 ml-2" />
                   </Button>
                 </div>
               </PopoverContent>
