@@ -99,6 +99,9 @@ module.exports = {
       backgroundSize: {
         '200%': '200% auto',
       },
+      spacing: {
+        '15': '60px',
+      },
       fontFamily: {
         sans: ['Inter', 'sans-serif'], // Default sans-serif
         inter: ['Inter', 'sans-serif'],

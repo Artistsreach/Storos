@@ -25,7 +25,7 @@ const fileToBase64 = (file) => {
 
 // imageSrcToBasics is now imported from '../../lib/imageUtils'
 
-const ProductFinalizationModal = ({ isOpen, onClose, products: initialProducts, onFinalize }) => {
+const ProductFinalizationModal = ({ isOpen, onClose, products: initialProducts, onFinalize, storeDataForFinalization }) => {
   const [products, setProducts] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGeneratingVisuals, setIsGeneratingVisuals] = useState({}); // To track loading state per product
@@ -58,12 +58,13 @@ const ProductFinalizationModal = ({ isOpen, onClose, products: initialProducts, 
 
         return {
           ...p,
+          isFunded: storeDataForFinalization?.type === 'fund',
           images: imagesArray, // Ensures images is always an array
           variants: Array.isArray(p.variants) ? p.variants.map(v => ({...v, values: Array.isArray(v.values) ? [...v.values] : []})) : [],
         };
       }));
     }
-  }, [initialProducts]);
+  }, [initialProducts, storeDataForFinalization?.type]);
 
   const handleProductChange = (index, field, value) => {
     setProducts(prev => {
@@ -373,6 +374,40 @@ const ProductFinalizationModal = ({ isOpen, onClose, products: initialProducts, 
                     <Input id={`productPrice-${index}`} type="number" value={product.price} onChange={(e) => handleProductChange(index, 'price', e.target.value)} placeholder="0.00" />
                   </div>
                 </div>
+                {storeDataForFinalization?.type !== 'fund' && (
+                  <div className="flex items-center space-x-2 mt-4">
+                    <input
+                      type="checkbox"
+                      id={`fundProductCheckbox-${index}`}
+                      className="h-4 w-4"
+                      checked={!!product.isFunded}
+                      onChange={(e) => handleProductChange(index, 'isFunded', e.target.checked)}
+                    />
+                    <Label htmlFor={`fundProductCheckbox-${index}`} className="font-semibold">
+                      Fund this product
+                    </Label>
+                  </div>
+                )}
+                {product.isFunded && (
+                  <div className="space-y-3 pt-3 mt-3 border-t">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label htmlFor={`productInventory-${index}`}>Funding Goal (Units)</Label>
+                        <Input id={`productInventory-${index}`} type="number" value={product.inventory} onChange={(e) => handleProductChange(index, 'inventory', e.target.value)} placeholder="e.g., 100" />
+                      </div>
+                      <div>
+                        <Label htmlFor={`productPreorderPrice-${index}`}>Pre-order Price (USD)</Label>
+                        <Input id={`productPreorderPrice-${index}`} type="number" value={product.preorder_price} onChange={(e) => handleProductChange(index, 'preorder_price', e.target.value)} placeholder="e.g., 25.00" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label htmlFor={`productDuration-${index}`}>Funding Duration (days)</Label>
+                        <Input id={`productDuration-${index}`} type="number" value={product.duration} onChange={(e) => handleProductChange(index, 'duration', e.target.value)} placeholder="e.g., 30" max="180" />
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="relative">
                   <Label htmlFor={`productDescription-${index}`}>Description</Label>
                   <Textarea id={`productDescription-${index}`} value={product.description} onChange={(e) => handleProductChange(index, 'description', e.target.value)} placeholder="Product Description" rows={3} />

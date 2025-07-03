@@ -116,8 +116,20 @@ import {
 } from "@/lib/openaiImageGeneration.js";
 import { useAuth } from "@/contexts/AuthContext";
 import { deductCredits, canDeductCredits } from "@/lib/credits";
+import CreditsDisplay from '@/components/CreditsDisplay';
 
 const VideoCreationPage = () => {
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+      setIsDarkMode(true);
+    } else {
+      setIsDarkMode(false);
+    }
+  }, []);
   const { user } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("text-to-image");
@@ -399,15 +411,28 @@ const VideoCreationPage = () => {
   };
 
   return (
-    <div className="container mx-auto p-4 md:p-6 lg:p-8 space-y-8 bg-background">
-      <header className="relative text-center pb-4"> 
+    <>
+      <CreditsDisplay />
+      <div className="container mx-auto p-4 md:p-6 lg:p-8 space-y-8 bg-background">
+      <header className="relative text-center pb-4">
         <Link to="/" className="absolute left-0 top-0">
           <Button variant="outline" size="icon">
             <ArrowLeft className="h-5 w-5" />
             <span className="sr-only">Back to Home</span>
           </Button>
         </Link>
-        <h1 className="text-3xl md:text-4xl font-bold tracking-tight">AI Content Creation Studio</h1>
+        <div className="flex flex-col items-center mb-4">
+          <Link to="/">
+            <img
+              src={isDarkMode
+                  ? "https://static.wixstatic.com/media/bd2e29_20f2a8a94b7e492a9d76e0b8b14e623b~mv2.png"
+                  : "https://static.wixstatic.com/media/bd2e29_695f70787cc24db4891e63da7e7529b3~mv2.png"}
+              alt="FreshFront Logo"
+              className="h-12 w-auto mb-4"
+            />
+          </Link>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight">AI Content Creation Studio</h1>
+        </div>
         <p className="text-muted-foreground mt-2 text-lg">
           Generate images, edit them, create videos, and build your content sequence.
         </p>
@@ -702,7 +727,8 @@ const VideoCreationPage = () => {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 

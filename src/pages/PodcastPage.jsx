@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { generateImage } from '@/lib/geminiImageGeneration';
 import { useAuth } from '@/contexts/AuthContext';
 import { deductCredits, canDeductCredits } from '@/lib/credits';
+import CreditsDisplay from '@/components/CreditsDisplay';
 
 const PodcastPage = () => {
   const { user } = useAuth();
@@ -20,6 +21,17 @@ const PodcastPage = () => {
   const [progress, setProgress] = useState(0);
   const [podcasts, setPodcasts] = useState([]);
   const [selectedPodcast, setSelectedPodcast] = useState(null);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+      setIsDarkMode(true);
+    } else {
+      setIsDarkMode(false);
+    }
+  }, []);
 
   useEffect(() => {
     const storedPodcasts = JSON.parse(localStorage.getItem('podcasts') || '[]');
@@ -130,14 +142,25 @@ const PodcastPage = () => {
   };
 
   return (
-    <div className={`flex flex-col items-center min-h-screen bg-neutral-100 dark:bg-neutral-900 relative text-neutral-900 dark:text-neutral-100 pt-20 ${podcasts.length === 0 ? 'justify-center' : ''}`}>
+    <>
+      <CreditsDisplay />
+      <div className={`flex flex-col items-center min-h-screen bg-neutral-100 dark:bg-neutral-900 relative text-neutral-900 dark:text-neutral-100 pt-20 ${podcasts.length === 0 ? 'justify-center' : ''}`}>
       <Button variant="ghost" size="icon" className="absolute top-4 left-4" onClick={() => selectedPodcast ? setSelectedPodcast(null) : window.history.back()}>
         <ArrowLeft />
       </Button>
       {!selectedPodcast && !isLoading && (
         <>
           <div className="w-full max-w-md p-8 space-y-6">
-            <h1 className="text-3xl font-bold text-center">Create a Podcast</h1>
+            <div className="flex justify-center items-center">
+              <img
+                src={isDarkMode
+                    ? "https://static.wixstatic.com/media/bd2e29_20f2a8a94b7e492a9d76e0b8b14e623b~mv2.png"
+                    : "https://static.wixstatic.com/media/bd2e29_695f70787cc24db4891e63da7e7529b3~mv2.png"}
+                alt="FreshFront Logo"
+                className="h-8 w-auto mr-2"
+              />
+              <h1 className="text-3xl font-bold text-center">Create a Podcast</h1>
+            </div>
             <div className="space-y-2">
               <Input
                 type="text"
@@ -213,7 +236,8 @@ const PodcastPage = () => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };
 

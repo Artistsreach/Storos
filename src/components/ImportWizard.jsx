@@ -17,6 +17,11 @@ import {
     BigCommerceItemsPreview,
     // BigCommerceConfirmImport // This step might be skipped
 } from './wizard/BigCommerceWizardSteps'; // Added
+import {
+    EtsyMetadataPreview,
+    EtsyItemsPreview,
+} from './wizard/EtsyWizardSteps';
+import EtsyConnectForm from './EtsyConnectForm';
 import { generateStoreUrl } from '../lib/utils.js'; // Added
 
 const ImportWizard = ({ isOpen, onClose, initialImportSource = 'shopify' }) => {
@@ -34,6 +39,11 @@ const ImportWizard = ({ isOpen, onClose, initialImportSource = 'shopify' }) => {
     isFetchingBigCommercePreviewData, bigCommerceImportError,
     fetchBigCommerceWizardProducts: fetchBCWizardProducts, // Renamed
     finalizeBigCommerceImportFromWizard: finalizeBCImport, // Renamed
+    
+    etsyWizardStep, setEtsyWizardStep, resetEtsyWizardState,
+    etsyPreviewData, etsyPreviewProducts,
+    isFetchingEtsyPreviewData, etsyImportError,
+    // Add fetch and finalize functions for Etsy once they are created in StoreContext
     
     isGenerating, // Global generating state
     generateStoreFromWizard // For the embedded StoreWizard to call
@@ -75,6 +85,21 @@ const ImportWizard = ({ isOpen, onClose, initialImportSource = 'shopify' }) => {
       ItemsPreviewComponent: BigCommerceItemsPreview,
       totalSteps: 4, // Connect, Settings Preview, Products Preview, (Implicit)Finalize
     },
+    etsy: {
+      wizardStep: etsyWizardStep,
+      setWizardStep: setEtsyWizardStep,
+      resetWizardState: resetEtsyWizardState,
+      previewMetadata: etsyPreviewData,
+      previewProducts: etsyPreviewProducts,
+      isFetchingPreviewData: isFetchingEtsyPreviewData,
+      importError: etsyImportError,
+      // fetchWizardProducts: fetchEtsyWizardProducts, // To be implemented
+      // finalizeImportFromWizard: finalizeEtsyImport, // To be implemented
+      ConnectFormComponent: EtsyConnectForm,
+      MetadataPreviewComponent: EtsyMetadataPreview,
+      ItemsPreviewComponent: EtsyItemsPreview,
+      totalSteps: 4, // Connect, Preview, Items, Finalize
+    },
   };
 
   const activeConfig = sourceConfig[currentImportSource];
@@ -104,9 +129,19 @@ const ImportWizard = ({ isOpen, onClose, initialImportSource = 'shopify' }) => {
   useEffect(() => {
     setCurrentImportSource(initialImportSource);
     // Reset the other source's wizard when switching
-    if (initialImportSource === 'shopify' && sourceConfig.bigcommerce.resetWizardState) sourceConfig.bigcommerce.resetWizardState();
-    if (initialImportSource === 'bigcommerce' && sourceConfig.shopify.resetWizardState) sourceConfig.shopify.resetWizardState();
-  }, [initialImportSource, sourceConfig.bigcommerce, sourceConfig.shopify]);
+    if (initialImportSource === 'shopify') {
+      if (sourceConfig.bigcommerce.resetWizardState) sourceConfig.bigcommerce.resetWizardState();
+      if (sourceConfig.etsy.resetWizardState) sourceConfig.etsy.resetWizardState();
+    }
+    if (initialImportSource === 'bigcommerce') {
+      if (sourceConfig.shopify.resetWizardState) sourceConfig.shopify.resetWizardState();
+      if (sourceConfig.etsy.resetWizardState) sourceConfig.etsy.resetWizardState();
+    }
+    if (initialImportSource === 'etsy') {
+        if (sourceConfig.shopify.resetWizardState) sourceConfig.shopify.resetWizardState();
+        if (sourceConfig.bigcommerce.resetWizardState) sourceConfig.bigcommerce.resetWizardState();
+    }
+  }, [initialImportSource, sourceConfig.bigcommerce, sourceConfig.shopify, sourceConfig.etsy]);
 
   useEffect(() => {
     if (isOpen && currentWizardStep === 0) {
@@ -178,12 +213,19 @@ const ImportWizard = ({ isOpen, onClose, initialImportSource = 'shopify' }) => {
             onOpenChange={(isOpenState) => { 
               if (!isOpenState) handleCancel();
             }}
-            onSuccessfulConnect={(credentials) => {
+            onSuccessfulConnect={async (credentials) => {
               if (currentImportSource === 'shopify') {
-                 // startShopifyImportWizard is already available from useStore()
-                 startShopifyImportWizard(credentials.domain, credentials.token);
+                const success = await startShopifyImportWizard(credentials.domain, credentials.token);
+                if (success) {
+                  setCurrentWizardStep(2);
+                }
+              } else if (currentImportSource === 'etsy') {
+                const { apiKey, apiSecret } = credentials;
+                const success = await startEtsyImportWizard(apiKey, apiSecret);
+                if (success) {
+                  setCurrentWizardStep(2);
+                }
               }
-              // BigCommerce logic would go here if CurrentConnectFormComponent was for BC
             }}
           />
         );
@@ -194,8 +236,10 @@ const ImportWizard = ({ isOpen, onClose, initialImportSource = 'shopify' }) => {
       case 4: // Configure & Generate Store Step (embedding StoreWizard)
         if (currentImportSource === 'shopify' && currentWizardShouldShowGenerator) {
           return <StoreWizard isEmbedded={true} onGenerationComplete={(newStore) => {
-            if (newStore && (newStore.urlSlug || newStore.name)) {
-              const storeUrlPath = `/${newStore.urlSlug || generateStoreUrl(newStore.name)}`;
+            if (newStore && newStore.urlSlug) {
+              navigate(newStore.urlSlug);
+            } else if (newStore && newStore.name) {
+              const storeUrlPath = `/${generateStoreUrl(newStore.name)}`;
               navigate(storeUrlPath);
             }
             if (onClose) onClose();
@@ -211,12 +255,13 @@ const ImportWizard = ({ isOpen, onClose, initialImportSource = 'shopify' }) => {
     }
   };
 
-  if (currentWizardStep === 1 && currentImportSource === 'shopify') {
-    return renderStepContent(); 
+  if (currentWizardStep === 1 && (currentImportSource === 'shopify' || currentImportSource === 'etsy')) {
+    return renderStepContent();
   }
 
-  const cardTitleText = currentImportSource === 'shopify' ? 'Import from Shopify' : 
-                       currentImportSource === 'bigcommerce' ? 'Import from BigCommerce' : 
+  const cardTitleText = currentImportSource === 'shopify' ? 'Import from Shopify' :
+                       currentImportSource === 'bigcommerce' ? 'Import from BigCommerce' :
+                       currentImportSource === 'etsy' ? 'Import from Etsy' :
                        'Import Store Data';
 
   return (
@@ -224,13 +269,17 @@ const ImportWizard = ({ isOpen, onClose, initialImportSource = 'shopify' }) => {
       <Card className="w-full max-w-2xl mx-auto shadow-xl">
         <CardHeader>
           <CardTitle className="text-2xl font-bold">
-            {currentWizardStep === 1 && currentImportSource === 'bigcommerce' 
-              ? 'Connect to BigCommerce' 
+            {currentWizardStep === 1 && currentImportSource === 'bigcommerce'
+              ? 'Connect to BigCommerce'
+              : currentWizardStep === 1 && currentImportSource === 'etsy'
+              ? 'Connect to Etsy'
               : cardTitleText}
           </CardTitle>
           <CardDescription>
             {currentWizardStep === 1 && currentImportSource === 'bigcommerce'
               ? 'Enter your store domain and API token.'
+              : currentWizardStep === 1 && currentImportSource === 'etsy'
+              ? 'You will be redirected to authorize the connection.'
               : currentWizardStep === 4 && currentImportSource === 'shopify'
               ? 'Configure and generate your new store.'
               : `Step ${currentWizardStep} of ${currentTotalSteps -1 }`} 

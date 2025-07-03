@@ -1,18 +1,18 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore, enableIndexedDbPersistence, CACHE_SIZE_UNLIMITED, collection, query, where, getDocs, limit } from "firebase/firestore";
+import { getFirestore, enableIndexedDbPersistence, CACHE_SIZE_UNLIMITED, collection, query, where, getDocs, limit, addDoc, serverTimestamp, doc, setDoc, writeBatch } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getFunctions } from "firebase/functions"; // Import getFunctions
 import { generateStoreUrl } from "./utils.js"; // Explicitly import from .js file
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyAI8iWuP1P20OZDIGsUNX6BluSCF40A7AU",
+  apiKey: "AIzaSyD-SN32SMJ0KvfJOTfQZhUybhMNYhJUFwk",
   authDomain: "fresh-dfe30.firebaseapp.com",
   projectId: "fresh-dfe30",
   storageBucket: "fresh-dfe30.firebasestorage.app",
-  messagingSenderId: "925329325314",
-  appId: "1:925329325314:web:67f69c02b9ff7580e6561b"
+  messagingSenderId: "351642971625",
+  appId: "1:351642971625:web:0fce09447c86ab9b0a6f78"
 };
 
 // Initialize Firebase
@@ -75,5 +75,43 @@ export async function isStoreNameTaken(storeName) {
   } catch (error) {
     console.error("Error checking store name availability in Firestore:", error);
     throw new Error("Failed to check store name availability due to a database error.");
+  }
+}
+
+/**
+ * Saves a template to the 'saved_templates' collection in Firestore.
+ * @param {string} userId The ID of the user saving the template.
+ * @param {string} templateCode The HTML code of the template to save.
+ * @param {string} title The title of the template.
+ * @param {string} primaryColor The primary color of the template.
+ * @returns {Promise<void>}
+ * @throws {Error} If Firestore query fails.
+ */
+export async function saveTemplate(userId, templateCode, title, primaryColor) {
+  if (!userId || !templateCode || !title || !primaryColor) {
+    throw new Error("User ID, template code, title, and primary color are required to save a template.");
+  }
+
+  const userTemplatesRef = collection(db, "users", userId, "saved_templates");
+  const newTemplateRef = doc(userTemplatesRef);
+  const publicTemplatesRef = doc(db, "public_templates", newTemplateRef.id);
+
+  const templateData = {
+    name: title,
+    code: templateCode,
+    primaryColor: primaryColor,
+    createdAt: serverTimestamp(),
+    userId: userId,
+  };
+
+  try {
+    const batch = writeBatch(db);
+    batch.set(newTemplateRef, templateData);
+    batch.set(publicTemplatesRef, templateData);
+    await batch.commit();
+    console.log("Template saved successfully to user collection and public collection.");
+  } catch (error) {
+    console.error("Error saving template to Firestore:", error);
+    throw new Error("Failed to save template due to a database error.");
   }
 }

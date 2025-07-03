@@ -36,9 +36,11 @@ import { useStore } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
+import DeleteStoreModal from './DeleteStoreModal';
 
 const StoreCard = ({ store }) => {
   const navigate = useNavigate();
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const { deleteStore, updateStoreTemplateVersion, getStoreRevenue, getStoreCustomers, getStoreConversionRate, getStoreSocialScore } = useStore();
   const { user } = useAuth();
   const [revenue, setRevenue] = useState(null);
@@ -71,13 +73,13 @@ const StoreCard = ({ store }) => {
   
   const formatDate = (dateString) => {
     if (!dateString) {
-      return 'N/A';
+      return null;
     }
     try {
       const date = new Date(dateString);
-      // Check if date is valid
       if (isNaN(date.getTime())) {
-        return 'Invalid Date';
+        console.warn("Encountered an invalid date string:", dateString);
+        return null;
       }
       return new Intl.DateTimeFormat('en-US', {
         year: 'numeric',
@@ -86,9 +88,11 @@ const StoreCard = ({ store }) => {
       }).format(date);
     } catch (error) {
       console.error("Error formatting date:", dateString, error);
-      return 'Error Date';
+      return null;
     }
   };
+  
+  const formattedDate = formatDate(store.created_at || store.createdAt);
   
   const getStoreTypeIcon = (niche) => {
     switch (niche) {
@@ -106,18 +110,24 @@ const StoreCard = ({ store }) => {
   };
   
   return (
-    <div
-      className="cursor-pointer"
-      onClick={() => {
-        if (store && store.name) {
-          navigate(`/${generateStoreUrl(store.name)}`);
-        } else {
-          console.error("Store name is missing, cannot navigate to preview.");
-        }
-      }}
-    >
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
+    <>
+      <DeleteStoreModal
+        store={store}
+        isOpen={isDeleteModalOpen}
+        onOpenChange={setIsDeleteModalOpen}
+      />
+      <div
+        className="cursor-pointer"
+        onClick={() => {
+          if (store && store.name) {
+            navigate(`/${generateStoreUrl(store.name)}`);
+          } else {
+            console.error("Store name is missing, cannot navigate to preview.");
+          }
+        }}
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
       className="store-preview relative bg-cover bg-center rounded-[15px] overflow-hidden" // Apply background to motion.div, ensure overflow hidden for rounded corners
@@ -151,19 +161,23 @@ const StoreCard = ({ store }) => {
                 )}
                 <CardTitle className="text-xl text-white drop-shadow-md">{store.name}</CardTitle>
               </div>
-              <span className="px-2 py-1 bg-white/10 text-white text-xs rounded-full backdrop-blur-xs">
-                {store.niche ? store.niche.charAt(0).toUpperCase() + store.niche.slice(1) : 'General'}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-1 bg-white/10 text-white text-xs rounded-full backdrop-blur-xs">
+                  {store.niche ? store.niche.charAt(0).toUpperCase() + store.niche.slice(1) : 'General'}
+                </span>
+              </div>
             </div>
             <CardDescription className="line-clamp-2 mt-1 text-white drop-shadow-sm">
               {store.description}
             </CardDescription>
           </CardHeader>
           <CardContent className="pb-2">
-            <div className="flex items-center text-sm text-white drop-shadow-sm gap-1 mb-3">
-              <Calendar className="h-3.5 w-3.5 mr-1 text-white" />
-              Created on {formatDate(store.created_at || store.createdAt)}
-            </div>
+            {formattedDate && (
+              <div className="flex items-center text-sm text-white drop-shadow-sm gap-1 mb-3">
+                <Calendar className="h-3.5 w-3.5 mr-1 text-white" />
+                Created on {formattedDate}
+              </div>
+            )}
             
             <div className="grid grid-cols-2 gap-2">
             {store && store.products && Array.isArray(store.products) && store.products.length > 0 ? (
@@ -244,11 +258,26 @@ const StoreCard = ({ store }) => {
               </div>
             )}
         </CardContent>
-        <CardFooter className="flex flex-col items-start gap-2 pt-2" />
+        <CardFooter className="flex justify-end items-center gap-2 pt-2">
+          {isUserStore && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:text-red-500 hover:bg-white/20"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsDeleteModalOpen(true);
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
+        </CardFooter>
         </div> 
       </Card>
     </motion.div>
     </div>
+    </>
   );
 };
 

@@ -106,6 +106,7 @@ const StoreGenerator = ({ generatedImage }) => {
   const [selectedExample, setSelectedExample] = useState(null);
   const [isPrintOnDemand, setIsPrintOnDemand] = useState(false);
   const [isDropshipping, setIsDropshipping] = useState(false);
+  const [isFund, setIsFund] = useState(false);
   const [isDropshippingModalOpen, setIsDropshippingModalOpen] = useState(false);
   const [dropshippingProducts, setDropshippingProducts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -290,7 +291,7 @@ const StoreGenerator = ({ generatedImage }) => {
         return;
       }
       // Pass the entire contextFiles array (of {file, previewUrl} objects), not just the files.
-      await generateStore(prompt, storeName, nicheDetails, [], isPrintOnDemand, isDropshipping, contextFiles, dropshippingProducts);
+      await generateStore(prompt, storeName, nicheDetails, [], isPrintOnDemand, isDropshipping, isFund, contextFiles, dropshippingProducts);
       await deductCredits(user.uid, 25);
     } catch (error) {
       console.error("Error calling generateStore from StoreGenerator:", error);
@@ -448,6 +449,7 @@ const StoreGenerator = ({ generatedImage }) => {
                         setIsPrintOnDemand(e.target.checked);
                         if (e.target.checked) {
                           setIsDropshipping(false);
+                          setIsFund(false);
                         }
                       }}
                       className={cn(
@@ -461,7 +463,7 @@ const StoreGenerator = ({ generatedImage }) => {
                       Print on Demand
                     </label>
                   </div>
-                  <div className="flex items-center space-x-2 ml-4">
+                  <div className="flex items-center space-x-2 ml-2 md:ml-4">
                     <input
                       type="checkbox"
                       id="dropshippingCheckbox"
@@ -470,6 +472,7 @@ const StoreGenerator = ({ generatedImage }) => {
                         setIsDropshipping(e.target.checked);
                         if (e.target.checked) {
                           setIsPrintOnDemand(false);
+                          setIsFund(false);
                           setIsDropshippingModalOpen(true);
                         }
                       }}
@@ -480,8 +483,31 @@ const StoreGenerator = ({ generatedImage }) => {
                         isDropshipping && "bg-blue-500 border-transparent animate-radiate-blue"
                       )}
                     />
-                    <label htmlFor="dropshippingCheckbox" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Dropshipping
+                      <label htmlFor="dropshippingCheckbox" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Dropship
+                    </label>
+                  </div>
+                  <div className="flex items-center space-x-2 ml-2 md:ml-4">
+                    <input
+                      type="checkbox"
+                      id="fundCheckbox"
+                      checked={isFund}
+                      onChange={(e) => {
+                        setIsFund(e.target.checked);
+                        if (e.target.checked) {
+                          setIsPrintOnDemand(false);
+                          setIsDropshipping(false);
+                        }
+                      }}
+                      className={cn(
+                        "appearance-none h-4 w-4 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-gray-900 cursor-pointer",
+                        !isFund && "border border-gray-400 dark:border-gray-500",
+                        "focus:ring-green-500",
+                        isFund && "bg-green-500 border-transparent animate-radiate-green"
+                      )}
+                    />
+                    <label htmlFor="fundCheckbox" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Fund
                     </label>
                   </div>
                 </div>

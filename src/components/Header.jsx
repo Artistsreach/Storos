@@ -189,17 +189,6 @@ src={isDarkMode
       
       {/* Desktop Navigation Items */}
       <nav className="hidden md:flex items-center gap-3">
-        {!isSubscribed && (
-          <Button onClick={handleSubscribe} disabled={isSubscriptionLoading}>
-            {isSubscriptionLoading ? 'Processing...' : 'Subscribe to Pro'}
-          </Button>
-        )}
-        {isAuthenticated && (
-          <button onClick={() => setIsCreditModalOpen(true)} className="flex items-center gap-2">
-            <Coins className="h-5 w-5 text-yellow-500" />
-            <span className="font-bold">{credits}</span>
-          </button>
-        )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm">
@@ -208,7 +197,13 @@ src={isDarkMode
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem asChild>
-              <Link to="/designer">Designer</Link>
+              <Link to="/store-generator" className="font-bold">Store</Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/template-generator">Template</Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/designer">Design</Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <a href="https://www.musicmigo.com" target="_blank" rel="noopener noreferrer">Music</a>
@@ -221,46 +216,17 @@ src={isDarkMode
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        {isAuthenticated && !loadingProfile && ( // Stripe related UI restored
-          <>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="rounded-full px-3 py-1.5 text-sm font-medium">
-                  <Briefcase className="mr-2 h-4 w-4" /> Business <ChevronDown className="ml-1 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Stripe Connect</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {!isStripeConnected ? (
-                  <DropdownMenuItem>
-                    <OnboardingButton />
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem>
-                    <ManageAccountButton />
-                  </DropdownMenuItem>
-                )}
-                {isSubscribed && (
-                  <DropdownMenuItem onClick={handleManageBilling} disabled={isPortalLoading}>
-                    <Settings className="mr-2 h-4 w-4" />
-                    {isPortalLoading ? 'Loading...' : 'Manage Billing'}
-                  </DropdownMenuItem>
-                )}
-                {portalError && <DropdownMenuItem disabled><p className="text-xs text-destructive">{portalError}</p></DropdownMenuItem>}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </>
+        {!isSubscribed && (
+          <Button onClick={handleSubscribe} disabled={isSubscriptionLoading}>
+            {isSubscriptionLoading ? 'Processing...' : 'Get Premium'}
+          </Button>
         )}
-        <div className="flex items-center gap-2">
-          <Switch
-            id="theme-switcher-desktop"
-            checked={isDarkMode}
-            onCheckedChange={toggleTheme}
-            aria-label="Toggle dark mode"
-          />
-          {isDarkMode ? <Moon className="h-5 w-5 text-muted-foreground" /> : <Sun className="h-5 w-5 text-muted-foreground" />}
-        </div>
+        {isAuthenticated && (
+          <button onClick={() => setIsCreditModalOpen(true)} className="flex items-center gap-2">
+            <Coins className="h-5 w-5 text-yellow-500" />
+            <span className="font-bold">{credits}</span>
+          </button>
+        )}
         {isAuthenticated ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -281,12 +247,31 @@ src={isDarkMode
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
+              {!isStripeConnected ? (
+                <DropdownMenuItem>
+                  <OnboardingButton />
+                </DropdownMenuItem>
+              ) : (
+                <>
+                  <DropdownMenuItem>
+                    <ManageAccountButton />
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <a href="https://dashboard.stripe.com" target="_blank" rel="noopener noreferrer" className="w-full">
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      Dashboard
+                    </a>
+                  </DropdownMenuItem>
+                </>
+              )}
               {isSubscribed && (
                 <DropdownMenuItem onClick={handleManageBilling} disabled={isPortalLoading}>
                   <Settings className="mr-2 h-4 w-4" />
                   {isPortalLoading ? 'Loading...' : 'Manage Billing'}
                 </DropdownMenuItem>
               )}
+              {portalError && <DropdownMenuItem disabled><p className="text-xs text-destructive">{portalError}</p></DropdownMenuItem>}
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 Logout
@@ -307,6 +292,15 @@ src={isDarkMode
             </Link>
           </>
         )}
+        <div className="flex items-center gap-2">
+          <Switch
+            id="theme-switcher-desktop"
+            checked={isDarkMode}
+            onCheckedChange={toggleTheme}
+            aria-label="Toggle dark mode"
+          />
+          {isDarkMode ? <Moon className="h-5 w-5 text-muted-foreground" /> : <Sun className="h-5 w-5 text-muted-foreground" />}
+        </div>
       </nav>
 
       {/* Mobile Menu Button */}
@@ -347,7 +341,13 @@ src={isDarkMode
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem asChild>
-                  <Link to="/designer">Designer</Link>
+                  <Link to="/store-generator" className="font-bold">Store</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/template-generator">Template</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/designer">Design</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <a href="https://www.musicmigo.com" target="_blank" rel="noopener noreferrer">Music</a>
@@ -360,21 +360,6 @@ src={isDarkMode
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          {isAuthenticated && !loadingProfile && ( // Stripe related UI restored
-            <>
-              {!isStripeConnected ? (
-                <OnboardingButton />
-              ) : (
-                <ManageAccountButton />
-              )}
-              {isSubscribed && (
-                <Button variant="outline" onClick={handleManageBilling} disabled={isPortalLoading} className="w-full justify-start px-3 py-2 text-base">
-                  <Settings className="mr-2 h-4 w-4" /> {isPortalLoading ? 'Loading...' : 'Manage Billing'}
-                </Button>
-              )}
-               {portalError && <p className="text-xs text-destructive px-3 py-1">{portalError}</p>}
-            </>
-          )}
           <div className="flex items-center justify-between px-3 py-2">
               <span className="text-base">Dark Mode</span>
               <Switch
@@ -396,6 +381,24 @@ src={isDarkMode
                      <span className="text-sm text-muted-foreground">{user?.email}</span>
                   </div>
                 )}
+                {!isStripeConnected ? (
+                  <OnboardingButton />
+                ) : (
+                  <>
+                    <ManageAccountButton />
+                    <a href="https://dashboard.stripe.com" target="_blank" rel="noopener noreferrer" className="w-full">
+                      <Button variant="outline" className="w-full justify-start px-3 py-2 text-base">
+                        <ExternalLink className="mr-2 h-4 w-4" /> Dashboard
+                      </Button>
+                    </a>
+                  </>
+                )}
+                {isSubscribed && (
+                  <Button variant="outline" onClick={handleManageBilling} disabled={isPortalLoading} className="w-full justify-start px-3 py-2 text-base">
+                    <Settings className="mr-2 h-4 w-4" /> {isPortalLoading ? 'Loading...' : 'Manage Billing'}
+                  </Button>
+                )}
+                {portalError && <p className="text-xs text-destructive px-3 py-1">{portalError}</p>}
                 <Button variant="outline" onClick={handleLogout} className="w-full justify-start px-3 py-2 text-base">
                   <LogOut className="mr-2 h-4 w-4" /> Logout
                 </Button>

@@ -97,6 +97,15 @@ exports.stripeWebhookHandler = functions.runWith({ secrets: ["STRIPE_WEBHOOK_SEC
       case 'invoice.payment_succeeded':
         await handleSubscriptionPaymentSucceeded(event.data.object);
         break;
+      case 'payment_intent.succeeded':
+        await handlePaymentIntentSucceeded(event.data.object);
+        break;
+      case 'payment_intent.payment_failed':
+        await handlePaymentIntentFailed(event.data.object);
+        break;
+      case 'payment_intent.canceled':
+        await handlePaymentIntentCanceled(event.data.object);
+        break;
       //... handle other event types
       default:
         console.log(`Unhandled event type ${event.type}`);
@@ -185,6 +194,225 @@ async function handleSubscriptionPaymentSucceeded(invoice) {
 
   console.log(`1000 credits granted to user ${userId} for subscription ${subscriptionId}`);
 }
+
+async function handlePaymentIntentSucceeded(paymentIntent) {
+  const db = admin.firestore();
+  // Retrieve preOrder document using metadata from PaymentIntent
+  const preOrderId = paymentIntent.metadata.preOrderId;
+  if (!preOrderId) {
+    console.warn(`PaymentIntent ${paymentIntent.id} succeeded but no preOrderId in metadata.`);
+    return;
+  }
+
+  const preOrderRef = db.collection('preOrders').doc(preOrderId);
+  const preOrderSnap = await preOrderRef.get();
+
+  if (!preOrderSnap.exists) {
+    console.warn(`PreOrder ${preOrderId} not found for PaymentIntent ${paymentIntent.id}.`);
+    return;
+  }
+
+  // Only update status if the PaymentIntent was for manual capture
+  if (paymentIntent.capture_method === 'manual') {
+    await preOrderRef.update({
+      status: 'authorized', // Funds are held
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      stripePaymentIntentStatus: paymentIntent.status // Store Stripe's status for reference
+    });
+    console.log(`Pre-order ${preOrderId} status updated to 'authorized' for PI ${paymentIntent.id}.`);
+    // Current quantity was already incremented in createPreOrderPaymentIntent
+  } else {
+    // This case might be for regular product checkouts, handle as needed
+    console.log(`PaymentIntent ${paymentIntent.id} succeeded with automatic capture.`);
+  }
+}
+
+async function handlePaymentIntentFailed(paymentIntent) {
+  const db = admin.firestore();
+  const preOrderId = paymentIntent.metadata.preOrderId;
+  if (!preOrderId) {
+    console.warn(`PaymentIntent ${paymentIntent.id} failed but no preOrderId in metadata.`);
+    return;
+  }
+
+  const preOrderRef = db.collection('preOrders').doc(preOrderId);
+  const preOrderSnap = await preOrderRef.get();
+
+  if (!preOrderSnap.exists) {
+    console.warn(`PreOrder ${preOrderId} not found for PaymentIntent ${paymentIntent.id}.`);
+    return;
+  }
+
+  await preOrderRef.update({
+    status: 'failed',
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    stripePaymentIntentStatus: paymentIntent.status,
+    failureReason: paymentIntent.last_payment_error?.message || 'Unknown failure'
+  });
+  console.log(`Pre-order ${preOrderId} status updated to 'failed' for PI ${paymentIntent.id}.`);
+
+  // Decrement product quantity if it was incremented on initial creation
+  const productId = preOrderSnap.data().productId;
+  if (productId) {
+    const productRef = db.collection('products').doc(productId);
+    await db.runTransaction(async (transaction) => {
+      const productDoc = await transaction.get(productRef);
+      if (productDoc.exists && productDoc.data().currentQuantity > 0) {
+        transaction.update(productRef, { currentQuantity: admin.firestore.FieldValue.increment(-1) });
+      }
+    });
+    console.log(`Product ${productId} currentQuantity decremented due to failed pre-order.`);
+  }
+}
+
+async function handlePaymentIntentCanceled(paymentIntent) {
+  const db = admin.firestore();
+  const preOrderId = paymentIntent.metadata.preOrderId;
+  if (!preOrderId) {
+    console.warn(`PaymentIntent ${paymentIntent.id} canceled but no preOrderId in metadata.`);
+    return;
+  }
+
+  const preOrderRef = db.collection('preOrders').doc(preOrderId);
+  const preOrderSnap = await preOrderRef.get();
+
+  if (!preOrderSnap.exists) {
+    console.warn(`PreOrder ${preOrderId} not found for PaymentIntent ${paymentIntent.id}.`);
+    return;
+  }
+
+  await preOrderRef.update({
+    status: 'canceled',
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    stripePaymentIntentStatus: paymentIntent.status
+  });
+  console.log(`Pre-order ${preOrderId} status updated to 'canceled' for PI ${paymentIntent.id}.`);
+
+  // Decrement product quantity as authorization is no longer valid
+  const productId = preOrderSnap.data().productId;
+  if (productId) {
+    const productRef = db.collection('products').doc(productId);
+    await db.runTransaction(async (transaction) => {
+      const productDoc = await transaction.get(productRef);
+      if (productDoc.exists && productDoc.data().currentQuantity > 0) {
+        transaction.update(productRef, { currentQuantity: admin.firestore.FieldValue.increment(-1) });
+      }
+    });
+    console.log(`Product ${productId} currentQuantity decremented due to canceled pre-order authorization.`);
+  }
+}
+
+exports.captureOrRefundPreOrders = functions.runWith({ secrets: ["STRIPE_SECRET_KEY"] }).pubsub.schedule('0 0 * * *') // Runs daily at midnight UTC
+ .timeZone('America/New_York') // Example: run at midnight Eastern Time
+ .onRun(async (context) => {
+    const db = admin.firestore();
+    const now = admin.firestore.Timestamp.now();
+
+    try {
+      // 1. Query for products where releaseDate has passed and status is preOrderActive
+      const productsToProcessSnap = await db.collection('products')
+       .where('status', '==', 'preOrderActive')
+       .where('releaseDate', '<=', now)
+       .get();
+
+      if (productsToProcessSnap.empty) {
+        console.log('No pre-order campaigns to process today.');
+        return null;
+      }
+
+      for (const productDoc of productsToProcessSnap.docs) {
+        const productId = productDoc.id;
+        const productData = productDoc.data();
+        const { targetQuantity, currentQuantity } = productData;
+
+        console.log(`Processing product: ${productId}. Current: ${currentQuantity}, Target: ${targetQuantity}`);
+
+        const preOrdersSnap = await db.collection('preOrders')
+         .where('productId', '==', productId)
+         .where('status', '==', 'authorized')
+         .get();
+
+        if (currentQuantity >= targetQuantity) {
+          // GOAL MET: Capture funds
+          console.log(`Goal met for product ${productId}. Capturing payments...`);
+          const batch = db.batch();
+          for (const preOrderDoc of preOrdersSnap.docs) {
+            const preOrderData = preOrderDoc.data();
+            const paymentIntentId = preOrderData.paymentIntentId;
+            const preOrderId = preOrderDoc.id;
+
+            try {
+              // Capture the PaymentIntent
+              const capturedPaymentIntent = await stripe.paymentIntents.capture(paymentIntentId, {
+                // Use idempotencyKey for capture operations as well
+              }, { idempotencyKey: `capture-${preOrderId}` });
+
+              // Update preOrder status to captured
+              batch.update(preOrderDoc.ref, {
+                status: 'captured',
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                stripePaymentIntentStatus: capturedPaymentIntent.status
+              });
+              console.log(`Captured PI ${paymentIntentId} for pre-order ${preOrderId}.`);
+            } catch (error) {
+              console.error(`Error capturing PI ${paymentIntentId} for pre-order ${preOrderId}:`, error);
+              // Mark pre-order as failed/capture_failed if capture fails
+              batch.update(preOrderDoc.ref, {
+                status: 'capture_failed',
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                failureReason: error.message
+              });
+            }
+          }
+          // Update product status to released
+          batch.update(productDoc.ref, { status: 'released', updatedAt: now });
+          await batch.commit();
+          console.log(`Product ${productId} released and payments captured.`);
+
+        } else {
+          // GOAL NOT MET: Cancel authorizations (release funds)
+          console.log(`Goal NOT met for product ${productId}. Cancelling authorizations...`);
+          const batch = db.batch();
+          for (const preOrderDoc of preOrdersSnap.docs) {
+            const preOrderData = preOrderDoc.data();
+            const paymentIntentId = preOrderData.paymentIntentId;
+            const preOrderId = preOrderDoc.id;
+
+            try {
+              // Cancel the PaymentIntent to release funds
+              const canceledPaymentIntent = await stripe.paymentIntents.cancel(paymentIntentId, {
+                // Use idempotencyKey for cancel operations
+              }, { idempotencyKey: `cancel-${preOrderId}` });
+
+              // Update preOrder status to canceled
+              batch.update(preOrderDoc.ref, {
+                status: 'canceled',
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                stripePaymentIntentStatus: canceledPaymentIntent.status
+              });
+              console.log(`Canceled PI ${paymentIntentId} for pre-order ${preOrderId}.`);
+            } catch (error) {
+              console.error(`Error canceling PI ${paymentIntentId} for pre-order ${preOrderId}:`, error);
+              // Mark pre-order as cancel_failed if cancellation fails
+              batch.update(preOrderDoc.ref, {
+                status: 'cancel_failed',
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                failureReason: error.message
+              });
+            }
+          }
+          // Update product status to goalFailed
+          batch.update(productDoc.ref, { status: 'goalFailed', updatedAt: now });
+          await batch.commit();
+          console.log(`Product ${productId} goal failed and authorizations canceled.`);
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error("Error in captureOrRefundPreOrders scheduled function:", error);
+      return null;
+    }
+  });
 
 /**
  * Creates a Login Link for an existing Stripe Connect Account.
@@ -324,5 +552,70 @@ exports.createProductCheckoutSession = functions.runWith({ secrets: ["STRIPE_SEC
   } catch (error) {
     console.error("Error creating product checkout session:", error);
     throw new functions.https.HttpsError("internal", "An error occurred while creating the product checkout session.");
+  }
+});
+
+exports.createPreOrderPaymentIntent = functions.runWith({ secrets: ["STRIPE_SECRET_KEY"] }).https.onCall(async (data, context) => {
+  if (!context.auth || !context.auth.uid) {
+    throw new functions.https.HttpsError("unauthenticated", "Authentication required.");
+  }
+  const { productId, amount, currency, paymentMethodId, returnUrl } = data;
+  const userId = context.auth.uid;
+  const userEmail = context.auth.token.email; // Assuming email is in token
+
+  if (!productId || !amount || !currency || !paymentMethodId || !returnUrl) {
+    throw new functions.https.HttpsError("invalid-argument", "Missing required pre-order details.");
+  }
+
+  const db = admin.firestore();
+  const preOrderId = db.collection('preOrders').doc().id; // Generate unique ID for pre-order
+
+  try {
+    const customerId = await getOrCreateStripeCustomer(userId, userEmail);
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: amount,
+      currency: currency,
+      payment_method: paymentMethodId,
+      customer: customerId,
+      capture_method: 'manual', // Hold funds, don't capture immediately
+      confirm: true, // Confirm the PaymentIntent immediately
+      setup_future_usage: 'off_session', // Save payment method for future off-session use
+      return_url: returnUrl,
+      metadata: {
+        firebaseUID: userId,
+        productId: productId,
+        preOrderId: preOrderId,
+      },
+    }, { idempotencyKey: preOrderId }); // Use preOrderId as idempotency key
+
+    // Store pre-order details in Firestore
+    await db.collection('preOrders').doc(preOrderId).set({
+      userId: userId,
+      productId: productId,
+      paymentIntentId: paymentIntent.id,
+      amount: amount,
+      currency: currency,
+      status: 'authorized', // Funds are held
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    // Increment pre-order count for the product (using a transaction for safety)
+    const productRef = db.collection('products').doc(productId);
+    await db.runTransaction(async (transaction) => {
+      const productDoc = await transaction.get(productRef);
+      if (!productDoc.exists) {
+        throw new functions.https.HttpsError("not-found", "Product not found.");
+      }
+      const currentQuantity = (productDoc.data().currentQuantity || 0) + 1;
+      transaction.update(productRef, { currentQuantity: currentQuantity });
+    });
+
+    return { clientSecret: paymentIntent.client_secret, preOrderId: preOrderId };
+
+  } catch (error) {
+    console.error("Error creating pre-order Payment Intent:", error);
+    throw new functions.https.HttpsError("internal", "Failed to create pre-order. " + error.message);
   }
 });

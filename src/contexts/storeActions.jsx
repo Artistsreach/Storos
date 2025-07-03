@@ -197,6 +197,7 @@ export const generateStoreFromWizardData = async (wizardData, { fetchPexelsImage
 
     return {
       id: storeId,
+      created_at: new Date().toISOString(),
       name: storeName,
       template_version: templateVersion, 
       type: productType,
@@ -238,6 +239,7 @@ export const generateStoreFromPromptData = async (
     nicheDetails = null, // Added nicheDetails
     isPrintOnDemand = false, // Added for collection generation logic
     isDropshipping = false, // Added for collection generation logic
+    isFund = false,
     contextFiles = [],
     contextURLs = [],
     generateProducts = true,
@@ -315,7 +317,9 @@ export const generateStoreFromPromptData = async (
 
   // Determine storeType from nicheDetails if available, otherwise from prompt
   let storeType = 'general'; // Default
-  if (storeTypeFromAnalysis) {
+  if (isFund) {
+    storeType = 'fund';
+  } else if (storeTypeFromAnalysis) {
     storeType = storeTypeFromAnalysis;
   } else if (nicheDetails && nicheDetails.name) {
     // Map nicheDetails.name to a simplified storeType if needed, or use directly
@@ -619,6 +623,7 @@ export const generateStoreFromPromptData = async (
   // Define storeToReturn in the main scope
   let storeToReturn = {
     id: storeId,
+    created_at: new Date().toISOString(),
     name: brandName,
     template_version: templateVersion, 
     type: storeType,
@@ -782,7 +787,15 @@ export const generateCollectionsForProducts = async (
 
 export const fetchShopifyStoreMetadata = async (domain, token) => {
     const shopData = await fetchShopifyStorefrontAPI(domain, token, GET_SHOP_METADATA_QUERY);
-    return shopData.shop; 
+    if (!shopData.shop || !shopData.shop.name) {
+        throw new Error("Could not fetch store metadata or store name is missing.");
+    }
+    // Add a check for existing store name if necessary
+    // const existingStores = await getStoresByMerchantId(auth.currentUser.uid);
+    // if (existingStores.some(store => store.name === shopData.shop.name)) {
+    //     throw new Error(`A store with the name "${shopData.shop.name}" already exists.`);
+    // }
+    return shopData.shop;
 };
 
 export const fetchShopifyCollectionsList = async (domain, token, first = 10, cursor = null) => {
@@ -801,6 +814,7 @@ export const fetchShopifyLocalizationInfo = async (domain, token, countryCode = 
 };
 
 export const mapShopifyDataToInternalStore = async (shopifyStore, shopifyProducts, shopifyCollections, domain, { generateId = utilGenerateId } = {}, generatedLogoDataUrl = null) => {
+    const storeUrl = `/${generateStoreUrl(shopifyStore.name)}`;
     const mappedProducts = shopifyProducts.map(p => {
       // Get first variant for price and availability, or default
       const firstVariant = p.variants?.edges[0]?.node;
@@ -867,6 +881,9 @@ export const mapShopifyDataToInternalStore = async (shopifyStore, shopifyProduct
 
     return {
       id: `store-shopify-${(shopifyStore.primaryDomain?.host || domain || generateId()).replace(/\./g, '-')}-${generateId()}`,
+      urlSlug: storeUrl,
+      template_version: 'fresh', // Force fresh template for all Shopify imports
+      created_at: new Date().toISOString(),
       name: shopifyStore.name || "Imported Shopify Store",
       type: 'shopify-imported',
       description: shopifyStore.description || shopifyStore.brand?.shortDescription || shopifyStore.brand?.slogan || aiContent.heroDescription,
@@ -952,6 +969,7 @@ export const mapBigCommerceDataToInternalStore = async (bcStoreSettings, bcProdu
 
   return {
     id: `store-bc-${(bcStoreSettings.storeHash || domain).replace(/[\.\/\:]/g, '-')}-${generateId()}`,
+    created_at: new Date().toISOString(),
     name: bcStoreSettings.storeName || "My BigCommerce Store",
     type: 'bigcommerce-imported',
     description: bcStoreSettings.description || `Store imported from ${domain}` || aiContent.heroDescription,

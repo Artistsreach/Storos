@@ -130,6 +130,10 @@ const StorePreview = () => {
 
       if (sourceStoreData) {
         setStore(sourceStoreData);
+        // If the store is new (from import) and has no template, default to 'fresh'
+        if (!sourceStoreData.template_version) {
+          setPreviewTemplateVersion('fresh');
+        }
         if (!contextCurrentStore || contextCurrentStore.id !== sourceStoreData.id) {
           setCurrentStore(sourceStoreData);
         }
@@ -365,9 +369,9 @@ const StorePreview = () => {
   const isPublished = viewMode === 'published';
   // Use previewTemplateVersion for rendering logic
   // Default to 'classic' if store.template_version is 'v1' or null/undefined
-  let templateVersionToRender = previewTemplateVersion;
-  if (!templateVersionToRender) {
-    templateVersionToRender = store?.template_version === 'v1' || !store?.template_version ? 'classic' : store.template_version;
+  let templateVersionToRender = previewTemplateVersion || store?.template_version;
+  if (!templateVersionToRender || templateVersionToRender === 'v1') {
+    templateVersionToRender = 'classic';
   }
   console.log(`[StorePreview] Determined templateVersionToRender: ${templateVersionToRender}. (previewTemplateVersion: ${previewTemplateVersion}, store.template_version: ${store?.template_version})`);
 

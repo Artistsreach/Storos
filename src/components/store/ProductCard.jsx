@@ -20,7 +20,7 @@ const ProductCard = ({ product, theme, index, storeName, storeId, isPublishedVie
   }, [product]);
 
   const { name, price, rating, description, image, currencyCode = 'USD', id: rawProductId, stripe_price_id, variants, inventory_count } = displayProduct;
-  const { addToCart, updateStore: updateContextStore, currentStore } = useStore(); // Get updateStore as updateContextStore and currentStore
+  const { addToCart, updateStore: updateContextStore, currentStore, getStoreById } = useStore(); // Get updateStore as updateContextStore and currentStore
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false); // State for edit modal
@@ -28,6 +28,12 @@ const ProductCard = ({ product, theme, index, storeName, storeId, isPublishedVie
 
   // URL-encode the product ID to handle special characters.
   const productId = encodeURIComponent(rawProductId);
+
+  const store = getStoreById(storeId);
+  console.log('Store in ProductCard:', store);
+  const productLink = (store?.type === 'fund' || displayProduct.isFunded)
+    ? `/${storeName}/fund/product/${productId}`
+    : `/${storeName}/product/${productId}`;
 
   const imageUrl = image?.src?.medium || image?.url || (Array.isArray(displayProduct.images) && displayProduct.images.length > 0 ? displayProduct.images[0] : `https://via.placeholder.com/400x400.png?text=${encodeURIComponent(name)}`);
   const imageAlt = image?.alt || `${name} product image`;
@@ -200,7 +206,7 @@ const ProductCard = ({ product, theme, index, storeName, storeId, isPublishedVie
     >
       <Card className="h-full overflow-hidden border hover:border-primary/50 transition-all duration-300 flex flex-col group bg-card shadow-sm hover:shadow-lg">
         {/* Removed isPublishedView from state, ProductDetail will get it from context */}
-        <Link to={`/${storeName}/product/${productId}`} className="block"> {/* Use storeName */}
+        <Link to={productLink} className="block"> {/* Use storeName */}
           <div className="aspect-square relative overflow-hidden bg-muted">
             <img 
               alt={imageAlt}
@@ -220,7 +226,7 @@ const ProductCard = ({ product, theme, index, storeName, storeId, isPublishedVie
         </Link>
         
         <CardContent className="p-4 flex-grow">
-          <Link to={`/${storeName}/product/${productId}`} className="block"> {/* Use storeName */}
+          <Link to={productLink} className="block"> {/* Use storeName */}
             <div className="flex justify-between items-start mb-1.5">
               <h3 className="font-semibold text-md lg:text-lg line-clamp-2 group-hover:text-primary transition-colors" style={{"--hover-color": theme.primaryColor}}>
                 <InlineTextEdit

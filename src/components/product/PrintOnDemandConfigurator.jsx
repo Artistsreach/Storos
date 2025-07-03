@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { ImageIcon, Upload, Settings, Layers, Eye, PlusCircle, RefreshCw, Sparkles, Loader2, Trash2, UploadCloud, AlertTriangle, CheckCircle, X } from 'lucide-react';
 import { useToast } from "@/components/ui/use-toast";
 import { generateImageFromPromptForPod, visualizeImageOnProductWithGemini } from '../../lib/geminiImageGeneration'; // Assuming these exist
+import { podProductsList } from '../../lib/constants';
 
 // Helper function to convert file to data URL (copied from wizardStepComponents)
 const fileToBase64 = (file) => {
@@ -19,17 +20,6 @@ const fileToBase64 = (file) => {
     reader.onerror = error => reject(error);
   });
 };
-
-// Hardcoded list of POD products (copied from wizardStepComponents)
-const podProductsList = [
-  { name: "T-shirt", imageUrl: "https://uwbrgokfgelgxeonoqah.supabase.co/storage/v1/object/public/images//Shirt.webp" },
-  { name: "Hoodie", imageUrl: "https://uwbrgokfgelgxeonoqah.supabase.co/storage/v1/object/public/images//Hoodie.jpeg" },
-  { name: "Baseball Cap", imageUrl: "https://uwbrgokfgelgxeonoqah.supabase.co/storage/v1/object/public/images//Hat.jpeg" },
-  { name: "Mug", imageUrl: "https://uwbrgokfgelgxeonoqah.supabase.co/storage/v1/object/public/images//Mug.png" },
-  { name: "Pillow", imageUrl: "https://uwbrgokfgelgxeonoqah.supabase.co/storage/v1/object/public/images//Pillow.webp" },
-  { name: "Blanket", imageUrl: "https://uwbrgokfgelgxeonoqah.supabase.co/storage/v1/object/public/images//Bl.webp" },
-  { name: "Canvas", imageUrl: "https://uwbrgokfgelgxeonoqah.supabase.co/storage/v1/object/public/images//IMG_5933.jpeg" },
-];
 
 
 const PrintOnDemandConfigurator = ({ onAddProductToStore }) => { // Added onAddProductToStore prop
@@ -163,7 +153,7 @@ const PrintOnDemandConfigurator = ({ onAddProductToStore }) => { // Added onAddP
       toast({ title: "Missing Selections", variant: "destructive" });
       return;
     }
-    let imagePromptForApi = uploadedPodImageFile?.name ? `Uploaded: ${uploadedPodImageFile.name}` : podImagePrompt || "Custom design";
+    const imagePromptForApi = uploadedPodImageFile?.name ? `Uploaded: ${uploadedPodImageFile.name}` : podImagePrompt || "Custom design";
     if (!uploadedPodImageFile && !podImagePrompt) {
       toast({ title: "Missing Prompt or Upload", variant: "destructive" });
       return;
@@ -175,19 +165,14 @@ const PrintOnDemandConfigurator = ({ onAddProductToStore }) => { // Added onAddP
     const [header, base64Data] = podImagePreviewUrl.split(',');
     const mimeType = header.match(/:(.*?);/)[1];
     
-    // Declare these variables once here
     const newBatchVisualized = []; 
     let overallSuccess = true; 
-    let imagePromptForApi = uploadedPodImageFile?.name ? `Uploaded: ${uploadedPodImageFile.name}` : podImagePrompt || "Custom design";
 
     try { // Outer try for the whole operation including the loop
       for (const productToVisualize of selectedPodProducts) {
         try {
           console.log(`[POD Configurator] Attempting visualization for: ${productToVisualize.name} with design image (first 50 chars): ${podImagePreviewUrl.substring(0,50)}...`);
-          // Ensure imagePromptForApi is defined if it wasn't set globally due to some condition
-          if (!imagePromptForApi) { // Fallback, though it should be set by now
-            imagePromptForApi = podImagePrompt || "Custom design";
-          }
+          
           const result = await visualizeImageOnProductWithGemini(base64Data, mimeType, productToVisualize.imageUrl, imagePromptForApi, productToVisualize.name);
           if (result.visualizedImageData && result.productDetails) {
             // newBatchVisualized is already declared, just push to it

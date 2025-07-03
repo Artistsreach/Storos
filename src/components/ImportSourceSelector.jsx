@@ -23,9 +23,10 @@ const ImportSourceSelector = ({ onSelectSource, onClose }) => { // Added onClose
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="shopify" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="shopify">Shopify</TabsTrigger>
             <TabsTrigger value="bigcommerce">BigCommerce</TabsTrigger>
+            <TabsTrigger value="etsy">Etsy</TabsTrigger>
           </TabsList>
           <TabsContent value="shopify" className="mt-4">
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-4"> {/* Adjusted text color */}
@@ -41,6 +42,14 @@ const ImportSourceSelector = ({ onSelectSource, onClose }) => { // Added onClose
             </p>
             <Button className="w-full" onClick={() => onSelectSource('bigcommerce')}>
               Connect BigCommerce
+            </Button>
+          </TabsContent>
+          <TabsContent value="etsy" className="mt-4">
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+              Connect to your Etsy store to import your shop details, products, and collections.
+            </p>
+            <Button className="w-full" onClick={() => onSelectSource('etsy')}>
+              Connect Etsy
             </Button>
           </TabsContent>
         </Tabs>

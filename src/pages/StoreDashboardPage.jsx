@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useLocation } from 'react-router-dom';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../components/dashboard/DashboardLayout';
-import OrdersTab from '../components/dashboard/OrdersTab';
+import { useAuth } from '../contexts/AuthContext';
 import ProductsTab from '../components/dashboard/ProductsTab';
 import CustomersTab from '../components/dashboard/CustomersTab';
 import PaymentsTab from '../components/dashboard/PaymentsTab';

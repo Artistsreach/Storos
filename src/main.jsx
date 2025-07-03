@@ -1,6 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider, Navigate, Outlet } from 'react-router-dom';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
 import App from './App';
 import './index.css';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -11,6 +13,7 @@ import StoreOwnerDashboard from './pages/StoreOwnerDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import StorePreview from './pages/StorePreview';
 import ProductDetail from './pages/ProductDetail';
+import PreorderProductDetail from './pages/PreorderProductDetail';
 import CheckoutPage from './pages/CheckoutPage';
 import AuthPage from './pages/AuthPage';
 import PricingPage from './pages/PricingPage';
@@ -20,6 +23,10 @@ import DesignerPage from './pages/DesignerPage';
 import MusicPage from './pages/MusicPage';
 import PodcastPage from './pages/PodcastPage';
 import VideoCreationPage from './pages/VideoCreationPage';
+import OnboardingReturnPage from './app/onboarding-return/page';
+import TemplateGenerator from './pages/TemplateGenerator';
+import SavedTemplates from './pages/SavedTemplates';
+import PublicTemplate from './pages/PublicTemplate';
 
 // The index route is now the public-facing store owner dashboard.
 const IndexPageHandler = () => {
@@ -41,12 +48,17 @@ const AuthPageWrapper = () => {
   return !isAuthenticated ? <AuthPage /> : <Navigate to="/" replace />;
 };
 
+// Load Stripe
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+
 // Define routes
 const routes = [
   {
     element: (
       <AuthProvider>
-        <App /> {/* App provides StoreProvider and <Outlet /> for child routes */}
+        <Elements stripe={stripePromise}>
+          <App /> {/* App provides StoreProvider and <Outlet /> for child routes */}
+        </Elements>
       </AuthProvider>
     ),
     // ErrorElement can be added here for root-level errors
@@ -80,12 +92,32 @@ const routes = [
         element: <VideoCreationPage />,
       },
       {
+        path: "template-generator",
+        element: <TemplateGenerator />,
+      },
+      {
+        path: "saved-templates",
+        element: <SavedTemplates />,
+      },
+      {
+        path: "template/:templateId",
+        element: <PublicTemplate />,
+      },
+      {
+        path: "onboarding-return",
+        element: <OnboardingReturnPage />,
+      },
+      {
         path: ":storeName",
         element: <StorePreview />,
       },
       {
         path: ":storeName/product/:productId",
         element: <ProductDetail />,
+      },
+      {
+        path: ":storeName/fund/product/:productId",
+        element: <PreorderProductDetail />,
       },
       {
         path: "checkout",

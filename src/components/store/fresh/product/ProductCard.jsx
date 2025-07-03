@@ -34,6 +34,10 @@ const ProductCard = ({
   const productId = isShopifyGid(rawProductId) ? btoa(rawProductId) : rawProductId;
   const inventory_count = displayProduct.inventory_count;
 
+  const productLink = (currentStore?.type === 'fund' || displayProduct.isFunded)
+    ? `/${storeName}/fund/product/${productId}`
+    : `/${storeName}/product/${productId}`;
+
 
   const handleAddToCart = (e) => {
     e.stopPropagation();
@@ -115,7 +119,7 @@ const ProductCard = ({
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <Link to={`/${storeName}/product/${productId}`} className="w-1/3 sm:w-40 md:w-48 block relative overflow-hidden rounded-l-2xl bg-neutral-100 dark:bg-neutral-700"> {/* Use storeName */}
+        <Link to={productLink} className="w-1/3 sm:w-40 md:w-48 block relative overflow-hidden rounded-l-2xl bg-neutral-100 dark:bg-neutral-700"> {/* Use storeName */}
           {(displayProduct.image?.src?.medium || (Array.isArray(displayProduct.images) && displayProduct.images.length > 0 && displayProduct.images[0])) ? (
             <motion.img
               src={displayProduct.image?.src?.medium || displayProduct.images[0]}
@@ -136,7 +140,7 @@ const ProductCard = ({
 
         <div className="w-2/3 p-4 sm:p-5 flex flex-col justify-between">
           <div>
-            <Link to={`/${storeName}/product/${productId}`}> {/* Use storeName */}
+            <Link to={productLink}> {/* Use storeName */}
               <h3 className="text-base sm:text-lg font-semibold text-neutral-800 dark:text-white hover:text-primary dark:hover:text-primary-light transition-colors mb-1 line-clamp-2">
                 {displayProduct.name}
               </h3>
@@ -204,7 +208,7 @@ const ProductCard = ({
       onMouseLeave={() => setIsHovered(false)}
       whileHover={{ y: -6 }}
       >
-        <Link to={`/${storeName}/product/${productId}`} className="block"> {/* Use storeName */}
+        <Link to={productLink} className="block"> {/* Use storeName */}
           <div className="aspect-square relative overflow-hidden bg-neutral-100 dark:bg-neutral-700">
             {(displayProduct.image?.src?.medium || (Array.isArray(displayProduct.images) && displayProduct.images.length > 0 && displayProduct.images[0])) ? (
               <motion.img
@@ -246,7 +250,7 @@ const ProductCard = ({
       </Link>
 
       <div className="p-4 sm:p-5">
-        <Link to={`/${storeName}/product/${productId}`}> {/* Use storeName */}
+        <Link to={productLink}> {/* Use storeName */}
           <h3 className="text-sm sm:text-base font-semibold text-neutral-800 dark:text-white hover:text-primary dark:hover:text-primary-light transition-colors mb-1 line-clamp-2">
             {displayProduct.name}
           </h3>

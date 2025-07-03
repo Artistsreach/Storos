@@ -614,7 +614,7 @@ const ProductDetail = () => {
         };
         setImageGallery(prevGallery => [newImageObject, ...prevGallery]);
         setVisualizedVariantThumbnailUrl(newImageObject.src.medium || newImageObject.src.large); 
-        toast({ title: "Variant Visualized", description: "Comparison slider generated below." });
+        // toast({ title: "Variant Visualized", description: "Comparison slider generated below." });
       } else {
         let errorMsg = "AI image generation failed: ";
         if (!result) errorMsg += "No result from AI.";

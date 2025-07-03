@@ -27,6 +27,7 @@ import { fetchPexelsImages, generateId } from '../lib/utils.jsx'; // Specificall
 import { generateLogoWithGemini, generateImageFromPromptForPod } from '../lib/geminiImageGeneration';
 // Import BigCommerce API functions
 import { fetchStoreSettings as fetchBCStoreSettings, fetchAllProducts as fetchBCAllProducts } from '../lib/bigcommerce';
+import { fetchEtsyStoreData } from '../lib/etsy';
 import ProductFinalizationModal from '../components/store/ProductFinalizationModal'; // Added import
 import DesignEditModal from '../components/store/DesignEditModal'; // Added import
 
@@ -61,13 +62,26 @@ export const StoreProvider = ({ children }) => {
 
   // Function to set view mode, could be enhanced with localStorage later
   const setViewMode = (mode) => {
-    if (mode === 'published' || mode === 'edit') {
-      setViewModeState(mode);
+    if (mode === 'edit') {
+      if (user && currentStore && user.uid === currentStore.merchant_id) {
+        setViewModeState('edit');
+      } else {
+        setViewModeState('published');
+        console.warn("Attempted to switch to edit mode without authorization.");
+      }
+    } else if (mode === 'published') {
+      setViewModeState('published');
     } else {
       console.warn(`Invalid view mode: ${mode}. Defaulting to 'published'.`);
       setViewModeState('published');
     }
   };
+
+  useEffect(() => {
+    if (user && currentStore && user.uid !== currentStore.merchant_id) {
+      setViewModeState('published');
+    }
+  }, [user, currentStore]);
 
   // Shopify Import Wizard State
   const [shopifyWizardStep, setShopifyWizardStep] = useState(0); // 0: idle, 1: connect, 2: preview meta, 3: preview items, 4: confirm
@@ -121,6 +135,13 @@ export const StoreProvider = ({ children }) => {
   const [isFetchingBigCommercePreviewData, setIsFetchingBigCommercePreviewData] = useState(false);
   const [bigCommerceImportError, setBigCommerceImportError] = useState(null);
   // Note: BigCommerce logo generation might be handled differently or use existing Shopify logo functions if applicable.
+
+  // Etsy Import Wizard State
+  const [etsyWizardStep, setEtsyWizardStep] = useState(0);
+  const [etsyPreviewData, setEtsyPreviewData] = useState(null);
+  const [etsyPreviewProducts, setEtsyPreviewProducts] = useState({ items: [], pageInfo: { hasNextPage: false, endCursor: null } });
+  const [isFetchingEtsyPreviewData, setIsFetchingEtsyPreviewData] = useState(false);
+  const [etsyImportError, setEtsyImportError] = useState(null);
 
 // Helper function to prepare store data for localStorage (strip/shorten large base64 images)
 // Helper function to upload base64 image to Firebase Storage
@@ -644,6 +665,7 @@ const prepareStoresForLocalStorage = useCallback((storesArray) => {
           name_lowercase: newStoreLocal.name.toLowerCase(),
           card_background_url: newStoreLocal.card_background_url,
           tags: newStoreLocal.tags,
+          type: newStoreLocal.type, // Make sure to save the type
         };
         
         await setDoc(storeDocRef, dataToInsert);
@@ -688,7 +710,10 @@ const prepareStoresForLocalStorage = useCallback((storesArray) => {
               images: productImages, 
               priceAmount: Number(localProduct.price) >= 0 ? Number(localProduct.price) : 0,
               currency: 'usd',
-              inventory: 10,
+              inventory: localProduct.inventory || 10,
+              preorder_price: localProduct.preorder_price || null,
+              duration: localProduct.duration || null,
+              isFunded: !!localProduct.isFunded,
               variants: localProduct.variants || [],
               created_at: new Date(),
             };
@@ -886,25 +911,18 @@ const prepareStoresForLocalStorage = useCallback((storesArray) => {
     }
   };
 
-  const generateStore = async (prompt, storeNameOverride = null, productTypeOverride = null, initialPodProducts = [], isPrintOnDemand = false, isDropshipping = false, contextFiles = [], dropshippingProducts = []) => {
+  const generateStore = async (prompt, storeNameOverride = null, productTypeOverride = null, initialPodProducts = [], isPrintOnDemand = false, isDropshipping = false, isFund = false, contextFiles = [], dropshippingProducts = []) => {
     setIsGenerating(true);
     setProgress(0);
     setStatusMessage('Initializing generation...');
     try {
       if (isPrintOnDemand) {
         setStatusMessage('Generating initial designs...');
-        const targetPodProducts = [
-          podProductsList.find(p => p.name === "Canvas"),
-          podProductsList.find(p => p.name === "Hat"),
-          podProductsList.find(p => p.name === "Black hoodie"),
-          podProductsList.find(p => p.name === "Mug"),
-          podProductsList.find(p => p.name === "Notebook"),
-          podProductsList.find(p => p.name === "Pillow"),
-        ].filter(Boolean);
+        const targetPodProducts = podProductsList.filter(Boolean);
 
         let initialDesigns = [];
         if (targetPodProducts.length > 0) {
-          const productsToProcess = targetPodProducts.slice(0, 6);
+          const productsToProcess = targetPodProducts;
           let referenceImage = null;
           if (contextFiles && contextFiles.length > 0) {
             const imageFileObject = contextFiles.find(f => f.file.type.startsWith('image/'));
@@ -956,6 +974,7 @@ const prepareStoresForLocalStorage = useCallback((storesArray) => {
             generateId,
             isPrintOnDemand: false,
             isDropshipping: true,
+            isFund,
             contextFiles,
             contextURLs: [],
             generateProducts: false, // Don't generate products
@@ -991,7 +1010,7 @@ const prepareStoresForLocalStorage = useCallback((storesArray) => {
       } else {
         // If not POD and not dropshipping, proceed with regular generation
         const updateProgressCallback = (p, m) => { setProgress(p); if (m) setStatusMessage(m); };
-        newStoreData = await generateStoreFromPromptData(prompt, { storeNameOverride, productTypeOverride, fetchPexelsImages, generateId, isPrintOnDemand: false, contextFiles, contextURLs: [] }, updateProgressCallback);
+        newStoreData = await generateStoreFromPromptData(prompt, { storeNameOverride, productTypeOverride, fetchPexelsImages, generateId, isPrintOnDemand: false, isFund, contextFiles, contextURLs: [] }, updateProgressCallback);
         if (newStoreData.products.length > 0) {
           const collections = await generateCollectionsForProducts(
             newStoreData.type,
@@ -2293,6 +2312,36 @@ const finalizeBigCommerceImportFromWizard = useCallback(async () => {
     finalizeBigCommerceImportFromWizard,
     resetBigCommerceWizardState,
 
+    // Etsy Wizard related
+    etsyWizardStep, setEtsyWizardStep,
+    etsyPreviewData,
+    etsyPreviewProducts,
+    isFetchingEtsyPreviewData,
+    etsyImportError,
+    startEtsyImportWizard: async (apiKey, apiSecret) => {
+      setIsFetchingEtsyPreviewData(true);
+      setEtsyImportError(null);
+      try {
+        const { storeData, products } = await fetchEtsyStoreData(apiKey, apiSecret);
+        setEtsyPreviewData(storeData);
+        setEtsyPreviewProducts({ items: products, pageInfo: { hasNextPage: false, endCursor: null } });
+        setEtsyWizardStep(2);
+        return true;
+      } catch (error) {
+        setEtsyImportError(error.message || 'Failed to fetch Etsy store data.');
+        return false;
+      } finally {
+        setIsFetchingEtsyPreviewData(false);
+      }
+    },
+    resetEtsyWizardState: () => {
+      setEtsyWizardStep(0);
+      setEtsyPreviewData(null);
+      setEtsyPreviewProducts({ items: [], pageInfo: { hasNextPage: false, endCursor: null } });
+      setIsFetchingEtsyPreviewData(false);
+      setEtsyImportError(null);
+    },
+
     // Design Edit Modal related
     closeDesignEditModal: () => {
       setIsDesignEditModalOpen(false);
@@ -2370,6 +2419,7 @@ const finalizeBigCommerceImportFromWizard = useCallback(async () => {
         onClose={value.closeProductFinalizationModal}
         products={productsToFinalize}
         onFinalize={value.handleFinalizeProducts}
+        storeDataForFinalization={storeDataForFinalization}
       />
     </StoreContext.Provider>
   );

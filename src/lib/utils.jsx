@@ -343,6 +343,13 @@ export const generateAIStoreContent = async (storeType, storeName, description =
 
 import { useState, useEffect } from 'react';
 
+export function generateStoreUrl(storeName) {
+	if (!storeName) {
+		return '';
+	}
+	return storeName.toLowerCase().replace(/\s+/g, '-');
+}
+
 export function useDebounce(value, delay) {
   const [debouncedValue, setDebouncedValue] = useState(value);
 
