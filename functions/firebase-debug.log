@@ -1041,7 +1041,7 @@
     "minInstances": null,
     "vpc": null,
     "environmentVariables": {
-      "BASE_URL": "https://fresh-dfe30.web.app",
+      "BASE_URL": "https://freshfront.co",
       "FIREBASE_CONFIG": "{\"projectId\":\"fresh-dfe30\",\"storageBucket\":\"fresh-dfe30.firebasestorage.app\"}",
       "GCLOUD_PROJECT": "fresh-dfe30",
       "EVENTARC_CLOUD_EVENT_SOURCE": "projects/fresh-dfe30/locations/us-central1/functions/createConnectAccount"
