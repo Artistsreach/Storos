@@ -110,8 +110,8 @@ const StoreList = () => {
       className="w-full max-w-6xl mx-auto mt-8"
     >
       <div className="flex justify-between items-center mb-6">
-        <h2 className={`text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-gray-600 to-gray-200 dark:from-gray-400 dark:to-gray-200 ${isShimmering ? 'animate-shimmer' : ''}`}>
-          Browse Stores & Products
+        <h2 className={`text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-gray-500 to-gray-300 dark:from-gray-300 dark:to-gray-100 ${isShimmering ? 'animate-shimmer' : ''}`}>
+          Discover
         </h2>
       </div>
 
