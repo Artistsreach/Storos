@@ -220,7 +220,7 @@ src={isDarkMode
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        {!isSubscribed && (
+        {isAuthenticated && !isSubscribed && (
           <Button onClick={handleSubscribe} disabled={isSubscriptionLoading} className="dark:text-black">
             {isSubscriptionLoading ? 'Processing...' : 'Get Premium'}
           </Button>
