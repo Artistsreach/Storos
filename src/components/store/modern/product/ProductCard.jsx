@@ -26,7 +26,7 @@ import {
   Share2,
   Edit, // Added Edit
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import ProductEditModal from "@/components/store/ProductEditModal"; // Import Edit Modal
 import { useStore } from "@/contexts/StoreContext";
@@ -115,6 +115,7 @@ const ProductCard = ({
   isPublishedView = false,
   displayMode = "grid",
 }) => {
+  const navigate = useNavigate();
   const { addToCart, updateStore: updateContextStore, currentStore } = useStore(); // Get updateStore and currentStore
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -132,8 +133,10 @@ const ProductCard = ({
   // Initialize productData state
   const [internalProductData, setInternalProductData] = useState(() => {
     const rawId = product.id || `product-${index}`;
+    const productLink = `/${storeName}/product/${isShopifyGid(rawId) ? btoa(rawId) : rawId}`;
     return {
       id: rawId,
+      productLink,
       name: product.name || "Modern Premium Product",
       description: product.description || "A cutting-edge item designed for the modern lifestyle with exceptional quality and innovative features",
       price: typeof product.price === "number" ? product.price : parseFloat(product.price) || 299.99,
@@ -156,8 +159,10 @@ const ProductCard = ({
 
   useEffect(() => {
     const rawId = product.id || `product-${index}`;
+    const productLink = `/${storeName}/product/${isShopifyGid(rawId) ? btoa(rawId) : rawId}`;
     setInternalProductData({
       id: rawId,
+      productLink,
       name: product.name || "Modern Premium Product",
       description: product.description || "A cutting-edge item designed for the modern lifestyle with exceptional quality and innovative features",
       price: typeof product.price === "number" ? product.price : parseFloat(product.price) || 299.99,
@@ -378,9 +383,10 @@ const ProductCard = ({
       initial="hidden"
       animate="visible"
       whileHover="hover"
-      className="group relative bg-white dark:bg-gray-900 rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 dark:border-gray-800 backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95"
+      className="group relative bg-white dark:bg-gray-900 rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 dark:border-gray-800 backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95 cursor-pointer"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onClick={() => navigate(internalProductData.productLink)}
       style={{
         // transform: `perspective(1000px) rotateX(${mousePosition.y * 0.1}deg) rotateY(${mousePosition.x * 0.1}deg)`, // Parallax might rely on framer-motion or be too complex
       }}
@@ -396,7 +402,7 @@ const ProductCard = ({
       </div>
       */}
 
-      <Link to={`/${storeName}/product/${productId}`} className="block relative z-10">
+      <div className="block relative z-10">
         {/* Image Container */}
         <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700">
           <motion.img
@@ -516,11 +522,11 @@ const ProductCard = ({
             </div>
           )}
         </div>
-      </Link>
+      </div>
 
       {/* Content */}
       <div className="p-6 relative z-10">
-        <Link to={`/${storeName}/product/${productId}`} className="block">
+        <div className="block">
           {/* Rating */}
           <div className="flex items-center gap-2 mb-3">
             <div className="flex items-center">
@@ -559,17 +565,17 @@ const ProductCard = ({
           <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed mb-2 line-clamp-2">
             {internalProductData.description}
           </p>
-        </Link>
+        </div>
 
         {/* Price and Actions */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <span className="text-2xl font-bold text-gray-900 dark:text-white">
-              ${discountedPrice.toFixed(2)}
+              {internalProductData.currencyCode || '$'}{discountedPrice.toFixed(2)}
             </span>
             {internalProductData.originalPrice && internalProductData.discount > 0 && (
               <span className="text-sm text-gray-500 dark:text-gray-400 line-through">
-                ${internalProductData.originalPrice.toFixed(2)}
+                {internalProductData.currencyCode || '$'}{internalProductData.originalPrice.toFixed(2)}
               </span>
             )}
           </div>

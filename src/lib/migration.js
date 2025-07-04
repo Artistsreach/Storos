@@ -1,8 +1,8 @@
 import { db } from './firebaseClient';
 import { collection, getDocs, doc, setDoc } from 'firebase/firestore';
 
-export const migrateTemplatesToPublic = async () => {
-  console.log('Starting template migration...');
+export const migratePagesToPublic = async () => {
+  console.log('Starting page migration...');
   try {
     const usersRef = collection(db, 'users');
     const usersSnapshot = await getDocs(usersRef);
@@ -27,10 +27,10 @@ export const migrateTemplatesToPublic = async () => {
         }
       }
     }
-    console.log(`Migration complete. Migrated ${migratedCount} templates.`);
-    alert(`Migration complete. Migrated ${migratedCount} templates.`);
+    console.log(`Migration complete. Migrated ${migratedCount} pages.`);
+    alert(`Migration complete. Migrated ${migratedCount} pages.`);
   } catch (error) {
-    console.error('Error migrating templates:', error);
-    alert('Error migrating templates. See console for details.');
+    console.error('Error migrating pages:', error);
+    alert('Error migrating pages. See console for details.');
   }
 };

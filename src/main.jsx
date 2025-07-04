@@ -24,9 +24,15 @@ import MusicPage from './pages/MusicPage';
 import PodcastPage from './pages/PodcastPage';
 import VideoCreationPage from './pages/VideoCreationPage';
 import OnboardingReturnPage from './app/onboarding-return/page';
-import TemplateGenerator from './pages/TemplateGenerator';
-import SavedTemplates from './pages/SavedTemplates';
-import PublicTemplate from './pages/PublicTemplate';
+import PageGenerator from './pages/PageGenerator';
+import SavedPages from './pages/SavedPages';
+import PublicPage from './pages/PublicPage';
+import InfoPage from './pages/InfoPage';
+import UserProfilePage from './pages/UserProfilePage';
+import SocialFeedPage from './pages/SocialFeedPage';
+import PostPage from './pages/PostPage';
+import SlugPage from './pages/SlugPage';
+import GeminiLive from './pages/GeminiLive';
 
 // The index route is now the public-facing store owner dashboard.
 const IndexPageHandler = () => {
@@ -92,24 +98,24 @@ const routes = [
         element: <VideoCreationPage />,
       },
       {
-        path: "template-generator",
-        element: <TemplateGenerator />,
+        path: "page-generator",
+        element: <PageGenerator />,
       },
       {
-        path: "saved-templates",
-        element: <SavedTemplates />,
+        path: "saved-pages",
+        element: <SavedPages />,
       },
       {
-        path: "template/:templateId",
-        element: <PublicTemplate />,
+        path: "page/:slug",
+        element: <PublicPage />,
+      },
+      {
+        path: "info",
+        element: <InfoPage />,
       },
       {
         path: "onboarding-return",
         element: <OnboardingReturnPage />,
-      },
-      {
-        path: ":storeName",
-        element: <StorePreview />,
       },
       {
         path: ":storeName/product/:productId",
@@ -134,6 +140,22 @@ const routes = [
       {
         path: ":storeName/dashboard", // New route for the store dashboard
         element: <StoreDashboardPage />,
+      },
+      {
+        path: "feed",
+        element: <SocialFeedPage />,
+      },
+      {
+        path: "post/:postId",
+        element: <PostPage />,
+      },
+      {
+        path: "/gemini-live",
+        element: <GeminiLive />,
+      },
+      {
+        path: "/:slug",
+        element: <SlugPage />,
       },
       {
         path: "*",

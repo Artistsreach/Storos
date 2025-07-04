@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../contexts/StoreContext';
-import { fetchPexelsImages } from '../lib/utils.jsx';
+import { fetchPexelsImages } from '../lib/utils.js';
 
 const ImageSelectionModal = ({ isOpen, onClose, onImageSelect }) => {
   const { stores, loadStores } = useStore();

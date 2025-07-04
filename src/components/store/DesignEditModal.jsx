@@ -10,7 +10,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { editImageWithGemini, generateImageFromPromptForPod } from '../../lib/geminiImageGeneration';
 import { imageSrcToBasics } from '../../lib/imageUtils';
 import { podProductsList } from '../../lib/constants';
-import { generateId } from '../../lib/utils.jsx';
+import { generateId } from '../../lib/utils.js';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 
 

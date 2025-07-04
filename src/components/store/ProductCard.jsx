@@ -5,13 +5,15 @@ import { Card, CardContent, CardFooter } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { ShoppingCart, Star, Eye, Zap as BuyNowIcon, Edit } from 'lucide-react'; // Added Edit icon
 import { useStore } from '../../contexts/StoreContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import InlineTextEdit from '../../components/ui/InlineTextEdit'; // Added import
 import ProductEditModal from './ProductEditModal'; // Importing the new modal
 import { useEffect } from 'react'; // Added useEffect
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 // Changed storeId prop to storeName
-const ProductCard = ({ product, theme, index, storeName, storeId, isPublishedView = false }) => {
+const ProductCard = ({ product, theme, index, storeName, storeId, isPublishedView = false, productLink: productLinkProp, isCurrentUser }) => {
+  const navigate = useNavigate();
   // Use state for product data to allow local updates
   const [displayProduct, setDisplayProduct] = useState(product);
 
@@ -24,16 +26,16 @@ const ProductCard = ({ product, theme, index, storeName, storeId, isPublishedVie
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false); // State for edit modal
-  const isAdmin = !isPublishedView;
+  const isAdmin = !isPublishedView && isCurrentUser;
 
   // URL-encode the product ID to handle special characters.
   const productId = encodeURIComponent(rawProductId);
 
   const store = getStoreById(storeId);
   console.log('Store in ProductCard:', store);
-  const productLink = (store?.type === 'fund' || displayProduct.isFunded)
+  const productLink = productLinkProp || ((store?.type === 'fund' || displayProduct.isFunded)
     ? `/${storeName}/fund/product/${productId}`
-    : `/${storeName}/product/${productId}`;
+    : `/${storeName}/product/${productId}`);
 
   const imageUrl = image?.src?.medium || image?.url || (Array.isArray(displayProduct.images) && displayProduct.images.length > 0 ? displayProduct.images[0] : `https://via.placeholder.com/400x400.png?text=${encodeURIComponent(name)}`);
   const imageAlt = image?.alt || `${name} product image`;
@@ -99,12 +101,6 @@ const ProductCard = ({ product, theme, index, storeName, storeId, isPublishedVie
     }
   };
 
-  const handleAddToCart = (e) => {
-    e.preventDefault(); // Prevent link navigation if button inside Link
-    e.stopPropagation();
-    addToCart(product, storeId);
-  };
-
   const handleBuyNow = async (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -113,6 +109,7 @@ const ProductCard = ({ product, theme, index, storeName, storeId, isPublishedVie
     setCheckoutError(null);
 
     try {
+      const functions = getFunctions();
       const createProductCheckoutSession = httpsCallable(functions, 'createProductCheckoutSession');
       const result = await createProductCheckoutSession({
         productName: name,
@@ -120,7 +117,7 @@ const ProductCard = ({ product, theme, index, storeName, storeId, isPublishedVie
         productImage: imageUrl,
         amount: price * 100, // amount in cents
         currency: 'usd',
-        storeOwnerId: currentStore.merchantId,
+        storeOwnerId: store.merchant_id,
       });
 
       const data = result.data;
@@ -203,11 +200,11 @@ const ProductCard = ({ product, theme, index, storeName, storeId, isPublishedVie
       transition={{ duration: 0.4, delay: index * 0.05, ease: "easeOut" }}
       whileHover={{ y: -8, boxShadow: "0px 10px 20px rgba(0,0,0,0.1)" }}
       className="product-card h-full"
+      onClick={() => navigate(productLink)}
     >
-      <Card className="h-full overflow-hidden border hover:border-primary/50 transition-all duration-300 flex flex-col group bg-card shadow-sm hover:shadow-lg">
+      <Card className="h-full overflow-hidden border hover:border-primary/50 transition-all duration-300 flex flex-col group bg-card shadow-sm hover:shadow-lg cursor-pointer">
         {/* Removed isPublishedView from state, ProductDetail will get it from context */}
-        <Link to={productLink} className="block"> {/* Use storeName */}
-          <div className="aspect-square relative overflow-hidden bg-muted">
+        <div className="aspect-square relative overflow-hidden bg-muted">
             <img 
               alt={imageAlt}
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
@@ -223,10 +220,8 @@ const ProductCard = ({ product, theme, index, storeName, storeId, isPublishedVie
                 <Eye className="h-10 w-10 text-white" />
             </div>
           </div>
-        </Link>
         
         <CardContent className="p-4 flex-grow">
-          <Link to={productLink} className="block"> {/* Use storeName */}
             <div className="flex justify-between items-start mb-1.5">
               <h3 className="font-semibold text-md lg:text-lg line-clamp-2 group-hover:text-primary transition-colors" style={{"--hover-color": theme.primaryColor}}>
                 <InlineTextEdit
@@ -240,7 +235,6 @@ const ProductCard = ({ product, theme, index, storeName, storeId, isPublishedVie
                 {currencyCode} {typeof price === 'number' ? price.toFixed(2) : 'Price unavailable'}
               </span>
             </div>
-          </Link>
           
           <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
             <InlineTextEdit
@@ -277,26 +271,15 @@ const ProductCard = ({ product, theme, index, storeName, storeId, isPublishedVie
         </CardContent>
         
         <CardFooter className="p-4 pt-0 mt-auto flex flex-col gap-2">
-          <Button 
+          <Button
             className="w-full transition-transform duration-200 hover:scale-105"
             style={{ backgroundColor: theme.primaryColor, color: theme.primaryTextColor || 'white' }}
-            onClick={handleAddToCart}
+            onClick={handleBuyNow}
             disabled={isCheckoutLoading || (inventory_count !== undefined && inventory_count <= 0)}
           >
-            <ShoppingCart className="mr-2 h-4 w-4" />
-            {inventory_count !== undefined && inventory_count <= 0 ? 'Out of Stock' : 'Add to Cart'}
+            <BuyNowIcon className="mr-2 h-4 w-4" />
+            {inventory_count !== undefined && inventory_count <= 0 ? 'Out of Stock' : (isCheckoutLoading ? 'Processing...' : 'Buy Now')}
           </Button>
-          {canBuyNow && ( 
-            <Button 
-              variant="outline"
-              className="w-full transition-transform duration-200 hover:scale-105"
-              onClick={handleBuyNow}
-              disabled={isCheckoutLoading}
-            >
-              <BuyNowIcon className="mr-2 h-4 w-4" />
-              {isCheckoutLoading ? 'Processing...' : 'Buy Now'}
-            </Button>
-          )}
           {checkoutError && <p className="text-xs text-red-500 mt-1">{checkoutError}</p>}
           {isAdmin && (
             <Button 

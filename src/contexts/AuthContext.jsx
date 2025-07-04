@@ -25,24 +25,21 @@ export const AuthProvider = ({ children }) => {
 
       if (currentUser) {
         const profileRef = doc(db, 'profiles', currentUser.uid);
-        // Listen for real-time updates to the profile
         profileUnsubscribe = onSnapshot(profileRef, (profileSnap) => {
           if (profileSnap.exists()) {
-            const profileData = profileSnap.data();
+            const profileData = { uid: currentUser.uid, ...profileSnap.data() };
             setProfile(profileData);
             setUserRole(profileData?.role || 'store_owner');
-            console.log('AuthContext: Profile updated from snapshot:', profileData);
           } else {
-            console.warn('AuthContext: No profile found for user:', currentUser.uid);
             setProfile(null);
-            setUserRole('store_owner'); // Assume 'store_owner' if no profile exists yet
+            setUserRole('store_owner');
           }
-          setLoading(false); // Set loading false after profile is processed
+          setLoading(false);
         }, (error) => {
           console.error('AuthContext: Error listening to profile:', error.message);
           setProfile(null);
           setUserRole(null);
-          setLoading(false); // Set loading false on error too
+          setLoading(false);
         });
       } else {
         setProfile(null);

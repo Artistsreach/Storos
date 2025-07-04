@@ -3,7 +3,7 @@ import { getAuth } from "firebase/auth";
 import { getFirestore, enableIndexedDbPersistence, CACHE_SIZE_UNLIMITED, collection, query, where, getDocs, limit, addDoc, serverTimestamp, doc, setDoc, writeBatch } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getFunctions } from "firebase/functions"; // Import getFunctions
-import { generateStoreUrl } from "./utils.js"; // Explicitly import from .js file
+import { generateStoreUrl } from "./utils.js";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -79,25 +79,27 @@ export async function isStoreNameTaken(storeName) {
 }
 
 /**
- * Saves a template to the 'saved_templates' collection in Firestore.
- * @param {string} userId The ID of the user saving the template.
- * @param {string} templateCode The HTML code of the template to save.
- * @param {string} title The title of the template.
- * @param {string} primaryColor The primary color of the template.
+ * Saves a page to the 'saved_templates' collection in Firestore.
+ * @param {string} userId The ID of the user saving the page.
+ * @param {string} templateCode The HTML code of the page to save.
+ * @param {string} title The title of the page.
+ * @param {string} primaryColor The primary color of the page.
  * @returns {Promise<void>}
  * @throws {Error} If Firestore query fails.
  */
-export async function saveTemplate(userId, templateCode, title, primaryColor) {
+export async function savePage(userId, templateCode, title, primaryColor) {
   if (!userId || !templateCode || !title || !primaryColor) {
-    throw new Error("User ID, template code, title, and primary color are required to save a template.");
+    throw new Error("User ID, page code, title, and primary color are required to save a page.");
   }
 
+  const slug = generateStoreUrl(title);
   const userTemplatesRef = collection(db, "users", userId, "saved_templates");
   const newTemplateRef = doc(userTemplatesRef);
-  const publicTemplatesRef = doc(db, "public_templates", newTemplateRef.id);
+  const publicTemplatesRef = doc(db, "public_templates", slug);
 
   const templateData = {
     name: title,
+    slug: slug,
     code: templateCode,
     primaryColor: primaryColor,
     createdAt: serverTimestamp(),
@@ -109,9 +111,9 @@ export async function saveTemplate(userId, templateCode, title, primaryColor) {
     batch.set(newTemplateRef, templateData);
     batch.set(publicTemplatesRef, templateData);
     await batch.commit();
-    console.log("Template saved successfully to user collection and public collection.");
+    console.log("Page saved successfully to user collection and public collection.");
   } catch (error) {
-    console.error("Error saving template to Firestore:", error);
-    throw new Error("Failed to save template due to a database error.");
+    console.error("Error saving page to Firestore:", error);
+    throw new Error("Failed to save page due to a database error.");
   }
 }

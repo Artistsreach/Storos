@@ -959,11 +959,12 @@ const RealtimeChatbot = () => {
                 rows={1}
                 disabled={!activeService || isGeminiInitializing} 
               />
-              <Button 
-                onClick={handleSendMessage} 
-                size="icon" 
-                title="Send Message" 
-                disabled={!currentMessage.trim() || !activeService || isGeminiInitializing} 
+              <Button
+                onClick={handleSendMessage}
+                size="icon"
+                title="Send Message"
+                disabled={!currentMessage.trim() || !activeService || isGeminiInitializing}
+                className="dark:bg-black dark:text-white dark:hover:bg-gray-800"
               >
                 <Send size={18} />
               </Button>

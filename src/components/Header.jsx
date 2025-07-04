@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion'; // Added AnimatePresence
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingBag, LogIn, LogOut, Settings, Sun, Moon, Briefcase, ExternalLink, ChevronDown, Menu, X, MousePointer2, Coins } from 'lucide-react'; // Added Menu, X
+import { ShoppingBag, LogIn, LogOut, Settings, Sun, Moon, Briefcase, ExternalLink, ChevronDown, Menu, X, MousePointer2, Coins, User } from 'lucide-react'; // Added Menu, X
 import { Button } from '../components/ui/button';
 import { Switch } from '../components/ui/switch';
 import {
@@ -200,7 +200,7 @@ src={isDarkMode
               <Link to="/store-generator" className="font-bold">Store</Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link to="/template-generator">Template</Link>
+              <Link to="/page-generator">Page</Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link to="/designer">Design</Link>
@@ -214,10 +214,14 @@ src={isDarkMode
             <DropdownMenuItem asChild>
               <Link to="/video">Video</Link>
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link to="/feed">Post</Link>
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         {!isSubscribed && (
-          <Button onClick={handleSubscribe} disabled={isSubscriptionLoading}>
+          <Button onClick={handleSubscribe} disabled={isSubscriptionLoading} className="dark:text-black">
             {isSubscriptionLoading ? 'Processing...' : 'Get Premium'}
           </Button>
         )}
@@ -247,6 +251,12 @@ src={isDarkMode
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link to={`/${profile?.username}`} className="flex items-center">
+                  <User className="mr-2 h-4 w-4" />
+                  Profile
+                </Link>
+              </DropdownMenuItem>
               {!isStripeConnected ? (
                 <DropdownMenuItem>
                   <OnboardingButton />
@@ -318,19 +328,19 @@ src={isDarkMode
     </motion.header>
 
     {/* Mobile Menu Overlay */}
+    <CreditCostsModal 
+      isOpen={isCreditModalOpen} 
+      onClose={() => setIsCreditModalOpen(false)} 
+      onSubscribe={handleSubscribe}
+    />
     <AnimatePresence>
-      <CreditCostsModal 
-        isOpen={isCreditModalOpen} 
-        onClose={() => setIsCreditModalOpen(false)} 
-        onSubscribe={handleSubscribe}
-      />
       {isMobileMenuOpen && (
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
-          className="md:hidden fixed inset-x-0 top-[117px] z-40 bg-background/95 backdrop-blur-sm p-6 border-b shadow-lg"
-          // Header height on small screens is approx 72px (logo h-10=40px + py-4=32px). 72px + 45px margin = 117px.
+          className="md:hidden fixed inset-x-0 top-[72px] z-40 bg-background/95 backdrop-blur-sm p-6 border-b shadow-lg"
+          // Header height on small screens is approx 72px (logo h-10=40px + py-4=32px).
         >
           <nav className="flex flex-col gap-4">
             <DropdownMenu>
@@ -344,7 +354,7 @@ src={isDarkMode
                   <Link to="/store-generator" className="font-bold">Store</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to="/template-generator">Template</Link>
+                  <Link to="/page-generator">Page</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link to="/designer">Design</Link>
@@ -357,6 +367,10 @@ src={isDarkMode
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link to="/video">Video</Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/feed">Post</Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -399,6 +413,11 @@ src={isDarkMode
                   </Button>
                 )}
                 {portalError && <p className="text-xs text-destructive px-3 py-1">{portalError}</p>}
+                <Link to={`/${profile?.username}`} className="w-full">
+                  <Button variant="outline" className="w-full justify-start px-3 py-2 text-base">
+                    Profile
+                  </Button>
+                </Link>
                 <Button variant="outline" onClick={handleLogout} className="w-full justify-start px-3 py-2 text-base">
                   <LogOut className="mr-2 h-4 w-4" /> Logout
                 </Button>

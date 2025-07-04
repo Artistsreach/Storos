@@ -16,7 +16,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import ProductCard from "../product/ProductCard";
-import { generateStoreUrl } from "@/lib/utils.js"; // Added import
 // import { Canvas, useFrame } from "@react-three/fiber"; // R3F Removed
 // import { Float, MeshDistortMaterial, Environment } from "@react-three/drei"; // R3F Removed
 // import { EffectComposer, Bloom } from "@react-three/postprocessing"; // R3F Removed
@@ -99,7 +98,7 @@ const ProductGrid = ({
   const primaryColor = store?.theme?.primaryColor || "#6366F1";
   const rawStoreName = store?.name || "Modern Store"; // Keep original for display if needed elsewhere
   const storeId = store?.id || "modern-store";
-  const urlFriendlyStoreName = generateStoreUrl(rawStoreName); // Generate URL-friendly name
+  const urlFriendlyStoreName = store?.urlSlug;
 
   // Sample products if none provided
   const sampleProducts = [

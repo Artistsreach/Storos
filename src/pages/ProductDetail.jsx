@@ -24,21 +24,17 @@ import { Separator } from '../components/ui/separator';
 import { Badge } from '../components/ui/badge';
 import { ReactCompareSlider, ReactCompareSliderImage } from 'react-compare-slider'; 
 
-const ProductDetail = () => {
-  const params = useParams();
-  const storeName = params.storeName; 
-  
-  // Decode the product ID from the URL, which may contain special characters.
-  const productId = decodeURIComponent(params.productId);
-
-  const { getStoreByName, getProductById, updateProductImage, updateStore, isLoadingStores, viewMode, updateProductImagesArray } = useStore(); 
+const ProductDetail = ({ product: initialProduct, store: initialStore }) => {
+  const { getStoreByName, getProductById, updateProductImage, updateStore, isLoadingStores, viewMode, updateProductImagesArray } = useStore();
+  const { storeName, productId: rawProductId } = useParams();
+  const productId = rawProductId ? decodeURIComponent(rawProductId) : undefined;
   const isPublishedView = viewMode === 'published';
   const { toast } = useToast();
   const navigate = useNavigate();
-  const functions = getFunctions(); 
+  const functions = getFunctions();
 
-  const [store, setStore] = useState(null);
-  const [product, setProduct] = useState(null);
+  const [store, setStore] = useState(initialStore);
+  const [product, setProduct] = useState(initialProduct);
   const [quantity, setQuantity] = useState(1);
   const [selectedVariants, setSelectedVariants] = useState({});
   const [currentResolvedSku, setCurrentResolvedSku] = useState(null); 
@@ -242,81 +238,86 @@ const ProductDetail = () => {
 
 
   useEffect(() => {
-    if (isLoadingStores) {
-      return;
-    }
-    const currentStore = getStoreByName(storeName); 
-    if (currentStore) {
-      setStore(currentStore);
-      const currentProduct = getProductById(currentStore.id, productId); 
-      if (currentProduct) {
-        setProduct(currentProduct);
-        setImageSearchQuery(currentProduct.name); 
-        setCurrentProductVideoUrl(currentProduct.video_url || '');
-        setCurrent3DModelUrl(currentProduct.model_3d_url || '');
-        setCurrent3DThumbnailUrl(currentProduct.model_3d_thumbnail_url || '');
-        
-        let gallerySource = [];
-        if (currentProduct.images && Array.isArray(currentProduct.images) && currentProduct.images.length > 0) {
-          gallerySource = currentProduct.images.map((imgUrl, index) => ({
-            id: `gallery-img-${currentProduct.id}-${index}-${generateId()}`,
-            src: { medium: imgUrl, large: imgUrl },
-            alt: `${currentProduct.name || 'Product'} image ${index + 1}`
-          }));
-        } else if (currentProduct.image && currentProduct.image.src) {
-          gallerySource = [{
-            id: currentProduct.image.id || `gallery-img-${currentProduct.id}-0-${generateId()}`,
-            src: currentProduct.image.src,
-            alt: currentProduct.image.alt || `${currentProduct.name || 'Product'} image`
-          }];
+    if (initialStore && initialProduct) {
+      setStore(initialStore);
+      setProduct(initialProduct);
+    } else if (storeName && productId && !isLoadingStores) {
+      const fetchedStore = getStoreByName(storeName);
+      if (fetchedStore) {
+        setStore(fetchedStore);
+        const fetchedProduct = getProductById(fetchedStore.id, productId);
+        if (fetchedProduct) {
+          setProduct(fetchedProduct);
         } else {
-          gallerySource = [{
-            id: `placeholder-${currentProduct.id || generateId()}`,
-            src: {
-              medium: `https://via.placeholder.com/600x600.png?text=${encodeURIComponent(currentProduct.name || 'Product')}`,
-              large: `https://via.placeholder.com/600x600.png?text=${encodeURIComponent(currentProduct.name || 'Product')}`
-            },
-            alt: currentProduct.name || 'Product image'
-          }];
-        }
-
-        if (currentProduct.video_url) {
-          gallerySource.push({
-            id: `video-${currentProduct.id}-${generateId()}`,
-            src: { medium: currentProduct.video_url, large: currentProduct.video_url },
-            alt: `${currentProduct.name} video`,
-            type: 'video',
-          });
-        }
-        setImageGallery(gallerySource);
-        setActiveImageUrl(gallerySource[0]?.src?.large || gallerySource[0]?.src?.medium || '');
-        
-        let variantDefinitions = [];
-        if (currentProduct.options && Array.isArray(currentProduct.options)) { 
-          variantDefinitions = currentProduct.options;
-        } else if (currentProduct.variants && Array.isArray(currentProduct.variants)) {
-          if (currentProduct.variants.length > 0 && currentProduct.variants[0].name && currentProduct.variants[0].values) {
-            variantDefinitions = currentProduct.variants;
-          }
-        }
-        if (variantDefinitions.length > 0) {
-          const initialSelections = {};
-          variantDefinitions.forEach(variant => {
-            if (variant.values && variant.values.length > 0) {
-              initialSelections[variant.name] = variant.values[0];
-            }
-          });
-          setSelectedVariants(initialSelections);
+          console.log(`Product with ID ${productId} not found in store ${storeName}.`);
         }
       } else {
-        toast({ title: "Product not found", description: `Product ID ${productId} not found in store ${currentStore.name}.`, variant: "destructive" });
-        navigate(`/${storeName}`); 
+        console.log(`Store with name ${storeName} not found.`);
       }
-    } else {
-      toast({ title: "Store not found", description: `Could not find store: ${storeName}`, variant: "destructive" });
-      navigate('/'); 
     }
-  }, [storeName, productId, getStoreByName, getProductById, navigate, toast, isLoadingStores]);
+  }, [initialStore, initialProduct, storeName, productId, isLoadingStores, getStoreByName, getProductById]);
+
+  useEffect(() => {
+    if (product) {
+      setImageSearchQuery(product.name);
+      setCurrentProductVideoUrl(product.video_url || '');
+      setCurrent3DModelUrl(product.model_3d_url || '');
+      setCurrent3DThumbnailUrl(product.model_3d_thumbnail_url || '');
+
+      let gallerySource = [];
+      if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+        gallerySource = product.images.map((imgUrl, index) => ({
+          id: `gallery-img-${product.id}-${index}-${generateId()}`,
+          src: { medium: imgUrl, large: imgUrl },
+          alt: `${product.name || 'Product'} image ${index + 1}`
+        }));
+      } else if (product.image && product.image.src) {
+        gallerySource = [{
+          id: product.image.id || `gallery-img-${product.id}-0-${generateId()}`,
+          src: product.image.src,
+          alt: product.image.alt || `${product.name || 'Product'} image`
+        }];
+      } else {
+        gallerySource = [{
+          id: `placeholder-${product.id || generateId()}`,
+          src: {
+            medium: `https://via.placeholder.com/600x600.png?text=${encodeURIComponent(product.name || 'Product')}`,
+            large: `https://via.placeholder.com/600x600.png?text=${encodeURIComponent(product.name || 'Product')}`
+          },
+          alt: product.name || 'Product image'
+        }];
+      }
+
+      if (product.video_url) {
+        gallerySource.push({
+          id: `video-${product.id}-${generateId()}`,
+          src: { medium: product.video_url, large: product.video_url },
+          alt: `${product.name} video`,
+          type: 'video',
+        });
+      }
+      setImageGallery(gallerySource);
+      setActiveImageUrl(gallerySource[0]?.src?.large || gallerySource[0]?.src?.medium || '');
+
+      let variantDefinitions = [];
+      if (product.options && Array.isArray(product.options)) {
+        variantDefinitions = product.options;
+      } else if (product.variants && Array.isArray(product.variants)) {
+        if (product.variants.length > 0 && product.variants[0].name && product.variants[0].values) {
+          variantDefinitions = product.variants;
+        }
+      }
+      if (variantDefinitions.length > 0) {
+        const initialSelections = {};
+        variantDefinitions.forEach(variant => {
+          if (variant.values && variant.values.length > 0) {
+            initialSelections[variant.name] = variant.values[0];
+          }
+        });
+        setSelectedVariants(initialSelections);
+      }
+    }
+  }, [product]);
 
   useEffect(() => {
     if (product && Object.keys(selectedVariants).length > 0) {

@@ -18,7 +18,7 @@ import {
 import ReplaceVideoModal from "./ReplaceVideoModal";
 import { useStore } from "../../contexts/StoreContext.jsx";
 import InlineTextEdit from "../ui/InlineTextEdit.jsx";
-import { fetchPexelsVideos } from "../../lib/utils.jsx"; // Import Pexels video function
+import { fetchPexelsVideos } from "../../lib/utils.js"; // Import Pexels video function
 
 const StoreHero = ({ store, isPublishedView = false }) => {
   const { updateStore, updateStoreTextContent, viewMode } = useStore();

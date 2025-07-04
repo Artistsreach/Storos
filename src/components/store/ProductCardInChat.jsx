@@ -1,9 +1,9 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Button } from '../../components/ui/button'; 
-import { Sparkles } from 'lucide-react'; // For Visualize button icon
+import { Sparkles, Loader2 } from 'lucide-react'; 
 
-const ProductCardInChat = ({ productData, onViewDetails, onAddToCart, onBuyNow, onVisualize }) => {
+const ProductCardInChat = ({ productData, onViewDetails, onAddToCart, onBuyNow, onVisualize, isCreatingCheckout }) => {
   if (!productData) {
     return null;
   }
@@ -44,8 +44,9 @@ const ProductCardInChat = ({ productData, onViewDetails, onAddToCart, onBuyNow, 
               For now, let's make it similar to Add to Cart or a placeholder.
           */}
           {onBuyNow && (
-             <Button size="sm" variant="default" className="flex-1 text-xs sm:text-sm" onClick={() => onBuyNow(id, name)}>
-              Buy Now
+             <Button size="sm" variant="default" className="flex-1 text-xs sm:text-sm" onClick={() => onBuyNow(id, name)} disabled={isCreatingCheckout}>
+              {isCreatingCheckout ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {isCreatingCheckout ? "Processing..." : "Buy Now"}
             </Button>
           )}
         </div>

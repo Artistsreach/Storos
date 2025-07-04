@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
-import { generateImageWithGemini, generateId } from "@/lib/utils.jsx"; 
+import { generateImageWithGemini, generateId } from "@/lib/utils.js";
 import { editImageWithGemini, generateCaptionForImageData } from "@/lib/geminiImageGeneration.js"; 
 import { generateVideoWithVeoFromImage } from "@/lib/geminiVideoGeneration"; 
 import { useAuth } from "@/contexts/AuthContext";
@@ -558,7 +558,7 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
                   </div>
                 </div>
               )}
-              <Button onClick={handleGenerateImageWithGemini} disabled={isGeneratingWithGemini || isGeneratingWithOpenAI || !textPrompt.trim()} className="w-full mt-3">
+              <Button onClick={handleGenerateImageWithGemini} disabled={isGeneratingWithGemini || isGeneratingWithOpenAI || !textPrompt.trim()} className="w-full mt-3 dark:text-black">
                 {isGeneratingWithGemini ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand className="mr-2 h-4 w-4" />}
                 Generate with Quick
               </Button>
@@ -575,7 +575,7 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
                 className="mt-2"
                 disabled={isGeneratingWithGemini || isGeneratingWithOpenAI}
               />
-              <Button onClick={handleGenerateImageWithOpenAI_UI} disabled={isGeneratingWithGemini || isGeneratingWithOpenAI || !openAITextPrompt.trim()} className="w-full mt-3">
+              <Button onClick={handleGenerateImageWithOpenAI_UI} disabled={isGeneratingWithGemini || isGeneratingWithOpenAI || !openAITextPrompt.trim()} className="w-full mt-3 dark:text-black">
                 {isGeneratingWithOpenAI ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-2 h-4 w-4" />}
                 Generate with Quality
               </Button>
@@ -592,13 +592,13 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
                         variant={activeSelectedCaption === cap ? "default" : "outline"}
                         size="sm"
                         onClick={() => setActiveSelectedCaption(cap)}
-                        className="text-xs"
+                        className="text-xs dark:text-black"
                       >
                         {cap}
                       </Button>
                     ))}
                   </div>
-                  <Button onClick={() => addToTimeline(generatedImage.url, activeSelectedCaption)} size="sm" className="w-full mt-2" disabled={!activeSelectedCaption}>
+                  <Button onClick={() => addToTimeline(generatedImage.url, activeSelectedCaption)} size="sm" className="w-full mt-2 dark:text-black" disabled={!activeSelectedCaption}>
                     <Plus className="mr-2 h-4 w-4" /> Add to Timeline
                   </Button>
                 </div>
@@ -623,7 +623,7 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
                         rows={2}
                         disabled={isEditingWithGemini}
                     />
-                    <Button onClick={() => handleEditImageWithGemini(selectedImageForEditing, imageEditPrompt)} disabled={isEditingWithGemini || !imageEditPrompt.trim()} className="w-full">
+                    <Button onClick={() => handleEditImageWithGemini(selectedImageForEditing, imageEditPrompt)} disabled={isEditingWithGemini || !imageEditPrompt.trim()} className="w-full dark:text-black">
                         {isEditingWithGemini ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand className="mr-2 h-4 w-4" />}
                         Edit with Quick
                     </Button>
@@ -641,13 +641,13 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
                         variant={activeSelectedCaption === cap ? "default" : "outline"}
                         size="sm"
                         onClick={() => setActiveSelectedCaption(cap)}
-                        className="text-xs"
+                        className="text-xs dark:text-black"
                       >
                         {cap}
                       </Button>
                     ))}
                   </div>
-                  <Button onClick={() => addToTimeline(editedImage.url, activeSelectedCaption)} size="sm" className="w-full mt-2" disabled={!activeSelectedCaption}>
+                  <Button onClick={() => addToTimeline(editedImage.url, activeSelectedCaption)} size="sm" className="w-full mt-2 dark:text-black" disabled={!activeSelectedCaption}>
                     <Plus className="mr-2 h-4 w-4" /> Add Edited to Timeline
                   </Button>
                 </div>
@@ -673,13 +673,13 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
                         variant={activeSelectedCaption === cap ? "default" : "outline"}
                         size="sm"
                         onClick={() => setActiveSelectedCaption(cap)}
-                        className="text-xs"
+                        className="text-xs dark:text-black"
                       >
                         {cap}
                       </Button>
                     ))}
                   </div>
-                  <Button onClick={() => addToTimeline(uploadedFile.url, activeSelectedCaption, uploadedFile.type)} size="sm" className="w-full mt-2" disabled={!activeSelectedCaption}>
+                  <Button onClick={() => addToTimeline(uploadedFile.url, activeSelectedCaption, uploadedFile.type)} size="sm" className="w-full mt-2 dark:text-black" disabled={!activeSelectedCaption}>
                     <Plus className="mr-2 h-4 w-4" /> Add to Timeline
                   </Button>
                 </div>

@@ -424,7 +424,7 @@ const DesignerPage = () => {
           </div>
         </ScrollArea>
         <div className="fixed bottom-0 left-0 right-0 md:absolute md:bottom-6 md:left-6 md:right-6 bg-transparent p-4 md:p-0 md:mb-15">
-          <Button onClick={handleGenerate} disabled={isLoading || !prompt} className="w-full">
+          <Button onClick={handleGenerate} disabled={isLoading || !prompt} className="w-full dark:text-black">
             {isLoading ? 'Generating...' : 'Generate Image'}
           </Button>
         </div>

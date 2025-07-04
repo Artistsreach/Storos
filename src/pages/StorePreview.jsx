@@ -21,8 +21,9 @@ import ModernStoreFeatures from '../components/store/modern/sections/StoreFeatur
 const StorePreview = () => {
   console.log('[StorePreview] Component mounted.');
 
-  const { storeName, productHandle: productHandleFromParams } = useParams(); // Get productHandle
-  console.log('[StorePreview] storeName from params:', storeName);
+  const { storeName, slug, productHandle: productHandleFromParams } = useParams(); // Get productHandle
+  const currentStoreName = storeName || slug;
+  console.log('[StorePreview] storeName from params:', currentStoreName);
   // Use updateStore from context instead of a separate updateStoreInContext
   // Assuming getStoreByName will be available in StoreContext
   const { getStoreByName, getStoreBySlug, getStoreById, currentStore: contextCurrentStore, setCurrentStore, updateStore, viewMode, isLoadingStores, user } = useStore(); 
@@ -113,18 +114,18 @@ const StorePreview = () => {
   // Effect to initialize and update the local 'store' state for preview
   useEffect(() => {
     const fetchStoreData = async () => {
-      if (!storeName || isFetchingStore) return;
+      if (!currentStoreName || isFetchingStore) return;
 
       setIsFetchingStore(true);
 
       let sourceStoreData = null;
 
-      if (contextCurrentStore && contextCurrentStore.urlSlug === storeName) {
+      if (contextCurrentStore && contextCurrentStore.urlSlug === currentStoreName) {
         sourceStoreData = contextCurrentStore;
       } else {
-        sourceStoreData = getStoreByName(storeName);
+        sourceStoreData = getStoreByName(currentStoreName);
         if (!sourceStoreData) {
-          sourceStoreData = await getStoreBySlug(storeName);
+          sourceStoreData = await getStoreBySlug(currentStoreName);
         }
       }
 
@@ -138,7 +139,7 @@ const StorePreview = () => {
           setCurrentStore(sourceStoreData);
         }
       } else if (!isLoadingStores) {
-        toast({ title: 'Store Not Found', description: `Could not find store with slug: ${storeName}`, variant: 'destructive' });
+        toast({ title: 'Store Not Found', description: `Could not find store with slug: ${currentStoreName}`, variant: 'destructive' });
         setStore(null);
       }
       
@@ -146,7 +147,7 @@ const StorePreview = () => {
     };
 
     fetchStoreData();
-  }, [storeName, isLoadingStores, isFetchingStore, contextCurrentStore, getStoreByName, getStoreBySlug, setCurrentStore, toast]);
+  }, [currentStoreName, isLoadingStores, isFetchingStore, contextCurrentStore, getStoreByName, getStoreBySlug, setCurrentStore, toast]);
 
 
   // Effect to update CSS variables when store theme changes and handle sharp dark mode

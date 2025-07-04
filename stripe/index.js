@@ -187,12 +187,12 @@ async function handleSubscriptionPaymentSucceeded(invoice) {
 
   const userCreditsRef = db.collection('users').doc(userId);
 
-  // Add 1000 credits to the user's account
+  // Add 500 credits to the user's account
   await userCreditsRef.update({
-    credits: admin.firestore.FieldValue.increment(1000)
+    credits: admin.firestore.FieldValue.increment(500)
   });
 
-  console.log(`1000 credits granted to user ${userId} for subscription ${subscriptionId}`);
+  console.log(`500 credits granted to user ${userId} for subscription ${subscriptionId}`);
 }
 
 async function handlePaymentIntentSucceeded(paymentIntent) {
@@ -552,6 +552,62 @@ exports.createProductCheckoutSession = functions.runWith({ secrets: ["STRIPE_SEC
   } catch (error) {
     console.error("Error creating product checkout session:", error);
     throw new functions.https.HttpsError("internal", "An error occurred while creating the product checkout session.");
+  }
+});
+
+exports.createPaymentLinkForProduct = functions.runWith({ secrets: ["STRIPE_SECRET_KEY"] }).https.onCall(async (data, context) => {
+  if (!context.auth || !context.auth.uid) {
+    throw new functions.https.HttpsError("unauthenticated", "The function must be called while authenticated.");
+  }
+
+  const { productName, productDescription, productImage, amount, currency, storeId, productId } = data;
+
+  try {
+    const db = admin.firestore();
+    const productRef = db.collection("stores").doc(storeId).collection("products").doc(productId);
+    const productSnap = await productRef.get();
+    const productData = productSnap.data();
+
+    if (productData.paymentLink) {
+      return { url: productData.paymentLink };
+    }
+
+    let stripeProductId = productData.stripeProductId;
+
+    if (!stripeProductId) {
+      const product = await stripe.products.create({
+        name: productName,
+        description: productDescription,
+        images: [productImage],
+      });
+      stripeProductId = product.id;
+    }
+
+    const price = await stripe.prices.create({
+      product: stripeProductId,
+      unit_amount: amount,
+      currency: currency,
+    });
+
+    const paymentLink = await stripe.paymentLinks.create({
+      line_items: [
+        {
+          price: price.id,
+          quantity: 1,
+        },
+      ],
+    });
+
+    await productRef.update({
+      stripeProductId: stripeProductId,
+      stripePriceId: price.id,
+      paymentLink: paymentLink.url,
+    });
+
+    return { url: paymentLink.url };
+  } catch (error) {
+    console.error("Error creating payment link:", error);
+    throw new functions.https.HttpsError("internal", "An error occurred while creating the payment link.");
   }
 });
 

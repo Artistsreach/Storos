@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate }from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
@@ -31,6 +31,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 
 const SortableProductItem = ({ product, isAdmin, onRemove, storeUrlSlug, onClose }) => {
+  const navigate = useNavigate();
   const {
     attributes,
     listeners,
@@ -42,6 +43,12 @@ const SortableProductItem = ({ product, isAdmin, onRemove, storeUrlSlug, onClose
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+  };
+
+  const handleNavigate = () => {
+    const productId = encodeURIComponent(product.id);
+    navigate(`/${storeUrlSlug}/product/${productId}`);
+    onClose();
   };
 
   const content = (
@@ -72,6 +79,7 @@ const SortableProductItem = ({ product, isAdmin, onRemove, storeUrlSlug, onClose
       ref={setNodeRef}
       style={style}
       className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/50 transition-colors"
+      onClick={!isAdmin ? handleNavigate : undefined}
     >
       {isAdmin ? (
         <>
@@ -81,10 +89,10 @@ const SortableProductItem = ({ product, isAdmin, onRemove, storeUrlSlug, onClose
           </Button>
         </>
       ) : (
-        <Link to={`/${storeUrlSlug}/product/${product.id}`} className="flex items-center justify-between w-full" onClick={onClose}>
+        <>
           {content}
           <ArrowRight className="h-5 w-5 text-muted-foreground" />
-        </Link>
+        </>
       )}
     </div>
   );

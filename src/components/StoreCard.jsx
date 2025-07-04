@@ -16,7 +16,9 @@ import {
   Edit, 
   Trash2, 
   ShoppingBag, 
-  Calendar
+  Calendar,
+  Pin,
+  RefreshCw
 } from 'lucide-react';
 import { Input } from '../components/ui/input';
 // import { fetchPexelsImages } from '../lib/utils.jsx'; // Commented out as it's not used and generateStoreUrl is from utils.js
@@ -34,6 +36,8 @@ import {
 } from '../components/ui/alert-dialog';
 import { useStore } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
+import { db } from '../lib/firebaseClient';
+import { doc, updateDoc } from 'firebase/firestore';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 import DeleteStoreModal from './DeleteStoreModal';
@@ -43,56 +47,65 @@ const StoreCard = ({ store }) => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const { deleteStore, updateStoreTemplateVersion, getStoreRevenue, getStoreCustomers, getStoreConversionRate, getStoreSocialScore } = useStore();
   const { user } = useAuth();
-  const [revenue, setRevenue] = useState(null);
+  const [storeData, setStoreData] = useState(store);
+  const { pinned } = storeData;
+  const [revenue, setRevenue] = useState(0);
   const [socialScore, setSocialScore] = useState(0);
   const [customers, setCustomers] = useState(0);
   const [conversionRate, setConversionRate] = useState(0);
 
-  const isUserStore = store.merchant_id === user?.uid;
-  const glowEffect = isUserStore && store.theme?.primaryColor 
-    ? { boxShadow: `0 0 10px 2px ${store.theme.primaryColor}A0` }
+  useEffect(() => {
+    setStoreData(store);
+  }, [store]);
+
+  const isUserStore = storeData.merchant_id === user?.uid;
+  const glowEffect = isUserStore && storeData.theme?.primaryColor 
+    ? { boxShadow: `0 0 10px 2px ${storeData.theme.primaryColor}A0` }
     : {};
 
-  useEffect(() => {
-    if (isUserStore) {
-      getStoreRevenue(store.id).then(setRevenue);
-      getStoreCustomers(store.id).then(setCustomers);
-      getStoreConversionRate(store.id).then(setConversionRate);
-      getStoreSocialScore(store.id).then(setSocialScore);
-    }
-  }, [isUserStore, store.id, getStoreRevenue, getStoreCustomers, getStoreConversionRate, getStoreSocialScore]);
 
   let productImageUrl = null;
-  if (store.products && store.products.length > 0) {
-    const product = store.products[0];
+  if (storeData.products && storeData.products.length > 0) {
+    const product = storeData.products[0];
     productImageUrl = product.image?.src?.medium 
       || product.image?.url 
       || (Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : null);
   }
-  const backgroundImageUrl = productImageUrl || store.card_background_url;
+  const backgroundImageUrl = productImageUrl || storeData.card_background_url;
   
-  const formatDate = (dateString) => {
-    if (!dateString) {
-      return null;
-    }
+  const formatDate = (dateInput) => {
+    if (!dateInput) return null;
+
     try {
-      const date = new Date(dateString);
+      let date;
+      if (typeof dateInput.toDate === 'function') {
+        // Firestore Timestamp object from a direct snapshot
+        date = dateInput.toDate();
+      } else if (dateInput.seconds !== undefined && dateInput.nanoseconds !== undefined) {
+        // Serialized Firestore Timestamp-like object
+        date = new Date(dateInput.seconds * 1000 + dateInput.nanoseconds / 1000000);
+      } else {
+        // Fallback for ISO strings or other date formats
+        date = new Date(dateInput);
+      }
+
       if (isNaN(date.getTime())) {
-        console.warn("Encountered an invalid date string:", dateString);
+        console.warn("Encountered an invalid date value:", dateInput);
         return null;
       }
+
       return new Intl.DateTimeFormat('en-US', {
         year: 'numeric',
         month: 'short',
         day: 'numeric'
       }).format(date);
     } catch (error) {
-      console.error("Error formatting date:", dateString, error);
+      console.error("Error formatting date:", dateInput, error);
       return null;
     }
   };
   
-  const formattedDate = formatDate(store.created_at || store.createdAt);
+  const formattedDate = formatDate(storeData.created_at || storeData.createdAt);
   
   const getStoreTypeIcon = (niche) => {
     switch (niche) {
@@ -108,19 +121,40 @@ const StoreCard = ({ store }) => {
         return <Store className="h-5 w-5 text-gray-500" />;
     }
   };
+
+  const refreshStats = (e) => {
+    e.stopPropagation();
+    if (isUserStore) {
+      getStoreRevenue(storeData.id).then(setRevenue);
+      getStoreCustomers(storeData.id).then(setCustomers);
+      getStoreConversionRate(storeData.id).then(setConversionRate);
+      getStoreSocialScore(storeData.id).then(setSocialScore);
+    }
+  };
+
+  const handlePin = async (e) => {
+    e.stopPropagation();
+    if (isUserStore) {
+      const storeRef = doc(db, 'stores', storeData.id);
+      await updateDoc(storeRef, {
+        pinned: !pinned
+      });
+      setStoreData(prev => ({ ...prev, pinned: !pinned }));
+    }
+  };
   
   return (
     <>
       <DeleteStoreModal
-        store={store}
+        store={storeData}
         isOpen={isDeleteModalOpen}
         onOpenChange={setIsDeleteModalOpen}
       />
       <div
         className="cursor-pointer"
         onClick={() => {
-          if (store && store.name) {
-            navigate(`/${generateStoreUrl(store.name)}`);
+          if (storeData && storeData.name) {
+            navigate(`/${generateStoreUrl(storeData.name)}`);
           } else {
             console.error("Store name is missing, cannot navigate to preview.");
           }
@@ -139,7 +173,7 @@ const StoreCard = ({ store }) => {
       <div
         className="absolute inset-0"
         style={{
-          backgroundColor: store.theme?.primaryColor ? `${store.theme.primaryColor}4D` : 'transparent', // 4D is 30% opacity in hex
+          backgroundColor: storeData.theme?.primaryColor ? `${storeData.theme.primaryColor}4D` : 'transparent', // 4D is 30% opacity in hex
         }}
       />
       {/* This div is now for the overlay effect if needed, or can be removed if Card handles it all */}
@@ -149,26 +183,31 @@ const StoreCard = ({ store }) => {
       <Card className="h-full overflow-hidden border-2 border-white/20 hover:border-primary/50 transition-all duration-300 bg-black/30 backdrop-blur-sm text-white rounded-[15px]"> {/* Changed backdrop-blur-md to backdrop-blur-sm and added rounded-[15px] */}
         
         <div className="relative z-10 p-1 rounded-[15px]"> {/* Updated rounding here too for consistency if visible */}
+          {isUserStore && (
+            <button onClick={handlePin} className={`absolute top-4 right-4 text-white hover:text-gray-300 z-20 ${pinned ? 'text-yellow-500' : ''}`}>
+              <Pin className={`h-5 w-5 ${pinned ? 'fill-current' : ''}`} />
+            </button>
+          )}
           <CardHeader className="pb-2">
             <div className="flex justify-between items-start">
               <div className="flex items-center gap-2">
-                {store.logo_url ? (
+                {storeData.logo_url ? (
                   <div className="h-12 w-12 overflow-hidden rounded-sm">
-                    <img src={store.logo_url} alt={`${store.name} logo`} className="w-full h-full object-cover" />
+                    <img src={storeData.logo_url} alt={`${storeData.name} logo`} className="w-full h-full object-cover" />
                   </div>
                 ) : (
-                  getStoreTypeIcon(store.niche) // This will use its own colors, might need adjustment
+                  getStoreTypeIcon(storeData.niche) // This will use its own colors, might need adjustment
                 )}
-                <CardTitle className="text-xl text-white drop-shadow-md">{store.name}</CardTitle>
+                <CardTitle className="text-xl text-white drop-shadow-md">{storeData.name}</CardTitle>
               </div>
               <div className="flex items-center gap-2">
                 <span className="px-2 py-1 bg-white/10 text-white text-xs rounded-full backdrop-blur-xs">
-                  {store.niche ? store.niche.charAt(0).toUpperCase() + store.niche.slice(1) : 'General'}
+                  {storeData.niche ? storeData.niche.charAt(0).toUpperCase() + storeData.niche.slice(1) : 'General'}
                 </span>
               </div>
             </div>
             <CardDescription className="line-clamp-2 mt-1 text-white drop-shadow-sm">
-              {store.description}
+              {storeData.description}
             </CardDescription>
           </CardHeader>
           <CardContent className="pb-2">
@@ -180,8 +219,8 @@ const StoreCard = ({ store }) => {
             )}
             
             <div className="grid grid-cols-2 gap-2">
-            {store && store.products && Array.isArray(store.products) && store.products.length > 0 ? (
-              store.products.slice(0, 4).map((product) => {
+            {storeData.products && Array.isArray(storeData.products) && storeData.products.length > 0 ? (
+              storeData.products.slice(0, 4).map((product) => {
                 const productImageUrl = product.image?.src?.medium 
                   || product.image?.url 
                   || (Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : null);
@@ -192,7 +231,7 @@ const StoreCard = ({ store }) => {
                     className="bg-white/10 p-2 rounded-md text-xs flex items-center gap-2 backdrop-blur-xs cursor-pointer"
                     onClick={(e) => {
                       e.stopPropagation();
-                      navigate(`/${generateStoreUrl(store.name)}/product/${encodeURIComponent(product.id)}`);
+                      navigate(`/${generateStoreUrl(storeData.name)}/product/${encodeURIComponent(product.id)}`);
                     }}
                   >
                     {productImageUrl && (
@@ -201,7 +240,7 @@ const StoreCard = ({ store }) => {
                     <div className="flex flex-col overflow-hidden">
                       <span className="font-medium truncate text-white">{product.name || 'Unnamed Product'}</span>
                       <span className="text-white">
-                        {typeof product.price === 'number' ? `$${product.price.toFixed(2)}` : 'Price N/A'}
+                        {typeof product.price === 'number' ? `${product.currencyCode || '$'}${product.price.toFixed(2)}` : 'Price N/A'}
                       </span>
                     </div>
                   </div>
@@ -209,11 +248,11 @@ const StoreCard = ({ store }) => {
               })
             ) : (
               <p className="text-xs text-white col-span-2">
-                {store && store.products && store.products.length === 0 ? 'No products yet.' : 'Product data unavailable.'}
+                {storeData.products && storeData.products.length === 0 ? 'No products yet.' : 'Product data unavailable.'}
               </p>
             )}
           </div>
-            {isUserStore && revenue !== null && (
+            {isUserStore && (
               <div className="mt-4 text-left">
                 <p className="text-lg font-semibold text-white">
                   Total Revenue: ${revenue.toFixed(2)}
@@ -239,21 +278,32 @@ const StoreCard = ({ store }) => {
                     <p className="text-sm text-white">Customers: {customers}</p>
                     <p className="text-sm text-white">Conversion Rate: {conversionRate.toFixed(2)}%</p>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="bg-white/90 hover:bg-white text-slate-800 border-slate-300 hover:border-slate-400"
-                    onClick={() => {
-                      if (store && store.name) { // Check for store.name
-                        navigate(`/${generateStoreUrl(store.name)}`); // Navigate using generateStoreUrl
-                      } else {
-                        console.error("Store name is missing, cannot navigate to preview.");
-                        // Consider adding a toast message for the user here if store.name is missing
-                      }
-                    }}
-                  >
-                    Preview
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-white hover:text-gray-300"
+                      onClick={refreshStats}
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="bg-white/90 hover:bg-white text-slate-800 border-slate-300 hover:border-slate-400"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (storeData && storeData.name) { // Check for storeData.name
+                          navigate(`/${generateStoreUrl(storeData.name)}`); // Navigate using generateStoreUrl
+                        } else {
+                          console.error("Store name is missing, cannot navigate to preview.");
+                          // Consider adding a toast message for the user here if storeData.name is missing
+                        }
+                      }}
+                    >
+                      Preview
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}

@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, Navigate } from 'react-router-dom'; // Changed imports
 import { Analytics } from "@vercel/analytics/react"
 import { Toaster } from './components/ui/toaster';
@@ -15,14 +15,26 @@ import OrderConfirmationPage from './pages/OrderConfirmationPage';
 import { StoreProvider } from './contexts/StoreContext';
 import RealtimeChatbot from './components/store/RealtimeChatbot'; // Import the chatbot
 import GenerationProgressDisplay from './components/GenerationProgressDisplay'; // Import the progress display
-// useAuth will be used by specific route elements if needed, not directly for layout rendering here unless for global loading state.
-// For this refactor, App becomes a pure layout component. Auth logic moves to route elements.
+import OnboardingModal from './components/OnboardingModal';
+import { useAuth } from './contexts/AuthContext';
 
 const App = () => {
-  // The loadingProfile check and initial redirects will be handled by route elements or loaders.
-  // App component now focuses on being the root layout.
+  const { user, profile, loadingRole } = useAuth();
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  useEffect(() => {
+    if (user && !loadingRole && profile && !profile.username) {
+      setShowOnboarding(true);
+    }
+  }, [user, profile, loadingRole]);
+
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+  };
+
   return (
     <StoreProvider>
+      {showOnboarding && <OnboardingModal onClose={handleOnboardingComplete} />}
       <GenerationProgressDisplay /> {/* Add the progress display here */}
       <main className="min-h-screen bg-white dark:bg-gray-900">
         <Outlet /> {/* Child routes will render here */}

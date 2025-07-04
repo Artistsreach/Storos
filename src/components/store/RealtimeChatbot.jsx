@@ -1,23 +1,29 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { useToast } from '../../components/ui/use-toast';
 import { GoogleGenAI, Type } from "@google/genai";
 import { useStore } from '../../contexts/StoreContext';
 import { useAuth } from '../../contexts/AuthContext'; // Import useAuth
 import { Button } from '../../components/ui/button';
 import { Textarea } from '../../components/ui/textarea';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../../components/ui/card';
-import { Send, Settings2, X, MessageCircle } from 'lucide-react';
+import { Send, Settings2, X, MessageCircle, Mic, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useNavigate } from 'react-router-dom'; 
 import ProductCardInChat from './ProductCardInChat';
+import { GeminiLive } from '../../lib/geminiLive';
 
 // Import the centralized product visualizer function
 import { generateProductVisualization } from '../../lib/productVisualizer';
 
 
 const RealtimeChatbot = () => {
-  const navigate = useNavigate(); 
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const functions = getFunctions();
   const { currentStore, addToCart: contextAddToCart, getProductById, updateQuantity: contextUpdateQuantity, viewMode } = useStore(); // Added viewMode
   const { userRole } = useAuth(); // Get userRole
+  const [isCreatingCheckout, setIsCreatingCheckout] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [showKnowledgeBaseInput, setShowKnowledgeBaseInput] = useState(false);
   const [knowledgeBase, setKnowledgeBase] = useState(
@@ -27,6 +33,8 @@ const RealtimeChatbot = () => {
   const [messages, setMessages] = useState([]);
   const [activeService, setActiveService] = useState(null);
   const [geminiChat, setGeminiChat] = useState(null);
+  const [geminiLive, setGeminiLive] = useState(null);
+  const [isLive, setIsLive] = useState(false);
   
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null); // Ref for the hidden file input
@@ -196,6 +204,71 @@ const RealtimeChatbot = () => {
       handleSendGeminiMessage(messageText);
     } else {
       console.error("Error: Gemini chat not active. Cannot send message.");
+    }
+  };
+
+  const handleLiveToggle = async () => {
+    if (isLive) {
+      geminiLive.stopRecording();
+      setIsLive(false);
+    } else {
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      if (!apiKey) {
+        console.error("Gemini API Key not configured.");
+        return;
+      }
+      const live = new GeminiLive(
+        apiKey,
+        (message) => {
+          const assistantText = message.serverContent?.outputTranscription?.text || message.serverContent?.modelTurn?.parts[0]?.text;
+          if (assistantText) {
+            setMessages(prev => {
+              const lastMessage = prev.length > 0 ? prev[prev.length - 1] : null;
+              if (lastMessage && lastMessage.role === 'assistant' && lastMessage.id.startsWith('assistant-live-')) {
+                const newMessages = [...prev];
+                newMessages[newMessages.length - 1] = { ...lastMessage, text: lastMessage.text + assistantText };
+                return newMessages;
+              } else {
+                const assistantMessageId = `assistant-live-${Date.now()}`;
+                return [...prev, { id: assistantMessageId, role: 'assistant', text: assistantText }];
+              }
+            });
+          }
+
+          if (message.serverContent?.inputTranscription) {
+            const userText = message.serverContent.inputTranscription.text;
+            setMessages(prev => {
+              const lastMessage = prev.length > 0 ? prev[prev.length - 1] : null;
+              if (lastMessage && lastMessage.role === 'user' && lastMessage.id.startsWith('user-live-')) {
+                const newMessages = [...prev];
+                newMessages[newMessages.length - 1] = { ...lastMessage, text: userText };
+                return newMessages;
+              } else {
+                const userMessageId = `user-live-${Date.now()}`;
+                return [...prev, { id: userMessageId, role: 'user', text: userText }];
+              }
+            });
+          }
+          
+          if (message.toolCall) {
+            handleLiveFunctionExecution(message.toolCall);
+          }
+        },
+        () => {
+          console.log("Gemini Live session opened.");
+        },
+        () => {
+          console.log("Gemini Live session closed.");
+        },
+        {
+          tools: [{ functionDeclarations: toolFunctionDeclarations }],
+          systemInstruction: knowledgeBase,
+        }
+      );
+      await live.init();
+      setGeminiLive(live);
+      live.startRecording();
+      setIsLive(true);
     }
   };
 
@@ -428,48 +501,139 @@ const RealtimeChatbot = () => {
     }
   };
 
-  const clientInitiatePurchase = (args) => { // No longer async, doesn't call Stripe directly
+  const clientInitiatePurchase = async (args) => {
     const { product_id, product_name } = args;
-
-    if (!currentStore || !currentStore.id) {
-      console.error("Buy Now: Current store not available.");
-      return { success: false, detail: "Current store information is not available to initiate purchase." };
+    if (!currentStore || !product_id) {
+      const detail = "Store or product data is incomplete for checkout.";
+      toast({ title: "Error", description: detail, variant: "destructive" });
+      return { success: false, detail };
     }
-    if (!product_id) {
-      console.error("Buy Now: Product ID not provided.");
-      return { success: false, detail: "Product ID not provided." };
+    if (!currentStore.merchant_id) {
+      const detail = "Store owner information is missing.";
+      toast({ title: "Error", description: detail, variant: "destructive" });
+      return { success: false, detail };
     }
-
     const product = getProductById(currentStore.id, product_id);
-
     if (!product) {
-      console.error(`Buy Now: Product with ID ${product_id} not found.`);
-      return { success: false, detail: `Product with ID ${product_id} not found.` };
+      const detail = `Product with ID ${product_id} not found.`;
+      toast({ title: "Error", description: detail, variant: "destructive" });
+      return { success: false, detail };
     }
     
-    try {
-      // Add product to internal cart
-      contextAddToCart(product, currentStore.id); // Toast is handled by contextAddToCart
+    const displayImageUrl = getActualProductImageUrl(product);
+    const displayPrice = product.price;
+    const displayCurrencyCode = product.currencyCode || 'USD';
 
-      // Navigate to the internal checkout page, passing product info in state
-      navigate('/checkout', { 
-        state: { 
-          action: 'buyNow', 
-          productToAddId: product.id, 
-          // productToAddName: product.name, // Name can be fetched on checkout page using ID
-          storeId: currentStore.id 
-        } 
+    if (!displayImageUrl || displayPrice === undefined) {
+        const detail = "Product image or price is missing for checkout.";
+        toast({ title: "Error", description: detail, variant: "destructive" });
+        return { success: false, detail };
+    }
+
+    setIsCreatingCheckout(true);
+    try {
+      const createProductCheckoutSession = httpsCallable(functions, 'createProductCheckoutSession');
+      const result = await createProductCheckoutSession({
+        productName: product.name,
+        productDescription: product.description,
+        productImage: displayImageUrl,
+        amount: displayPrice * 100,
+        currency: displayCurrencyCode.toLowerCase(),
+        storeOwnerId: currentStore.merchant_id,
       });
-      
-      return { success: true, detail: `Added ${product.name || 'product'} to cart and navigated to checkout.` };
+
+      const data = result.data;
+      if (data && data.url) {
+        window.location.href = data.url;
+        // This will navigate away, so the success message might not be seen, which is fine.
+        return { success: true, detail: "Redirecting to checkout..." };
+      } else {
+        throw new Error('Failed to create checkout session.');
+      }
     } catch (error) {
-      console.error("Error during Buy Now (add to cart & navigate) process:", error);
-      return { success: false, detail: error.message || "Could not process Buy Now action." };
+      console.error("Error creating Stripe Payment Link:", error);
+      const detail = error.message || "Could not prepare for checkout.";
+      toast({ title: "Checkout Setup Failed", description: detail, variant: "destructive" });
+      return { success: false, detail };
+    } finally {
+      setIsCreatingCheckout(false);
     }
   };
   // --- End client-side implementations ---
 
   // --- Handler for executing function calls and responding to Gemini ---
+  const handleLiveFunctionExecution = async (toolCall) => {
+    const functionCall = toolCall.functionCalls[0];
+    let functionExecutionResultPayload;
+    let clientFunctionSuccess = false;
+
+    switch (functionCall.name) {
+      case 'navigate_to_route':
+        functionExecutionResultPayload = clientNavigateToRoute(functionCall.args);
+        clientFunctionSuccess = functionExecutionResultPayload.success;
+        break;
+      case 'toggle_theme_mode':
+        functionExecutionResultPayload = clientToggleThemeMode(functionCall.args);
+        clientFunctionSuccess = functionExecutionResultPayload.success;
+        break;
+      case 'open_import_store_dialog':
+        functionExecutionResultPayload = clientOpenImportStoreDialog(functionCall.args);
+        clientFunctionSuccess = functionExecutionResultPayload.success;
+        break;
+      case 'go_to_cart':
+        functionExecutionResultPayload = clientGoToCart(functionCall.args);
+        clientFunctionSuccess = functionExecutionResultPayload.success;
+        break;
+      case 'navigate_home':
+        functionExecutionResultPayload = clientNavigateToRoute({ route: '/' });
+        clientFunctionSuccess = functionExecutionResultPayload.success;
+        break;
+      case 'navigate_to_content_creation_page':
+        functionExecutionResultPayload = clientNavigateToRoute({ route: '/content-creation' });
+        clientFunctionSuccess = functionExecutionResultPayload.success;
+        break;
+      case 'navigate_to_store_dashboard':
+        functionExecutionResultPayload = clientNavigateToRoute({ route: '/dashboard' });
+        clientFunctionSuccess = functionExecutionResultPayload.success;
+        break;
+      case 'find_and_open_product':
+        functionExecutionResultPayload = clientFindAndOpenProduct(functionCall.args);
+        clientFunctionSuccess = functionExecutionResultPayload.success;
+        break;
+      case 'navigate_to_product_detail_page':
+        functionExecutionResultPayload = clientNavigateToProductDetail(functionCall.args);
+        clientFunctionSuccess = functionExecutionResultPayload.success;
+        break;
+      case 'add_to_cart':
+        functionExecutionResultPayload = clientAddToCart(functionCall.args);
+        clientFunctionSuccess = functionExecutionResultPayload.success;
+        break;
+      case 'initiate_purchase':
+        functionExecutionResultPayload = clientInitiatePurchase(functionCall.args);
+        clientFunctionSuccess = functionExecutionResultPayload.success;
+        break;
+      default:
+        functionExecutionResultPayload = { success: false, detail: `Error: Unknown function ${functionCall.name}` };
+    }
+
+    if (functionExecutionResultPayload.success && functionExecutionResultPayload.product_found) {
+      const assistantMessageId = `assistant-live-${Date.now()}`;
+      setMessages(prev => [...prev, { id: assistantMessageId, role: 'assistant', text: "Here is the product I found for you:", productCardData: functionExecutionResultPayload.product_data }]);
+    }
+
+    if (geminiLive && geminiLive.session) {
+      geminiLive.session.sendToolResponse({
+        functionResponses: [{
+          id: functionCall.id,
+          name: functionCall.name,
+          response: {
+            result: functionExecutionResultPayload,
+          }
+        }]
+      });
+    }
+  };
+
   const handleFunctionExecution = async (functionCall, originalAssistantMessageId) => {
     let functionExecutionResultPayload; 
     let clientFunctionSuccess = false;
@@ -732,16 +896,7 @@ const RealtimeChatbot = () => {
   };
 
   const handleProductCardBuyNow = async (productId, productName) => {
-    // Directly call clientInitiatePurchase instead of sending a message to AI
-    const result = await clientInitiatePurchase({ product_id: productId, product_name: productName });
-    if (!result.success) {
-      // Handle error, e.g., show a toast to the user
-      console.error("Buy Now failed:", result.detail);
-      // Example: useToast().toast({ title: "Purchase Failed", description: result.detail, variant: "destructive" });
-      // Make sure useToast is imported and available if you use it here.
-      // For now, just logging.
-    }
-    // If successful, redirectToCheckout will handle navigation.
+    await clientInitiatePurchase({ product_id: productId, product_name: productName });
   };
 
   const handleProductCardVisualize = (productId, productName) => {
@@ -917,12 +1072,13 @@ const RealtimeChatbot = () => {
                     {msg.role === 'assistant' ? (
                       <>
                         {msg.productCardData && (
-                          <ProductCardInChat 
-                            productData={msg.productCardData} 
+                          <ProductCardInChat
+                            productData={msg.productCardData}
                             onViewDetails={handleProductCardViewDetails}
                             onAddToCart={handleProductCardAddToCart}
                             onBuyNow={handleProductCardBuyNow}
-                            onVisualize={(msg.productCardData.imageUrl && typeof msg.productCardData.imageUrl === 'string' && msg.productCardData.imageUrl.trim() !== "") ? handleProductCardVisualize : null} 
+                            onVisualize={(msg.productCardData.imageUrl && typeof msg.productCardData.imageUrl === 'string' && msg.productCardData.imageUrl.trim() !== "") ? handleProductCardVisualize : null}
+                            isCreatingCheckout={isCreatingCheckout}
                           />
                         )}
                         {/* Handling for image data in message */}
@@ -957,13 +1113,22 @@ const RealtimeChatbot = () => {
                 rows={1}
                 disabled={!activeService || isGeminiInitializing} 
               />
-              <Button 
-                onClick={() => handleSendMessage()} 
-                size="icon" 
-                title="Send Message" 
-                disabled={!currentMessage.trim() || !activeService || isGeminiInitializing} 
+              <Button
+                onClick={() => handleSendMessage()}
+                size="icon"
+                title="Send Message"
+                disabled={!currentMessage.trim() || !activeService || isGeminiInitializing}
+                className="dark:bg-black dark:text-white dark:hover:bg-gray-800"
               >
                 <Send size={18} />
+              </Button>
+              <Button
+                onClick={handleLiveToggle}
+                size="icon"
+                title={isLive ? "Stop Live" : "Start Live"}
+                className={`${isLive ? 'bg-red-500' : 'dark:bg-black dark:text-white dark:hover:bg-gray-800'}`}
+              >
+                <Mic size={18} />
               </Button>
             </div>
           </CardFooter>

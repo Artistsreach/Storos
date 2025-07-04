@@ -51,7 +51,9 @@ module.exports = {
 					foreground: 'hsl(var(--card-foreground))',
 				},
         'custom-dark-grey': '#121212', // Added custom darker grey
-        'electric-blue': '##14202b', // Defined electric-blue for button background
+        'electric-blue': '#14202b', // Defined electric-blue for button background
+        'dm-container': '#242424',
+        'dm-input': '#404040',
 			},
 			borderRadius: {
 				lg: 'var(--radius)',

@@ -3,6 +3,7 @@ const functions = require("firebase-functions");
 const https = require("https");
 
 Object.assign(exports, require('./src/users.js'));
+Object.assign(exports, require('./src/notifications.js'));
 
 exports.aliexpressProxy = functions.https.onRequest((request, response) => {
   response.set('Access-Control-Allow-Origin', '*');

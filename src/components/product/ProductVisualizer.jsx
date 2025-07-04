@@ -157,7 +157,7 @@ const ProductVisualizer = ({ product: mainProductProp, storeId, isPublishedView 
         <div>
           <h3 className="text-xl md:text-2xl font-semibold">Product Visualizer</h3>
           <p className="text-sm text-muted-foreground">
-            See how <span className="font-medium text-primary">{mainProductProp.name}</span> looks in different settings.
+            See how <span className="font-medium text-primary dark:text-white">{mainProductProp.name}</span> looks in different settings.
           </p>
         </div>
         <Button variant="ghost" size="icon" aria-label={isExpanded ? "Collapse visualizer" : "Expand visualizer"}>
@@ -272,7 +272,7 @@ const ProductVisualizer = ({ product: mainProductProp, storeId, isPublishedView 
                 <Textarea id="visualizer-custom-prompt" placeholder="e.g., 'place the sofa by the window', 'make it a sunny day'" value={customInstructions} onChange={(e) => setCustomInstructions(e.target.value)} rows={2} className="resize-none text-sm" />
               </div>
 
-              <Button onClick={handleGenerateVisualization} disabled={isLoading || !referenceSceneSource} className="w-full py-2.5 text-sm md:text-base" size="lg">
+              <Button onClick={handleGenerateVisualization} disabled={isLoading || !referenceSceneSource} className="w-full py-2.5 text-sm md:text-base dark:text-black" size="lg">
                 {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Wand2 className="mr-2 h-5 w-5" />}
                 Generate Visualization
               </Button>
@@ -288,7 +288,6 @@ const ProductVisualizer = ({ product: mainProductProp, storeId, isPublishedView 
               ) : generatedImageUrl ? (
                 <>
                   <img src={generatedImageUrl} alt="Generated Product Visualization" className="max-w-full max-h-[calc(100%-40px)] object-contain rounded-md" />
-                  {aiCommentary && !aiCommentary.toLowerCase().includes("error") && <p className="text-xs text-muted-foreground mt-2 text-center max-w-xs mx-auto">{aiCommentary}</p>}
                   <Button variant="ghost" size="sm" onClick={() => setShowDebugInfo(!showDebugInfo)} className="absolute bottom-1 right-1 text-muted-foreground hover:text-primary h-auto p-1" aria-label="Toggle prompt information">
                     <Info className="h-4 w-4 mr-1"/> <span className="text-xs">Info</span>
                   </Button>

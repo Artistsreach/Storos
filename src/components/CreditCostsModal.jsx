@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom';
 const CreditCostsModal = ({ isOpen, onClose, onSubscribe }) => {
   const creditCosts = [
     { action: 'Store Generation', cost: 25 },
+    { action: 'Page Generation', cost: 25 },
     { action: 'Image Generation', cost: 5 },
     { action: 'Image Editing', cost: 2 },
     { action: 'Video Generation', cost: 15 },
@@ -50,9 +51,12 @@ const CreditCostsModal = ({ isOpen, onClose, onSubscribe }) => {
         </div>
         <div className="mt-6 text-center">
           <p className="text-sm text-muted-foreground mb-2">
-            Get 1000 credits each month for only $12.99
+            Get 500 credits each month for only $12.99
           </p>
-          <Button onClick={handleSubscribe} className="w-full">
+          <Button
+            onClick={handleSubscribe}
+            className="w-full dark:text-black"
+          >
             Subscribe to Pro
           </Button>
         </div>

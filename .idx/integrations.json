@@ -2,5 +2,6 @@
   "firebase_hosting": {
     "deploymentHostingUrl": "https://fresh-dfe30.web.app"
   },
+  "gemini_api": {},
   "secrets_manager": {}
 }

@@ -5,7 +5,6 @@ import { Search, Grid, List, Filter } from "lucide-react";
 import { Button } from "../ui/button.jsx";
 import InlineTextEdit from '../../components/ui/InlineTextEdit'; // Added import
 import { useStore } from '../../contexts/StoreContext'; // Added import
-import { generateStoreUrl } from "@/lib/utils.js"; // Added import
 
 const ProductGrid = ({ store, isPublishedView = false }) => {
   const { products, theme, id: storeId, content } = store; // Added content
@@ -196,7 +195,7 @@ const ProductGrid = ({ store, isPublishedView = false }) => {
                     product={product}
                     theme={theme}
                     index={index}
-                    storeName={generateStoreUrl(store.name)}
+                    storeName={store.urlSlug}
                     storeId={storeId}
                     isPublishedView={isPublishedView}
                     displayMode={displayMode}

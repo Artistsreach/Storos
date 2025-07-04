@@ -22,8 +22,7 @@ import {
   generateAIProductsData,
   mapBigCommerceDataToInternalStore, 
 } from './storeActions';
-import { generateStoreUrl } from '../lib/utils.js'; // Specifically from .js
-import { fetchPexelsImages, generateId } from '../lib/utils.jsx'; // Specifically from .jsx
+import { generateStoreUrl, fetchPexelsImages, generateId, createBlob, decode, decodeAudioData, encode } from '../lib/utils.js'; // Specifically from .js
 import { generateLogoWithGemini, generateImageFromPromptForPod } from '../lib/geminiImageGeneration';
 // Import BigCommerce API functions
 import { fetchStoreSettings as fetchBCStoreSettings, fetchAllProducts as fetchBCAllProducts } from '../lib/bigcommerce';
@@ -1348,8 +1347,6 @@ const fetchBigCommerceWizardProducts = useCallback(async (count = 10) => {
     // fetchBCAllProducts handles pagination internally. For preview, we might just want the first few.
     // For simplicity in preview, let's fetch all and then slice, or modify fetchBCAllProducts to take a limit for preview.
     // For now, let's assume we fetch a limited set or all and slice in component.
-    // The guide's fetchAllProducts fetches ALL. We might need a separate preview function or adapt.
-    // Let's simulate fetching a small batch for preview for now.
     // This is a simplified version for preview. The real fetchAllProducts gets everything.
     const query = `
       query ProductsPreview($first: Int!) {

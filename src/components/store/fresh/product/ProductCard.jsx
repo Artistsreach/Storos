@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import ProductEditModalStore from "@/components/store/ProductEditModalStore"; // Import Edit Modal
 import { useStore } from "@/contexts/StoreContext";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const ProductCard = ({
   product,
@@ -16,6 +16,7 @@ const ProductCard = ({
   isPublishedView = false,
   displayMode = "grid",
 }) => {
+  const navigate = useNavigate();
   const [displayProduct, setDisplayProduct] = useState(product);
   useEffect(() => {
     setDisplayProduct(product);
@@ -49,7 +50,7 @@ const ProductCard = ({
     setIsLiked(!isLiked);
   };
   
-  const primaryColor = theme?.primaryColor || "#3B82F6"; // Default fresh blue
+  const primaryColor = theme?.primaryColor || "hsl(var(--primary))";
 
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -115,11 +116,12 @@ const ProductCard = ({
         variants={cardVariants}
         initial="hidden"
         animate="visible"
-        className="group bg-white/70 dark:bg-neutral-800/70 backdrop-blur-md rounded-2xl border border-neutral-200/70 dark:border-neutral-700/70 hover:border-primary/40 transition-all duration-300 shadow-sm hover:shadow-xl hover:shadow-primary/10 flex"
+        className="group bg-card/70 backdrop-blur-md rounded-2xl border border-border/70 hover:border-primary/40 transition-all duration-300 shadow-sm hover:shadow-xl hover:shadow-primary/10 flex cursor-pointer"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
+        onClick={() => navigate(productLink)}
       >
-        <Link to={productLink} className="w-1/3 sm:w-40 md:w-48 block relative overflow-hidden rounded-l-2xl bg-neutral-100 dark:bg-neutral-700"> {/* Use storeName */}
+        <div className="w-1/3 sm:w-40 md:w-48 block relative overflow-hidden rounded-l-2xl bg-neutral-100 dark:bg-neutral-700">
           {(displayProduct.image?.src?.medium || (Array.isArray(displayProduct.images) && displayProduct.images.length > 0 && displayProduct.images[0])) ? (
             <motion.img
               src={displayProduct.image?.src?.medium || displayProduct.images[0]}
@@ -136,33 +138,31 @@ const ProductCard = ({
               {displayProduct.name?.charAt(0) || "?"}
             </div>
           )}
-        </Link>
+        </div>
 
         <div className="w-2/3 p-4 sm:p-5 flex flex-col justify-between">
           <div>
-            <Link to={productLink}> {/* Use storeName */}
-              <h3 className="text-base sm:text-lg font-semibold text-neutral-800 dark:text-white hover:text-primary dark:hover:text-primary-light transition-colors mb-1 line-clamp-2">
-                {displayProduct.name}
-              </h3>
-            </Link>
-            <p className="text-neutral-500 dark:text-neutral-400 text-xs sm:text-sm mb-2 line-clamp-2 leading-snug">
+            <h3 className="text-base sm:text-lg font-semibold text-card-foreground hover:text-primary dark:hover:text-primary-light transition-colors mb-1 line-clamp-2">
+              {displayProduct.name}
+            </h3>
+            <p className="text-muted-foreground text-xs sm:text-sm mb-2 line-clamp-2 leading-snug">
               {displayProduct.description}
             </p>
             <div className="flex items-center gap-1 mb-1">
               {[...Array(5)].map((star) => (
-                <Star key={star} className={`w-3.5 h-3.5 ${star < (displayProduct.rating || 4) ? 'fill-yellow-400 text-yellow-400' : 'fill-neutral-300 dark:fill-neutral-600 text-neutral-300 dark:text-neutral-600'}`} />
+                <Star key={star} className={`w-3.5 h-3.5 ${star < (displayProduct.rating || 4) ? 'fill-yellow-400 text-yellow-400' : 'fill-muted-foreground/30 text-muted-foreground/30'}`} />
               ))}
             </div>
           </div>
 
           <div className="flex items-center justify-between mt-auto">
-            <div className="text-lg sm:text-xl font-bold" style={{color: primaryColor}}>
-              ${displayProduct.price?.toFixed(2) || "0.00"}
+            <div className="text-lg sm:text-xl font-bold text-primary">
+              {displayProduct.currencyCode || '$'}{displayProduct.price?.toFixed(2) || "0.00"}
             </div>
             <Button
               onClick={handleAddToCart}
               size="sm"
-              className="bg-primary hover:bg-primary/90 text-white border-0 rounded-lg px-3 py-1.5 text-xs sm:text-sm"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground border-0 rounded-lg px-3 py-1.5 text-xs sm:text-sm"
               disabled={inventory_count !== undefined && inventory_count <= 0}
             >
               <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5" />
@@ -203,13 +203,13 @@ const ProductCard = ({
       variants={cardVariants}
       initial="hidden"
       animate="visible"
-      className="group relative bg-white/70 dark:bg-neutral-800/70 backdrop-blur-md rounded-2xl overflow-hidden border border-neutral-200/70 dark:border-neutral-700/70 hover:border-primary/40 transition-all duration-300 shadow-sm hover:shadow-xl hover:shadow-primary/10"
+      className="group relative bg-card/70 backdrop-blur-md rounded-2xl overflow-hidden border border-border/70 hover:border-primary/40 transition-all duration-300 shadow-sm hover:shadow-xl hover:shadow-primary/10"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       whileHover={{ y: -6 }}
+      onClick={() => navigate(productLink)}
       >
-        <Link to={productLink} className="block"> {/* Use storeName */}
-          <div className="aspect-square relative overflow-hidden bg-neutral-100 dark:bg-neutral-700">
+        <div className="aspect-square relative overflow-hidden bg-neutral-100 dark:bg-neutral-700">
             {(displayProduct.image?.src?.medium || (Array.isArray(displayProduct.images) && displayProduct.images.length > 0 && displayProduct.images[0])) ? (
               <motion.img
                 src={displayProduct.image?.src?.medium || displayProduct.images[0]}
@@ -247,30 +247,27 @@ const ProductCard = ({
             </Badge>
           )}
         </div>
-      </Link>
 
       <div className="p-4 sm:p-5">
-        <Link to={productLink}> {/* Use storeName */}
-          <h3 className="text-sm sm:text-base font-semibold text-neutral-800 dark:text-white hover:text-primary dark:hover:text-primary-light transition-colors mb-1 line-clamp-2">
-            {displayProduct.name}
-          </h3>
-        </Link>
-        <p className="text-neutral-500 dark:text-neutral-400 text-xs sm:text-sm mb-2 line-clamp-2 leading-snug">
+        <h3 className="text-sm sm:text-base font-semibold text-card-foreground hover:text-primary dark:hover:text-primary-light transition-colors mb-1 line-clamp-2">
+          {displayProduct.name}
+        </h3>
+        <p className="text-muted-foreground text-xs sm:text-sm mb-2 line-clamp-2 leading-snug">
           {displayProduct.description}
         </p>
         <div className="flex items-center gap-1 mb-1">
           {[...Array(5)].map((_, i) => (
-            <Star key={i} className={`w-3.5 h-3.5 ${i < (displayProduct.rating || 4) ? 'fill-yellow-400 text-yellow-400' : 'fill-neutral-300 dark:fill-neutral-600 text-neutral-300 dark:text-neutral-600'}`} />
+            <Star key={i} className={`w-3.5 h-3.5 ${i < (displayProduct.rating || 4) ? 'fill-yellow-400 text-yellow-400' : 'fill-muted-foreground/30 text-muted-foreground/30'}`} />
           ))}
         </div>
         <div className="flex items-center justify-between">
-          <p className="text-base sm:text-lg font-bold" style={{color: primaryColor}}>
-            ${displayProduct.price?.toFixed(2) || "N/A"}
+          <p className="text-base sm:text-lg font-bold text-primary">
+            {displayProduct.currencyCode || '$'}{displayProduct.price?.toFixed(2) || "N/A"}
           </p>
           <Button
             onClick={handleAddToCart}
             size="sm"
-            className="bg-primary hover:bg-primary/90 text-white dark:bg-neutral-300 dark:text-neutral-800 border-0 rounded-lg px-3 py-1.5 text-xs"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground border-0 rounded-lg px-3 py-1.5 text-xs"
             disabled={inventory_count !== undefined && inventory_count <= 0}
           >
             <Plus className="h-3.5 w-3.5 mr-1" />
