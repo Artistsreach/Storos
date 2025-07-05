@@ -5,8 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import ProductEditModalStore from "@/components/store/ProductEditModalStore"; // Import Edit Modal
 import { useStore } from "@/contexts/StoreContext";
-import ProductActions from "@/components/ProductActions";
-import ProductVisualizationModal from "@/components/ProductVisualizationModal"; // Import ProductVisualizationModal
 import { Link, useNavigate } from "react-router-dom";
 import { loadStripe } from '@stripe/stripe-js';
 
@@ -33,7 +31,6 @@ const ProductCard = ({
   const [imageLoaded, setImageLoaded] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false); // State for edit modal
-  const [isVisualizationModalOpen, setIsVisualizationModalOpen] = useState(false); // State for visualization modal
   const isAdmin = !isPublishedView;
 
   // Encode Shopify GIDs for URL safety
@@ -309,15 +306,12 @@ const ProductCard = ({
           <Button
             onClick={handleCheckout}
             size="sm"
-            className="w-full mt-2 bg-primary hover:bg-primary/90 text-primary-foreground border-0 rounded-lg text-xs"
+            className="w-full mt-2 bg-primary hover:bg-primary/90 text-primary-foreground dark:text-white border-0 rounded-lg text-xs"
             disabled={inventory_count !== undefined && inventory_count <= 0}
           >
             <CreditCard className="h-3.5 w-3.5 mr-1.5" />
             {inventory_count !== undefined && inventory_count <= 0 ? 'Out of Stock' : 'Proceed to Checkout'}
           </Button>
-        </div>
-        <div onClick={(e) => e.stopPropagation()}> {/* Add this div to stop propagation for ProductActions */}
-          <ProductActions product={displayProduct} onVisualize={(e) => { e.stopPropagation(); setIsVisualizationModalOpen(true); }} />
         </div>
       </div>
     </motion.div>
@@ -329,13 +323,6 @@ const ProductCard = ({
         onSave={handleSaveProductChanges}
         storeId={storeId}
         theme={theme}
-      />
-    )}
-    {isVisualizationModalOpen && (
-      <ProductVisualizationModal
-        isOpen={isVisualizationModalOpen}
-        onClose={() => setIsVisualizationModalOpen(false)}
-        product={displayProduct}
       />
     )}
     </>

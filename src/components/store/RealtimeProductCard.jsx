@@ -63,7 +63,7 @@ const RealtimeProductCard = ({ product }) => {
       </CardContent>
       <CardFooter>
         <Button
-          className="w-full bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600"
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white"
           onClick={() =>
             window.open(
               product.product_page_url,

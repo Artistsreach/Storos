@@ -47,7 +47,7 @@ const ProductVisualizationModal = ({ isOpen, onClose, product }) => {
     try {
       const { base64Data: referenceBase64, mimeType: referenceMimeType } = await fileToGenerativePart(referenceImage);
       
-      const productImageUrl = product.imageUrl || product.product_photo || (product.product_photos && product.product_photos[0]) || product.image || product.product_main_image_url;
+      const productImageUrl = product.imageUrl;
       
       console.log("Determined product image URL:", productImageUrl);
 
@@ -106,7 +106,7 @@ const ProductVisualizationModal = ({ isOpen, onClose, product }) => {
                 <div className="w-1/2 p-2 text-center">
                   <h3 className="text-lg font-semibold mb-2">Product</h3>
                   <img
-                    src={product?.imageUrl || product?.product_photo || (product?.product_photos && product?.product_photos[0]) || product?.image || product?.product_main_image_url}
+                    src={product?.imageUrl}
                     alt={product?.product_title || product?.name}
                     className="max-w-full h-auto rounded-lg mx-auto"
                     style={{ maxHeight: '150px' }}
@@ -129,7 +129,7 @@ const ProductVisualizationModal = ({ isOpen, onClose, product }) => {
               <div className="w-1/2 p-2 text-center">
                 <h3 className="text-lg font-semibold mb-2">Product</h3>
                 <img
-                  src={product?.imageUrl || product?.product_photo || (product?.product_photos && product?.product_photos[0]) || product?.image || product?.product_main_image_url}
+                  src={product?.imageUrl}
                   alt={product?.product_title || product?.name}
                   className="max-w-full h-auto rounded-lg mx-auto"
                   style={{ maxHeight: '300px' }}

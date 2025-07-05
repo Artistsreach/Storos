@@ -865,7 +865,7 @@ const RealtimeChatbot = ({ productToAnalyze, isOpen: propIsOpen, setIsOpen: prop
       };
 
       const chat = genAI.chats.create({
-        model: "gemini-2.5-flash-lite-preview-06-17", 
+        model: "gemini-2.0-flash-lite", 
         history: validHistory, 
         config: configForChat, 
         generationConfig: {

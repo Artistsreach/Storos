@@ -353,6 +353,11 @@ src={isDarkMode
           // Header height on small screens is approx 72px (logo h-10=40px + py-4=32px).
         >
           <nav className="flex flex-col gap-4">
+            <Link to="/search" className="w-full">
+              <Button variant="ghost" className="w-full justify-start px-3 py-2 text-base">
+                Search
+              </Button>
+            </Link>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="w-full justify-start px-3 py-2 text-base">

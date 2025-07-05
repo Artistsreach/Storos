@@ -9,22 +9,39 @@ import { Textarea } from '../../components/ui/textarea';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../../components/ui/card';
 import { Send, Settings2, X, MessageCircle, Mic, Loader2, ArrowUp } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { useNavigate } from 'react-router-dom'; 
+import { useNavigate, useLocation } from 'react-router-dom'; 
 import ProductCardInChat from './ProductCardInChat';
 import { GeminiLive } from '../../lib/geminiLive';
+import ProductComparison from './ProductComparison';
 
 // Import the centralized product visualizer function
 import { generateProductVisualization } from '../../lib/productVisualizer';
 
 
+const getProductImageUrl = (product) => {
+  if (!product) return '';
+  // Handle ali-product
+  if (product.item && product.item.image) return product.item.image;
+  // Handle amazon-product
+  if (product.product_photo) return product.product_photo;
+  // Handle realtime-product
+  if (product.product_photos && product.product_photos.length > 0) return product.product_photos[0];
+  // Handle regular product
+  if (product.imageUrl) return product.imageUrl;
+  if (product.image && product.image.src && product.image.src.medium) return product.image.src.medium;
+  if (Array.isArray(product.images) && product.images.length > 0) return product.images[0];
+  if (product.image) return product.image;
+  return '';
+};
+
 const SearchPageChatbot = ({ productToAnalyze, isOpen: propIsOpen, setIsOpen: propSetIsOpen }) => {
+  const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
   const functions = getFunctions();
   const { currentStore, addToCart: contextAddToCart, getProductById, updateQuantity: contextUpdateQuantity, viewMode } = useStore(); // Added viewMode
   const { userRole } = useAuth(); // Get userRole
   const [isCreatingCheckout, setIsCreatingCheckout] = useState(false);
-  const [isOpen, setIsOpen] = useState(propIsOpen);
   const [showKnowledgeBaseInput, setShowKnowledgeBaseInput] = useState(false);
   const [knowledgeBase, setKnowledgeBase] = useState(
     'You are a helpful AI assistant.'
@@ -40,25 +57,23 @@ const SearchPageChatbot = ({ productToAnalyze, isOpen: propIsOpen, setIsOpen: pr
   const chatContainerRef = useRef(null);
   const fileInputRef = useRef(null); // Ref for the hidden file input
   const [visualizingProduct, setVisualizingProduct] = useState(null); // To store product info during visualization
+  const [comparisonData, setComparisonData] = useState(null);
 
   const [isGeminiInitializing, setIsGeminiInitializing] = useState(false);
   const isInitialServiceSetupDoneRef = useRef(false);
 
   useEffect(() => {
     if (productToAnalyze && geminiChat) {
-      if (productToAnalyze.type === 'analyze') {
+      if (productToAnalyze.type === 'compare' || productToAnalyze.type === 'analyze') {
+        const productsForPrompt = productToAnalyze.allProducts.map(p => ({
+          name: p.product_title || p.item?.title || p.name,
+          imageUrl: getProductImageUrl(p),
+          productUrl: p.product_url || (p.item && `https:${p.item.itemUrl}`),
+          productId: p.asin || p.item?.itemId || p.id,
+        }));
+
         handleSendGeminiMessage(
-          `Please analyze this product: ${JSON.stringify(
-            productToAnalyze.product
-          )}`
-        );
-      } else if (productToAnalyze.type === 'compare') {
-        handleSendGeminiMessage(
-          `Please compare the following product: ${JSON.stringify(
-            productToAnalyze.product
-          )} with the other products in this list: ${JSON.stringify(
-            productToAnalyze.allProducts
-          )}`
+          `Please compare the following products, focusing on the first one: ${JSON.stringify(productsForPrompt)}.`
         );
       }
     }
@@ -77,7 +92,7 @@ const SearchPageChatbot = ({ productToAnalyze, isOpen: propIsOpen, setIsOpen: pr
     // console.log(`[SYSTEM MESSAGE - ${type.toUpperCase()}]: ${text}`);
   };
 
-  const toggleChatbot = () => propSetIsOpen(!isOpen);
+  const toggleChatbot = () => propSetIsOpen(!propIsOpen);
   const toggleKnowledgeBaseInput = () => setShowKnowledgeBaseInput(!showKnowledgeBaseInput);
 
   const handleSaveKnowledgeBase = () => {
@@ -165,6 +180,20 @@ const SearchPageChatbot = ({ productToAnalyze, isOpen: propIsOpen, setIsOpen: pr
     }
   };
 
+  const handleFunctionExecution = async (functionCall, messageId) => {
+    if (functionCall.name === 'display_product_comparison') {
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === messageId ? { ...msg, comparisonData: functionCall.args } : msg
+        )
+      );
+    }
+  };
+
+  const handleLiveFunctionExecution = async (functionCall) => {
+    handleFunctionExecution(functionCall, null);
+  };
+
   const handleSendGeminiMessage = async (text) => {
     if (!geminiChat) {
       console.error("Gemini chat not initialized.");
@@ -179,6 +208,9 @@ const SearchPageChatbot = ({ productToAnalyze, isOpen: propIsOpen, setIsOpen: pr
       let detectedFunctionCall = null;
 
       for await (const chunk of stream) {
+        console.log("Gemini API response chunk:", chunk);
+        setMessages(prev => [...prev, { id: `log-${Date.now()}`, role: 'log', text: JSON.stringify(chunk, null, 2) }]);
+
         let functionCallInChunk = null;
         if (chunk.functionCalls && chunk.functionCalls.length > 0) {
           functionCallInChunk = chunk.functionCalls[0];
@@ -236,7 +268,40 @@ const SearchPageChatbot = ({ productToAnalyze, isOpen: propIsOpen, setIsOpen: pr
     if (geminiChat || isGeminiInitializing) return;
     setIsGeminiInitializing(true);
 
-    const model = productToAnalyze?.type === 'compare' ? 'gemini-2.5-pro' : 'gemini-2.5-flash-lite-preview-06-17';
+    const displayProductComparisonFunctionDeclaration = {
+      name: 'display_product_comparison',
+      description: 'Displays a comparison of multiple products, including their images and a comparative text.',
+      parameters: {
+        type: Type.OBJECT,
+        properties: {
+          products: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                name: { type: Type.STRING },
+                imageUrl: { type: Type.STRING },
+                productUrl: { type: Type.STRING },
+                productId: { type: Type.STRING },
+                comparison: {
+                  type: Type.STRING,
+                  description: 'A detailed, in-depth comparison of this product, formatted in Markdown. Include pros and cons, price, quality, and other relevant stats.',
+                },
+              },
+              required: ['name', 'imageUrl', 'productUrl', 'productId', 'comparison'],
+            },
+            description: 'List of products to compare, each with its own comparison text.',
+          },
+          conclusion: {
+            type: Type.STRING,
+            description: 'A conclusion with a recommendation for the best overall pick.',
+          },
+        },
+        required: ['products', 'conclusion'],
+      },
+    };
+
+    const model = productToAnalyze?.type === 'compare' ? 'gemini-2.5-flash' : 'gemini-2.5-flash-lite-preview-06-17';
 
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     if (!apiKey) {
@@ -262,6 +327,7 @@ const SearchPageChatbot = ({ productToAnalyze, isOpen: propIsOpen, setIsOpen: pr
 
       const configForChat = {
         systemInstruction: knowledgeBase,
+        tools: [{ functionDeclarations: [displayProductComparisonFunctionDeclaration] }]
       };
 
       if (productToAnalyze?.type === 'compare') {
@@ -306,7 +372,7 @@ const SearchPageChatbot = ({ productToAnalyze, isOpen: propIsOpen, setIsOpen: pr
   };
 
   useEffect(() => {
-    if (isOpen) {
+    if (propIsOpen) {
       if (!geminiChat && !isGeminiInitializing) {
         initializeGeminiChat();
       }
@@ -314,7 +380,7 @@ const SearchPageChatbot = ({ productToAnalyze, isOpen: propIsOpen, setIsOpen: pr
       closeConnections();
     }
     return () => closeConnections();
-  }, [isOpen]); 
+  }, [propIsOpen]); 
 
   useEffect(() => {
     if (activeService === 'gemini') {
@@ -339,18 +405,18 @@ const SearchPageChatbot = ({ productToAnalyze, isOpen: propIsOpen, setIsOpen: pr
         accept="image/*" 
         onChange={() => {}} 
       />
-      {!isOpen && (
-        <Button 
-          onClick={toggleChatbot} 
-          className="fixed bottom-[96px] right-0 py-4 pl-4 pr-1.5 shadow-lg z-50 rounded-tl-[20px] rounded-bl-[20px] rounded-tr-none rounded-br-none" 
-          size="icon" 
+      {!propIsOpen && location.pathname !== '/search' && (
+        <Button
+          onClick={toggleChatbot}
+          className="fixed bottom-[96px] right-0 py-4 pl-4 pr-1.5 shadow-lg z-50 rounded-tl-[20px] rounded-bl-[20px] rounded-tr-none rounded-br-none"
+          size="icon"
           aria-label="Open Chatbot"
-          style={{ backgroundColor: currentStore?.theme?.primaryColor || '#007bff' }} 
+          style={{ backgroundColor: currentStore?.theme?.primaryColor || '#007bff' }}
         >
           <MessageCircle size={20} />
         </Button>
       )}
-      {isOpen && (
+      {propIsOpen && (
         <Card className="fixed bottom-[96px] right-4 left-4 sm:left-auto sm:w-full sm:max-w-md h-[70vh] max-h-[600px] shadow-xl z-[1000] flex flex-col bg-background border rounded-lg">
           <CardHeader className="flex flex-row items-center justify-between p-3 border-b">
             <CardTitle className="text-md font-semibold">AI Assistant</CardTitle>
@@ -397,29 +463,37 @@ const SearchPageChatbot = ({ productToAnalyze, isOpen: propIsOpen, setIsOpen: pr
                       msg.role === 'user' ? 'bg-primary text-primary-foreground rounded-br-none' : 
                       'bg-muted rounded-bl-none' 
                     }`}>
-                    {msg.role === 'assistant' ? (
-                      <>
-                        {msg.productCardData && (
-                          <ProductCardInChat
-                            productData={msg.productCardData}
-                            onViewDetails={() => {}}
-                            onAddToCart={() => {}}
-                            onBuyNow={() => {}}
-                            onVisualize={() => {}}
-                            isCreatingCheckout={isCreatingCheckout}
-                          />
-                        )}
-                        {/* Handling for image data in message */}
-                        {msg.imageDataUrl && (
-                          <img src={msg.imageDataUrl} alt="Generated visualization" className="max-w-full h-auto rounded-md my-2" />
-                        )}
-                        {msg.text && (
-                          <div className={`prose prose-sm max-w-none dark:prose-invert ${msg.productCardData || msg.imageDataUrl ? 'mt-2' : ''}`}>
-                            <ReactMarkdown>{msg.text}</ReactMarkdown>
-                          </div>
-                        )}
-                        {!msg.productCardData && !msg.text && !msg.imageDataUrl && <p className="whitespace-pre-wrap">(Assistant message)</p>}
-                      </>
+                    {msg.role === 'log' ? (
+                      <pre className="text-xs whitespace-pre-wrap bg-gray-100 dark:bg-gray-800 p-2 rounded-md">
+                        <code>{msg.text}</code>
+                      </pre>
+                    ) : msg.role === 'assistant' ? (
+                      msg.comparisonData ? (
+                        <ProductComparison products={msg.comparisonData.products} conclusion={msg.comparisonData.conclusion} />
+                      ) : (
+                        <>
+                          {msg.productCardData && (
+                            <ProductCardInChat
+                              productData={msg.productCardData}
+                              onViewDetails={() => {}}
+                              onAddToCart={() => {}}
+                              onBuyNow={() => {}}
+                              onVisualize={() => {}}
+                              isCreatingCheckout={isCreatingCheckout}
+                            />
+                          )}
+                          {/* Handling for image data in message */}
+                          {msg.imageDataUrl && (
+                            <img src={msg.imageDataUrl} alt="Generated visualization" className="max-w-full h-auto rounded-md my-2" />
+                          )}
+                          {msg.text && (
+                            <div className={`prose prose-sm max-w-none dark:prose-invert ${msg.productCardData || msg.imageDataUrl ? 'mt-2' : ''}`}>
+                              <ReactMarkdown>{msg.text}</ReactMarkdown>
+                            </div>
+                          )}
+                          {!msg.productCardData && !msg.text && !msg.imageDataUrl && <p className="whitespace-pre-wrap">(Assistant message)</p>}
+                        </>
+                      )
                     ) : ( 
                       <p className="whitespace-pre-wrap">{msg.text}</p>
                     )}

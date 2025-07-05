@@ -2,11 +2,11 @@ import React from 'react';
 import { Button } from './ui/button';
 import { BarChart2, GitCompare, Scan } from 'lucide-react';
 
-const ProductActions = ({ product, onVisualize, onAnalyze, onCompare, imageUrl }) => {
+const ProductActions = ({ product, onVisualize, onAnalyze, onCompare }) => {
   const handleVisualizeClick = (e) => {
     e.stopPropagation(); // Stop event propagation
     if (onVisualize) {
-      onVisualize(e, product, imageUrl); // Pass the event object
+      onVisualize(product);
     }
   };
 

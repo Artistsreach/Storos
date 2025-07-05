@@ -15,7 +15,8 @@ import { RefreshCw, Search } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { ScrollArea, ScrollBar } from '../components/ui/scroll-area';
 import { tags } from '../lib/constants';
-import { generateSearchQuery } from '../lib/gemini';
+import { generateSearchQuery, generateFilterTags } from '../lib/gemini';
+import { useNavigate } from 'react-router-dom';
 
 const tagColors = [
   '255, 99, 132', '54, 162, 235', '255, 206, 86', '75, 192, 192', '153, 102, 255', '255, 159, 64',
@@ -24,7 +25,8 @@ const tagColors = [
   '255, 99, 132', '54, 162, 235', '255, 206, 86', '75, 192, 192', '153, 102, 255'
 ];
 
-const StoreList = () => {
+const StoreList = ({ hideStoresOnEmptySearch = false, isDarkMode }) => {
+  const navigate = useNavigate();
   const { stores, loadStores, isLoadingStores } = useStore();
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
@@ -43,17 +45,34 @@ const StoreList = () => {
   const [selectedProductForVisualization, setSelectedProductForVisualization] = useState(null);
   const [selectedProductForAnalysis, setSelectedProductForAnalysis] = useState(null);
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
+  const [filterTags, setFilterTags] = useState([]);
+  const [selectedFilterTags, setSelectedFilterTags] = useState([]);
+
+  const handleProductClick = (product, index) => {
+    navigate('/product-detail', { state: { products: searchResults, product, index } });
+  };
+
+  const handleAmazonProductClick = (product) => {
+    const index = amazonProducts.findIndex(p => p.asin === product.asin);
+    navigate('/product-detail', { state: { products: amazonProducts, product, index } });
+  };
 
   const handleAnalyze = (product) => {
-    setSelectedProductForAnalysis({ type: 'analyze', product });
+    const productsForComparison = searchResults.filter(p => p.type === product.type).slice(0, 5);
+    setSelectedProductForAnalysis({
+      type: 'analyze',
+      product,
+      allProducts: productsForComparison,
+    });
     setIsChatbotOpen(true);
   };
 
   const handleCompare = (product) => {
+    const productsForComparison = searchResults.filter(p => p.type === product.type).slice(0, 5);
     setSelectedProductForAnalysis({
-      type: 'compare',
+      type: 'analyze',
       product,
-      allProducts: searchResults.slice(0, 5),
+      allProducts: productsForComparison,
     });
     setIsChatbotOpen(true);
   };
@@ -118,7 +137,7 @@ const StoreList = () => {
         {
           method: 'GET',
           headers: {
-            'x-rapidapi-key': 'cba626806bmsh2ac060cad0d9f5fp1d645fjsn6f1e546dee8d',
+            'x-rapidapi-key': '2c27bace82msh229faca82ee6c96p10ad31jsn93fff909cf5f',
             'x-rapidapi-host': 'real-time-amazon-data.p.rapidapi.com',
           },
         },
@@ -131,7 +150,19 @@ const StoreList = () => {
       const data = await response.json();
 
       if (data && data.data && data.data.products) {
-        setAmazonProducts(data.data.products.map(p => ({ ...p, type: 'amazon-product' })));
+        const products = data.data.products;
+        const result = await generateFilterTags(products);
+        if (result.tags) {
+          setFilterTags(result.tags);
+          const productsWithTags = products.map(p => ({
+            ...p,
+            type: 'amazon-product',
+            tags: result.tags.filter(tag => p.product_title.toLowerCase().includes(tag.toLowerCase()))
+          }));
+          setAmazonProducts(productsWithTags);
+        } else {
+            setAmazonProducts(products.map(p => ({ ...p, type: 'amazon-product' })));
+        }
       } else {
         setAmazonProducts([]);
         setAmazonError('No products found on Amazon');
@@ -157,7 +188,7 @@ const StoreList = () => {
         {
           method: 'GET',
           headers: {
-            'x-rapidapi-key': '6d580d7e23mshd6f01210dbbe038p1a9b7fjsn0989bffbf1ad',
+            'x-rapidapi-key': '2c27bace82msh229faca82ee6c96p10ad31jsn93fff909cf5f',
             'x-rapidapi-host': 'real-time-product-search.p.rapidapi.com',
           },
         },
@@ -184,33 +215,39 @@ const StoreList = () => {
     }
   };
 
-  const handleSearch = async () => {
-    let query = searchTerm;
-    const result = await generateSearchQuery(searchTerm);
-    if (result.query) {
-      query = result.query;
-    }
-    searchAliExpress(query);
-    searchAmazon(query);
-    searchRealtime(query);
-  };
-
-  useEffect(() => {
-    if (searchTerm.trim()) {
-      handleSearch();
-    }
-  }, [searchTerm]);
-
-  useEffect(() => {
-    if (!searchTerm.trim()) {
+  const handleSearch = async (query) => {
+    if (!query.trim()) {
       setAliExpressProducts([]);
       setAmazonProducts([]);
       setRealtimeProducts([]);
+      return;
     }
+
+    const result = await generateSearchQuery(query);
+    const searchQuery = result.query || query;
+    
+    searchAliExpress(searchQuery);
+    searchAmazon(searchQuery);
+    searchRealtime(searchQuery);
+  };
+
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      handleSearch(searchTerm);
+    }, 100); // 100ms debounce delay
+
+    return () => {
+      clearTimeout(debounceTimer);
+    };
   }, [searchTerm]);
 
+
+
   const searchResults = useMemo(() => {
-    if (!searchTerm && selectedTags.length === 0) {
+    if (!searchTerm && selectedTags.length === 0 && selectedFilterTags.length === 0) {
+      if (hideStoresOnEmptySearch) {
+        return [];
+      }
       return stores.map(s => ({ ...s, type: 'store' }));
     }
 
@@ -239,7 +276,16 @@ const StoreList = () => {
     // Remove duplicate stores that might have been added if a product also matched
     const uniqueResults = Array.from(new Map(results.map(item => [item.id, item])).values());
 
-    const combinedResults = [...uniqueResults, ...aliExpressProducts, ...amazonProducts, ...realtimeProducts];
+    let combinedResults = [...uniqueResults, ...aliExpressProducts, ...amazonProducts, ...realtimeProducts];
+
+    if (selectedFilterTags.length > 0) {
+      combinedResults = combinedResults.filter(item => {
+        if (item.type === 'amazon-product') {
+          return selectedFilterTags.every(tag => item.tags?.includes(tag));
+        }
+        return true;
+      });
+    }
 
     return combinedResults.sort((a, b) => {
       const aIsUserStore = a.type === 'store' && a.merchant_id === user?.uid;
@@ -248,7 +294,7 @@ const StoreList = () => {
       if (!aIsUserStore && bIsUserStore) return 1;
       return 0;
     });
-  }, [stores, searchTerm, selectedTags, user, aliExpressProducts, amazonProducts, realtimeProducts]);
+  }, [stores, searchTerm, selectedTags, user, aliExpressProducts, amazonProducts, realtimeProducts, selectedFilterTags]);
 
   const toggleTag = (tag) => {
     setSelectedTags(prev =>
@@ -256,10 +302,11 @@ const StoreList = () => {
     );
   };
 
-  const handleVisualize = (product, imageUrl) => {
-    const productWithImage = { 
-      ...product, 
-      imageUrl: imageUrl || product.product_photo || product.imageUrl || product.image || product.product_main_image_url 
+  const handleVisualize = (product) => {
+    const imageUrl = product.imageUrl || product.product_photo || (product.image && product.image.src && product.image.src.medium) || (Array.isArray(product.images) && product.images.length > 0 && product.images[0]) || product.image || product.product_main_image_url;
+    const productWithImage = {
+      ...product,
+      imageUrl: imageUrl
     };
     setSelectedProductForVisualization(productWithImage);
     setIsVisualizeModalOpen(true);
@@ -280,9 +327,12 @@ const StoreList = () => {
       className="w-full max-w-6xl mx-auto mt-8 px-4"
     >
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-light tracking-tighter text-gray-800 dark:text-gray-200">
-          What are you looking for?
-        </h2>
+        <div>
+          <h2 className="text-3xl font-light tracking-tighter text-gray-800 dark:text-gray-200">
+            What are you looking for?
+          </h2>
+          <p className="text-muted-foreground">Describe it and we’ll find it</p>
+        </div>
       </div>
 
       <div className="mb-6">
@@ -298,6 +348,30 @@ const StoreList = () => {
         </div>
       </div>
 
+      {filterTags.length > 0 && (
+        <div className="sticky top-16 z-40 mb-6">
+          <ScrollArea className="w-full whitespace-nowrap">
+            <div className="grid grid-rows-3 grid-flow-col gap-2 p-4">
+              {filterTags.map(tag => (
+                <Button
+                  key={tag}
+                  variant={selectedFilterTags.includes(tag) ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    setSelectedFilterTags(prev =>
+                      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+                    );
+                  }}
+                >
+                  {tag}
+                </Button>
+              ))}
+            </div>
+            <ScrollBar orientation="horizontal" className="transparent-scrollbar" />
+          </ScrollArea>
+        </div>
+      )}
+
       {isLoadingStores && searchResults.length === 0 && (
         <div className="text-center py-12">
           <p className="text-lg text-muted-foreground">Loading your items...</p>
@@ -311,10 +385,20 @@ const StoreList = () => {
         </div>
       )}
 
-      {!isLoadingStores && searchResults.length === 0 && (
+      {!isLoadingStores && searchResults.length === 0 && searchTerm.trim() !== '' && (
         <div className="text-center py-12">
           <h3 className="text-xl font-semibold">No results match your search</h3>
           <p className="text-muted-foreground mt-2">Try a different search term or filter.</p>
+        </div>
+      )}
+
+      {!isLoadingStores && searchResults.length === 0 && searchTerm.trim() === '' && (
+        <div className="text-center py-12">
+          {isDarkMode ? (
+            <img src="https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/IMG_6571.png?alt=media&token=e2d858c6-a1f2-48d6-a460-3777faeb940d" alt="Empty search" className="mx-auto w-2/3" />
+          ) : (
+            <img src="https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/image%203.png?alt=media&token=606ec60c-94c0-4702-b9f6-eea45f89091f" alt="Empty search" className="mx-auto w-2/3" />
+          )}
         </div>
       )}
 
@@ -338,27 +422,32 @@ const StoreList = () => {
 
       {searchResults.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {searchResults.map((item) => {
+          {searchResults.map((item, index) => {
             if (item.type === 'store') {
               return <StoreCard key={`store-${item.id}`} store={item} />;
             }
             if (item.type === 'product') {
               const store = stores.find(s => s.name === item.storeName);
-              return <ProductCard key={`product-${item.id}`} product={item} storeName={item.storeName} storeSlug={item.storeSlug} storeId={store?.id} />;
+              return (
+                <div onClick={() => handleProductClick(item, index)}>
+                  <ProductCard key={`product-${item.id}`} product={item} storeName={item.storeName} storeSlug={item.storeSlug} storeId={store?.id} />
+                  <ProductActions product={item} onVisualize={() => handleVisualize(item)} onAnalyze={handleAnalyze} onCompare={handleCompare} />
+                </div>
+              );
             }
             if (item.type === 'ali-product') {
               return (
-                <div>
+                <div onClick={() => handleProductClick(item, index)}>
                   <AliExpressProductCard key={`ali-product-${item.item.itemId}`} product={item} />
-                  <ProductActions product={item} onVisualize={handleVisualize} onAnalyze={handleAnalyze} onCompare={handleCompare} imageUrl={item.item?.image} />
+                  <ProductActions product={item} onVisualize={() => handleVisualize(item)} onAnalyze={handleAnalyze} onCompare={handleCompare} />
                 </div>
               );
             }
             if (item.type === 'amazon-product') {
               return (
-                <div>
+                <div onClick={() => handleAmazonProductClick(item)}>
                   <AmazonProductCard key={`amazon-product-${item.asin}`} product={item} />
-                  <ProductActions product={item} onVisualize={handleVisualize} onAnalyze={handleAnalyze} onCompare={handleCompare} imageUrl={item.product_photo} />
+                  <ProductActions product={item} onVisualize={() => handleVisualize(item)} onAnalyze={handleAnalyze} onCompare={handleCompare} />
                 </div>
               );
             }
@@ -372,9 +461,9 @@ const StoreList = () => {
             }
             if (item.type === 'realtime-product') {
               return (
-                <div>
+                <div onClick={() => handleProductClick(item, index)}>
                   <RealtimeProductCard key={`realtime-product-${item.product_id}`} product={item} />
-                  <ProductActions product={item} onVisualize={handleVisualize} onAnalyze={handleAnalyze} onCompare={handleCompare} imageUrl={item.product_main_image_url} />
+                  <ProductActions product={item} onVisualize={() => handleVisualize(item)} onAnalyze={handleAnalyze} onCompare={handleCompare} />
                 </div>
               );
             }

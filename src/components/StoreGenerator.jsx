@@ -22,6 +22,7 @@ import {
 } from '../components/ui/card';
 import DropshippingModal from './DropshippingModal';
 import ProductEditModal from './store/ProductEditModal';
+import CreditCostsModal from './CreditCostsModal';
 
 const promptExamples = [
   "Create a custom name jewelry store called 'Elegance' with diamond rings and gold necklaces, featuring a dark, sophisticated theme.",
@@ -111,6 +112,7 @@ const StoreGenerator = ({ generatedImage }) => {
   const [dropshippingProducts, setDropshippingProducts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isCreditModalOpen, setIsCreditModalOpen] = useState(false);
   const [contextFiles, setContextFiles] = useState([]); // Now stores { file: File, previewUrl: string | null }
   const fileInputRef = useRef(null);
   const { 
@@ -287,7 +289,7 @@ const StoreGenerator = ({ generatedImage }) => {
     try {
       const hasEnoughCredits = await canDeductCredits(user.uid, 25);
       if (!hasEnoughCredits) {
-        alert("You don't have enough credits to generate a store.");
+        setIsCreditModalOpen(true);
         return;
       }
       // Pass the entire contextFiles array (of {file, previewUrl} objects), not just the files.
@@ -640,6 +642,14 @@ const StoreGenerator = ({ generatedImage }) => {
           onSave={handleSaveProduct}
         />
       )}
+      <CreditCostsModal
+        isOpen={isCreditModalOpen}
+        onClose={() => setIsCreditModalOpen(false)}
+        onSubscribe={() => {
+          // Handle subscription logic, e.g., redirect to a pricing page
+          console.log("Redirecting to subscription page...");
+        }}
+      />
     </motion.div>
   );
 };

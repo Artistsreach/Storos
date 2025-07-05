@@ -48,8 +48,8 @@ const SearchPage = () => {
           {isDarkMode ? <Moon className="h-5 w-5 text-muted-foreground" /> : <Sun className="h-5 w-5 text-muted-foreground" />}
         </div>
       </header>
-      <div className="container mx-auto p-4">
-        <StoreList />
+      <div className="container mx-auto">
+        <StoreList hideStoresOnEmptySearch={true} isDarkMode={isDarkMode} />
       </div>
       <WishlistModal isOpen={isWishlistOpen} onClose={() => setIsWishlistOpen(false)} />
     </div>

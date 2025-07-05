@@ -30,7 +30,7 @@ export async function generateStoreNameSuggestions(promptContent) {
     const fullPrompt = `Suggest 3 creative and catchy store name options based on the following store name: "${promptContent}". The suggestions should be relevant and similar. Return exactly 3 suggestions.`;
 
     const response = await genAI.models.generateContent({
-      model: "gemini-2.5-flash-lite-preview-06-17",
+      model: "gemini-2.0-flash-lite",
       contents: [{ role: "user", parts: [{text: fullPrompt}]}],
       config: {
         responseMimeType: "application/json",
@@ -896,7 +896,7 @@ export async function generateSearchQuery(promptContent) {
     const fullPrompt = `Analyze the following search query and return a more accurate and concise search query. For example, if the user searches for "something to restore my pots", you should return "rust remover".\n\nOriginal query: "${promptContent}"`;
 
     const response = await genAI.models.generateContent({
-      model: "gemini-2.5-flash-lite-preview-06-17",
+      model: "gemini-2.0-flash-lite",
       contents: [{ role: "user", parts: [{text: fullPrompt}]}],
       config: {
         responseMimeType: "application/json",
@@ -925,5 +925,55 @@ export async function generateSearchQuery(promptContent) {
   } catch (error) {
     console.error("Error generating search query:", error);
     return { error: `Error generating search query: ${error.message}` };
+  }
+}
+
+export async function generateFilterTags(products) {
+  if (!apiKey) {
+    console.error("API Key not configured. Cannot generate filter tags.");
+    return { error: "API Key not configured." };
+  }
+
+  const genAI = new GoogleGenAI({ apiKey });
+
+  const filterTagsResponseSchema = {
+    type: Type.ARRAY,
+    items: { type: Type.STRING },
+    description: "An array of filter tags based on the products."
+  };
+
+  try {
+    const fullPrompt = `Analyze the following products and generate a list of relevant filter tags. The tags should be concise and based on common themes or categories found in the products.\n\nProducts:\n${JSON.stringify(products, null, 2)}`;
+
+    const response = await genAI.models.generateContent({
+      model: "gemini-2.0-flash-lite",
+      contents: [{ role: "user", parts: [{text: fullPrompt}]}],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: filterTagsResponseSchema,
+      }
+    });
+
+    const responseText = response.text;
+    if (typeof responseText !== 'string' || responseText.trim() === '') {
+        console.error("Model did not return a text response for filter tags. Response:", JSON.stringify(response));
+        throw new Error("Model response for filter tags was empty or not a string.");
+    }
+
+    try {
+      const parsedTags = JSON.parse(responseText);
+      if (Array.isArray(parsedTags) && parsedTags.every(s => typeof s === 'string')) {
+        return { tags: parsedTags.map(s => s.trim()).filter(s => s.length > 0) };
+      } else {
+        console.error("Parsed filter tags are not an array of strings:", parsedTags);
+        return { error: "AI response was not in the expected format (array of strings)." , rawResponse: responseText};
+      }
+    } catch (parseError) {
+      console.error("Failed to parse JSON response for filter tags:", responseText, "ParseError:", parseError);
+      return { error: "Failed to parse filter tags from AI.", rawResponse: responseText };
+    }
+  } catch (error) {
+    console.error("Error generating filter tags:", error);
+    return { error: `Error generating filter tags: ${error.message}` };
   }
 }

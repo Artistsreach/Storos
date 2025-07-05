@@ -11,6 +11,7 @@ import StoreSelectionModal from '../components/StoreSelectionModal';
 import ContentUploadModal from '../components/ContentUploadModal';
 import ImageSelectionModal from '../components/ImageSelectionModal';
 import { canDeductCredits, deductCredits } from '../lib/credits';
+import CreditCostsModal from '../components/CreditCostsModal';
 
 const PageGenerator = () => {
   const navigate = useNavigate();
@@ -19,6 +20,7 @@ const PageGenerator = () => {
   const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
   const [isContentModalOpen, setIsContentModalOpen] = useState(false);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [isCreditModalOpen, setIsCreditModalOpen] = useState(false);
   const [editingImageSrc, setEditingImageSrc] = useState(null);
   const [generatedCode, setGeneratedCode] = useState('');
   const [generatedTitle, setGeneratedTitle] = useState('');
@@ -110,7 +112,7 @@ const PageGenerator = () => {
     if (user) {
       const hasEnoughCredits = await canDeductCredits(user.uid, 25);
       if (!hasEnoughCredits) {
-        alert("You don't have enough credits to generate a page.");
+        setIsCreditModalOpen(true);
         return;
       }
     } else {
@@ -462,6 +464,14 @@ const PageGenerator = () => {
         isOpen={isContentModalOpen}
         onClose={() => setIsContentModalOpen(false)}
         onContentSelect={handleContentSelect}
+      />
+      <CreditCostsModal
+        isOpen={isCreditModalOpen}
+        onClose={() => setIsCreditModalOpen(false)}
+        onSubscribe={() => {
+          // Handle subscription logic, e.g., redirect to a pricing page
+          console.log("Redirecting to subscription page...");
+        }}
       />
     </div>
   );

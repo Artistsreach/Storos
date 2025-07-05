@@ -12,7 +12,7 @@ if (!GOOGLE_API_KEY) {
 }
 
 const ai = new GoogleGenAI({ apiKey: GOOGLE_API_KEY });
-const model = 'gemini-2.0-flash-live-001'; // Or a native audio model like 'gemini-2.5-flash-preview-native-audio-dialog'
+const model = 'gemini-2.5-flash-preview-native-audio-dialog'; // Or a native audio model like 'gemini-2.5-flash-preview-native-audio-dialog'
 
 // Configuration for receiving audio response
 const configReceiveAudio = { responseModalities: [Modality.AUDIO] };
