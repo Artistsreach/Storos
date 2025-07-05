@@ -6,6 +6,7 @@ import { Elements } from '@stripe/react-stripe-js';
 import App from './App';
 import './index.css';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { WishlistProvider } from './contexts/WishlistContext';
 
 // Page Imports
 import ContentCreationPage from './pages/ContentCreationPage';
@@ -33,6 +34,7 @@ import SocialFeedPage from './pages/SocialFeedPage';
 import PostPage from './pages/PostPage';
 import SlugPage from './pages/SlugPage';
 import GeminiLive from './pages/GeminiLive';
+import SearchPage from './pages/SearchPage';
 
 // The index route is now the public-facing store owner dashboard.
 const IndexPageHandler = () => {
@@ -62,9 +64,11 @@ const routes = [
   {
     element: (
       <AuthProvider>
-        <Elements stripe={stripePromise}>
-          <App /> {/* App provides StoreProvider and <Outlet /> for child routes */}
-        </Elements>
+        <WishlistProvider>
+          <Elements stripe={stripePromise}>
+            <App /> {/* App provides StoreProvider and <Outlet /> for child routes */}
+          </Elements>
+        </WishlistProvider>
       </AuthProvider>
     ),
     // ErrorElement can be added here for root-level errors
@@ -152,6 +156,10 @@ const routes = [
       {
         path: "/gemini-live",
         element: <GeminiLive />,
+      },
+      {
+        path: "/search",
+        element: <SearchPage />,
       },
       {
         path: "/:slug",

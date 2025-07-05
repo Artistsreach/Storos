@@ -17,10 +17,14 @@ import RealtimeChatbot from './components/store/RealtimeChatbot'; // Import the 
 import GenerationProgressDisplay from './components/GenerationProgressDisplay'; // Import the progress display
 import OnboardingModal from './components/OnboardingModal';
 import { useAuth } from './contexts/AuthContext';
+import ScrollToTop from './components/ScrollToTop';
+import SearchPageChatbot from './components/store/SearchPageChatbot'; // Import SearchPageChatbot
+import { useLocation } from 'react-router-dom'; // Import useLocation
 
 const App = () => {
   const { user, profile, loadingRole } = useAuth();
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [isChatbotOpen, setIsChatbotOpen] = useState(false);
 
   useEffect(() => {
     if (user && !loadingRole && profile && !profile.username) {
@@ -32,14 +36,19 @@ const App = () => {
     setShowOnboarding(false);
   };
 
+  const location = useLocation();
+  const isSearchPage = location.pathname === '/search';
+
   return (
     <StoreProvider>
+      <ScrollToTop />
       {showOnboarding && <OnboardingModal onClose={handleOnboardingComplete} />}
       <GenerationProgressDisplay /> {/* Add the progress display here */}
       <main className="min-h-screen bg-white dark:bg-gray-900">
         <Outlet /> {/* Child routes will render here */}
         <Toaster />
-        <RealtimeChatbot /> {/* Add the chatbot to the global layout */}
+        <RealtimeChatbot isOpen={isChatbotOpen} setIsOpen={setIsChatbotOpen} />
+        {isSearchPage && !isChatbotOpen && <SearchPageChatbot onOpen={() => setIsChatbotOpen(true)} />}
         <Analytics />
       </main>
     </StoreProvider>

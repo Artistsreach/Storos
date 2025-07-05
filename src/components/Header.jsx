@@ -189,6 +189,11 @@ src={isDarkMode
       
       {/* Desktop Navigation Items */}
       <nav className="hidden md:flex items-center gap-3">
+        <Link to="/search">
+          <Button variant="ghost" size="sm">
+            Search
+          </Button>
+        </Link>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm">
@@ -302,6 +307,11 @@ src={isDarkMode
             </Link>
           </>
         )}
+        <Link to="/wishlist">
+          <Button variant="ghost" size="sm">
+            Wishlist
+          </Button>
+        </Link>
         <div className="flex items-center gap-2">
           <Switch
             id="theme-switcher-desktop"

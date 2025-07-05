@@ -189,11 +189,11 @@ Make the main product the primary focus, well-lit, and naturally fitting the sce
   console.log("Constructed prompt parts. Total parts:", parts.length);
 
   try {
-    const result = await ai.models.generateContent({ // result is GenerateContentResponse
+    const result = await ai.models.generateContent({
       model: imageGenerationModel,
-      contents: [{ role: "user", parts: parts }], 
+      contents: parts,
       generationConfig: { temperature: 0.6, candidateCount: 1 },
-      safetySettings: [ 
+      safetySettings: [
         { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
         { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
         { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },

@@ -126,8 +126,9 @@ const StoreOwnerDashboard = () => {
           </Button>
         </div>
         
-        <StoreList />
       </motion.div>
+
+      <StoreList />
       
       <footer className="mt-auto py-6 text-center text-sm text-muted-foreground">
         <p>© {new Date().getFullYear()} FreshFront. All rights reserved.</p>

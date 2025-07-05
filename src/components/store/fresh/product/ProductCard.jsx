@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from "react"; // Added useEffect
 import { motion, AnimatePresence } from "framer-motion";
-import { ShoppingCart, Heart, Eye, Star, Sparkles, Plus, Edit } from "lucide-react"; // Added Edit
+import { ShoppingCart, Heart, Eye, Star, Sparkles, Plus, Edit, CreditCard } from "lucide-react"; // Added Edit and CreditCard
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import ProductEditModalStore from "@/components/store/ProductEditModalStore"; // Import Edit Modal
 import { useStore } from "@/contexts/StoreContext";
+import ProductActions from "@/components/ProductActions";
 import { Link, useNavigate } from "react-router-dom";
+import { loadStripe } from '@stripe/stripe-js';
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const ProductCard = ({
   product,
@@ -13,6 +17,7 @@ const ProductCard = ({
   index,
   storeName, // Added storeName
   storeId,   // Kept storeId for internal logic
+  storeSlug,
   isPublishedView = false,
   displayMode = "grid",
 }) => {
@@ -36,8 +41,10 @@ const ProductCard = ({
   const inventory_count = displayProduct.inventory_count;
 
   const productLink = (currentStore?.type === 'fund' || displayProduct.isFunded)
-    ? `/${storeName}/fund/product/${productId}`
-    : `/${storeName}/product/${productId}`;
+    ? `/${storeSlug || storeName}/fund/product/${productId}`
+    : `/${storeSlug || storeName}/product/${productId}`;
+
+  const storeIdentifier = storeId || currentStore?.id;
 
 
   const handleAddToCart = (e) => {
@@ -48,6 +55,29 @@ const ProductCard = ({
   const handleLike = (e) => {
     e.stopPropagation();
     setIsLiked(!isLiked);
+  };
+
+  const handleCheckout = async (e) => {
+    e.stopPropagation();
+    const stripe = await stripePromise;
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-checkout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        price_id: displayProduct.price_id,
+        quantity: 1,
+        store_id: storeIdentifier,
+      }),
+    });
+    const session = await response.json();
+    const result = await stripe.redirectToCheckout({
+      sessionId: session.id,
+    });
+    if (result.error) {
+      console.error(result.error.message);
+    }
   };
   
   const primaryColor = theme?.primaryColor || "hsl(var(--primary))";
@@ -73,7 +103,7 @@ const ProductCard = ({
   };
 
   const handleSaveProductChanges = async (updatedProductData) => {
-    if (storeId && rawProductId) {
+    if (storeIdentifier && rawProductId) {
       try {
         // Assuming a similar backend function 'manage-product' as used in the other ProductCard
         await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-product`, {
@@ -82,18 +112,18 @@ const ProductCard = ({
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${localStorage.getItem('supabase.auth.token')}`, // Assuming auth token is stored
           },
-          body: JSON.stringify({ store_id: storeId, product_id: rawProductId, ...updatedProductData })
+          body: JSON.stringify({ store_id: storeIdentifier, product_id: rawProductId, ...updatedProductData })
         });
         setDisplayProduct(prevDisplayProduct => ({ ...prevDisplayProduct, ...updatedProductData }));
         
         // Update StoreContext
-        if (currentStore && currentStore.id === storeId && currentStore.products) {
+        if (currentStore && currentStore.id === storeIdentifier && currentStore.products) {
           const updatedProductsArray = currentStore.products.map(p =>
             p.id === rawProductId ? { ...p, ...updatedProductData } : p
           );
-          updateContextStore(storeId, { products: updatedProductsArray });
-        } else if (currentStore && currentStore.id === storeId && !currentStore.products) {
-           updateContextStore(storeId, { products: [{ ...displayProduct, ...updatedProductData }] });
+          updateContextStore(storeIdentifier, { products: updatedProductsArray });
+        } else if (currentStore && currentStore.id === storeIdentifier && !currentStore.products) {
+           updateContextStore(storeIdentifier, { products: [{ ...displayProduct, ...updatedProductData }] });
         }
 
         setIsEditModalOpen(false);
@@ -203,7 +233,7 @@ const ProductCard = ({
       variants={cardVariants}
       initial="hidden"
       animate="visible"
-      className="group relative bg-card/70 backdrop-blur-md rounded-2xl overflow-hidden border border-border/70 hover:border-primary/40 transition-all duration-300 shadow-sm hover:shadow-xl hover:shadow-primary/10"
+        className="group relative bg-card/70 dark:bg-card/30 backdrop-blur-md rounded-2xl overflow-hidden border border-border/70 hover:border-primary/40 transition-all duration-300 shadow-sm hover:shadow-xl hover:shadow-primary/10"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       whileHover={{ y: -6 }}
@@ -261,30 +291,31 @@ const ProductCard = ({
           ))}
         </div>
         <div className="flex items-center justify-between">
-          <p className="text-base sm:text-lg font-bold text-primary">
+          <p className="text-base sm:text-lg font-bold text-primary dark:text-primary-foreground">
             {displayProduct.currencyCode || '$'}{displayProduct.price?.toFixed(2) || "N/A"}
           </p>
-          <Button
-            onClick={handleAddToCart}
-            size="sm"
-            className="bg-primary hover:bg-primary/90 text-primary-foreground border-0 rounded-lg px-3 py-1.5 text-xs"
-            disabled={inventory_count !== undefined && inventory_count <= 0}
-          >
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            {inventory_count !== undefined && inventory_count <= 0 ? 'Out of Stock' : 'Add'}
-          </Button>
         </div>
-        {isAdmin && (
+        <div className="flex flex-col mt-2">
           <Button
-            onClick={handleEditProduct}
+            onClick={() => navigate(productLink)}
             variant="outline"
             size="sm"
-            className="w-full mt-2 border-primary/50 text-primary hover:bg-primary/10 rounded-lg text-xs"
+            className="w-full border-primary/50 text-primary dark:text-primary-foreground hover:bg-primary/10 rounded-lg text-xs"
           >
-            <Edit className="h-3.5 w-3.5 mr-1.5" />
-            Edit Product
+            <Eye className="h-3.5 w-3.5 mr-1.5" />
+            View Product
           </Button>
-        )}
+          <Button
+            onClick={handleCheckout}
+            size="sm"
+            className="w-full mt-2 bg-primary hover:bg-primary/90 text-primary-foreground border-0 rounded-lg text-xs"
+            disabled={inventory_count !== undefined && inventory_count <= 0}
+          >
+            <CreditCard className="h-3.5 w-3.5 mr-1.5" />
+            {inventory_count !== undefined && inventory_count <= 0 ? 'Out of Stock' : 'Proceed to Checkout'}
+          </Button>
+        </div>
+        <ProductActions product={displayProduct} onVisualize={() => {}} />
       </div>
     </motion.div>
     {isEditModalOpen && (

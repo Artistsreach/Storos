@@ -875,3 +875,55 @@ Return the colors as a JSON object matching the schema.`;
     return { error: `Error generating theme colors: ${error.message}` };
   }
 }
+
+export async function generateSearchQuery(promptContent) {
+  if (!apiKey) {
+    console.error("API Key not configured. Cannot generate search query.");
+    return { error: "API Key not configured." };
+  }
+
+  const genAI = new GoogleGenAI({ apiKey });
+
+  const searchQueryResponseSchema = {
+    type: Type.OBJECT,
+    properties: {
+      query: { type: Type.STRING, description: 'A concise and relevant search query.' },
+    },
+    required: ['query'],
+  };
+
+  try {
+    const fullPrompt = `Analyze the following search query and return a more accurate and concise search query. For example, if the user searches for "something to restore my pots", you should return "rust remover".\n\nOriginal query: "${promptContent}"`;
+
+    const response = await genAI.models.generateContent({
+      model: "gemini-2.5-flash-lite-preview-06-17",
+      contents: [{ role: "user", parts: [{text: fullPrompt}]}],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: searchQueryResponseSchema,
+      }
+    });
+
+    const responseText = response.text;
+    if (typeof responseText !== 'string' || responseText.trim() === '') {
+        console.error("Model did not return a text response for search query. Response:", JSON.stringify(response));
+        throw new Error("Model response for search query was empty or not a string.");
+    }
+
+    try {
+      const parsedQuery = JSON.parse(responseText);
+      if (parsedQuery && typeof parsedQuery.query === 'string') {
+        return { query: parsedQuery.query };
+      } else {
+        console.error("Parsed search query is not in the expected format:", parsedQuery);
+        return { error: "AI response was not in the expected format (string)." , rawResponse: responseText};
+      }
+    } catch (parseError) {
+      console.error("Failed to parse JSON response for search query:", responseText, "ParseError:", parseError);
+      return { error: "Failed to parse search query from AI.", rawResponse: responseText };
+    }
+  } catch (error) {
+    console.error("Error generating search query:", error);
+    return { error: `Error generating search query: ${error.message}` };
+  }
+}

@@ -9,7 +9,7 @@ import { Textarea } from '../../components/ui/textarea';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../../components/ui/card';
 import { Send, Settings2, X, MessageCircle, Mic, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { useNavigate } from 'react-router-dom'; 
+import { useNavigate, useLocation } from 'react-router-dom'; 
 import ProductCardInChat from './ProductCardInChat';
 import { GeminiLive } from '../../lib/geminiLive';
 
@@ -17,14 +17,14 @@ import { GeminiLive } from '../../lib/geminiLive';
 import { generateProductVisualization } from '../../lib/productVisualizer';
 
 
-const RealtimeChatbot = () => {
+const RealtimeChatbot = ({ productToAnalyze, isOpen: propIsOpen, setIsOpen: propSetIsOpen }) => {
+  const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
   const functions = getFunctions();
   const { currentStore, addToCart: contextAddToCart, getProductById, updateQuantity: contextUpdateQuantity, viewMode } = useStore(); // Added viewMode
   const { userRole } = useAuth(); // Get userRole
   const [isCreatingCheckout, setIsCreatingCheckout] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
   const [showKnowledgeBaseInput, setShowKnowledgeBaseInput] = useState(false);
   const [knowledgeBase, setKnowledgeBase] = useState(
     'You are a friendly and helpful AI assistant for an e-commerce store. Be concise and helpful. Always format your responses using Markdown. If a user asks you to find a product, your primary action should be to use the `find_and_open_product` function. **Only after the `find_and_open_product` function successfully returns product details (indicated by `product_found: true` in the function\'s result) should you then say something like "Here is the product I found for you:".** At that point, a product card will also be displayed by the UI. Following your acknowledgment, you MUST ask a relevant follow-up question, such as "Would you like to see more details, add it to your cart, or keep browsing?". If the function call indicates the product was not found (`product_found: false`), you should inform the user you could not find the product and offer to search again or help with something else. Do not repeat raw product data (like image URLs or full product objects) in your text response, as the card already displays this information.'
@@ -40,12 +40,35 @@ const RealtimeChatbot = () => {
   const fileInputRef = useRef(null); // Ref for the hidden file input
   const [visualizingProduct, setVisualizingProduct] = useState(null); // To store product info during visualization
 
-  const [isGeminiInitializing, setIsGeminiInitializing] = useState(false); 
+  const [isGeminiInitializing, setIsGeminiInitializing] = useState(false);
   const isInitialServiceSetupDoneRef = useRef(false);
 
+  useEffect(() => {
+    if (productToAnalyze && geminiChat) {
+      handleSendMessage(
+        `Please analyze this product: ${JSON.stringify(productToAnalyze)}`
+      );
+    }
+  }, [productToAnalyze, geminiChat]);
+
   // --- Function Declarations for Gemini ---
-  const findAndOpenProductDeclaration = { 
-    name: 'find_and_open_product', 
+  const analyzeProductDeclaration = {
+    name: 'analyze_product',
+    description: 'Analyzes the product data and provides a detailed analysis for the customer.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        product_data: {
+          type: Type.STRING,
+          description: 'The product data in JSON format.',
+        },
+      },
+      required: ['product_data'],
+    },
+  };
+
+  const findAndOpenProductDeclaration = {
+    name: 'find_and_open_product',
     description: 'Finds a product based on a query (name, keywords, or ID) and returns its details for display. It does NOT navigate. After displaying, ask if the user wants to navigate or add to cart.',
     parameters: {
       type: Type.OBJECT,
@@ -171,6 +194,7 @@ const RealtimeChatbot = () => {
     navigateHomeDeclaration,
     navigateToContentCreationDeclaration,
     navigateToStoreDashboardDeclaration,
+    analyzeProductDeclaration,
   ];
   // --- End Function Declarations ---
 
@@ -180,10 +204,10 @@ const RealtimeChatbot = () => {
   useEffect(scrollToBottom, [messages]);
 
   const addSystemMessage = (text, type = 'system') => {
-    // console.log(`[SYSTEM MESSAGE - ${type.toUpperCase()}]: ${text}`); 
+    // console.log(`[SYSTEM MESSAGE - ${type.toUpperCase()}]: ${text}`);
   };
 
-  const toggleChatbot = () => setIsOpen(!isOpen);
+  const toggleChatbot = () => propSetIsOpen(!propIsOpen);
   const toggleKnowledgeBaseInput = () => setShowKnowledgeBaseInput(!showKnowledgeBaseInput);
 
   const handleSaveKnowledgeBase = () => {
@@ -340,6 +364,24 @@ const RealtimeChatbot = () => {
   };
 
   // --- Client-side implementations for declared functions ---
+  const clientAnalyzeProduct = (args) => {
+    try {
+      const product = JSON.parse(args.product_data);
+      // In a real scenario, you might have a more complex analysis.
+      // For now, we'll just format the product details.
+      const analysis = `
+        **${product.title || product.name}**
+
+        *Price: ${product.price}*
+
+        ${product.description}
+      `;
+      return { success: true, analysis: analysis };
+    } catch (error) {
+      return { success: false, detail: 'Failed to parse product data.' };
+    }
+  };
+
   const clientNavigateToRoute = (args) => {
     const route = args.route;
     if (route) {
@@ -612,6 +654,10 @@ const RealtimeChatbot = () => {
         functionExecutionResultPayload = clientInitiatePurchase(functionCall.args);
         clientFunctionSuccess = functionExecutionResultPayload.success;
         break;
+      case 'analyze_product':
+        functionExecutionResultPayload = clientAnalyzeProduct(functionCall.args);
+        clientFunctionSuccess = functionExecutionResultPayload.success;
+        break;
       default:
         functionExecutionResultPayload = { success: false, detail: `Error: Unknown function ${functionCall.name}` };
     }
@@ -679,9 +725,13 @@ const RealtimeChatbot = () => {
         functionExecutionResultPayload = clientAddToCart(functionCall.args); 
         clientFunctionSuccess = functionExecutionResultPayload.success; 
         break;
-      case 'initiate_purchase': 
-        functionExecutionResultPayload = clientInitiatePurchase(functionCall.args); 
-        clientFunctionSuccess = functionExecutionResultPayload.success; 
+      case 'initiate_purchase':
+        functionExecutionResultPayload = clientInitiatePurchase(functionCall.args);
+        clientFunctionSuccess = functionExecutionResultPayload.success;
+        break;
+      case 'analyze_product':
+        functionExecutionResultPayload = clientAnalyzeProduct(functionCall.args);
+        clientFunctionSuccess = functionExecutionResultPayload.success;
         break;
       default:
         functionExecutionResultPayload = { success: false, detail: `Error: Unknown function ${functionCall.name}` };
@@ -847,7 +897,7 @@ const RealtimeChatbot = () => {
   };
 
   useEffect(() => {
-    if (isOpen) {
+    if (propIsOpen) {
       if (!geminiChat && !isGeminiInitializing) {
         initializeGeminiChat();
       }
@@ -855,7 +905,7 @@ const RealtimeChatbot = () => {
       closeConnections();
     }
     return () => closeConnections();
-  }, [isOpen]); 
+  }, [propIsOpen]); 
 
   useEffect(() => {
     if (activeService === 'gemini') {
@@ -914,8 +964,11 @@ const RealtimeChatbot = () => {
     else if (productObject.image_url && typeof productObject.image_url === 'string') url = productObject.image_url;
     else if (productObject.imageUrl && typeof productObject.imageUrl === 'string') url = productObject.imageUrl;
     else if (productObject.image && typeof productObject.image === 'string') url = productObject.image;
-    else if (productObject.images && Array.isArray(productObject.images) && productObject.images.length > 0 && productObject.images[0]?.src) url = productObject.images[0].src;
-    else if (productObject.featuredImage?.url) url = productObject.featuredImage.url;
+    else if (productObject.images && Array.isArray(productObject.images) && productObject.images.length > 0 && productObject.images[0]?.src && typeof productObject.images[0].src === 'string') {
+        url = productObject.images[0].src;
+    } else if (productObject.featuredImage?.url) {
+        url = productObject.featuredImage.url;
+    }
     
     if (url && typeof url === 'string' && url.trim() !== "") return url.trim();
     return null;
@@ -1011,19 +1064,19 @@ const RealtimeChatbot = () => {
         accept="image/*" 
         onChange={handleImageFileChange} 
       />
-      {!isOpen && (
-        <Button 
-          onClick={toggleChatbot} 
-          className="fixed bottom-[96px] right-0 py-4 pl-4 pr-1.5 shadow-lg z-50 rounded-tl-[20px] rounded-bl-[20px] rounded-tr-none rounded-br-none" 
-          size="icon" 
+      {!propIsOpen && location.pathname !== '/search' && (
+        <Button
+          onClick={toggleChatbot}
+          className="fixed bottom-[96px] right-0 py-4 pl-4 pr-1.5 shadow-lg z-50 rounded-tl-[20px] rounded-bl-[20px] rounded-tr-none rounded-br-none"
+          size="icon"
           aria-label="Open Chatbot"
-          style={{ backgroundColor: currentStore?.theme?.primaryColor || '#007bff' }} 
+          style={{ backgroundColor: currentStore?.theme?.primaryColor || '#007bff' }}
         >
           <MessageCircle size={20} />
         </Button>
       )}
-      {isOpen && (
-        <Card className="fixed bottom-[96px] right-4 w-full max-w-md h-[70vh] max-h-[600px] shadow-xl z-[1000] flex flex-col bg-background border rounded-lg">
+      {propIsOpen && (
+        <Card className="fixed bottom-[96px] inset-x-4 md:right-4 md:left-auto w-auto md:max-w-md h-[70vh] max-h-[600px] shadow-xl z-[1000] flex flex-col bg-background border rounded-lg">
           <CardHeader className="flex flex-row items-center justify-between p-3 border-b">
             <CardTitle className="text-md font-semibold">AI Assistant</CardTitle>
             <div className="flex items-center gap-1">
@@ -1118,7 +1171,7 @@ const RealtimeChatbot = () => {
                 size="icon"
                 title="Send Message"
                 disabled={!currentMessage.trim() || !activeService || isGeminiInitializing}
-                className="dark:bg-black dark:text-white dark:hover:bg-gray-800"
+                variant="ghost"
               >
                 <Send size={18} />
               </Button>

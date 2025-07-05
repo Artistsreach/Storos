@@ -295,31 +295,34 @@ export async function generateImageFromPromptForPod({ prompt, referenceImage }) 
 
 // Helper function to fetch an image URL and return its base64 data and mime type
 async function fetchImageAsBase64(imageUrl) {
+  console.log(`[fetchImageAsBase64] Attempting to fetch: ${imageUrl}`);
   try {
     const response = await fetch(imageUrl);
+    console.log(`[fetchImageAsBase64] Response status: ${response.status}`);
     if (!response.ok) {
-      // Try with a proxy if direct fetch fails (useful for CORS issues in some environments)
-      // This is a common pattern; the actual proxy URL would need to be configured.
-      // For now, let's assume direct fetch or that the environment handles CORS.
-      console.warn(`Direct fetch for ${imageUrl} failed with status ${response.status}. Retrying without proxy for now.`);
-      // const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(imageUrl)}`;
-      // const proxiedResponse = await fetch(proxyUrl);
-      // if (!proxiedResponse.ok) {
-      //   throw new Error(`Failed to fetch image via proxy ${imageUrl}: ${proxiedResponse.statusText}`);
-      // }
-      // const blob = await proxiedResponse.blob();
+      const errorText = await response.text();
+      console.error(`[fetchImageAsBase64] Response error text: ${errorText}`);
       throw new Error(`Failed to fetch image ${imageUrl}: ${response.statusText}`);
     }
     const blob = await response.blob();
+    console.log(`[fetchImageAsBase64] Received blob of type: ${blob.type} and size: ${blob.size}`);
     const mimeType = blob.type;
     if (!mimeType.startsWith('image/')) {
       throw new Error(`Fetched content from ${imageUrl} is not an image. MIME type: ${mimeType}`);
     }
     const arrayBuffer = await blob.arrayBuffer();
     const base64Data = btoa(new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), ''));
+    console.log(`[fetchImageAsBase64] Successfully converted to base64.`);
     return { base64Data, mimeType };
   } catch (error) {
-    console.error(`Error in fetchImageAsBase64 for ${imageUrl}:`, error);
+    console.error(`[fetchImageAsBase64] CATCH block error for ${imageUrl}:`, error);
+    if (error instanceof TypeError) {
+      console.error("[fetchImageAsBase64] TypeError details:", {
+        message: error.message,
+        stack: error.stack,
+        cause: error.cause,
+      });
+    }
     throw error; // Re-throw to be handled by the caller
   }
 }
@@ -357,7 +360,8 @@ export async function visualizeImageOnProductWithGemini(promptGeneratedBase64, p
 
     // Construct the prompt carefully to guide Gemini
     const textPrompt = `You are an expert product visualization AI.
-Task: Place the first provided image (the 'design') onto the second provided image (the '${productName}' mockup).
+Task: Visualize the product on the reference in context: if the reference is a person, visualize the product on them. If the reference is a space, visualize the product in the space.
+The first provided image is the 'design' and the second is the '${productName}' mockup.
 Design Details: The design was conceptualized with the idea: "${originalUserPrompt}".
 Mockup: The mockup is a '${productName}'.
 Instructions:
@@ -418,6 +422,115 @@ Instructions:
 
   } catch (error) {
     console.error(`[visualizeImageOnProductWithGemini] Error visualizing ${productName}:`, error);
+    // Return a structure consistent with expected failures, but with error details
+    return {
+      visualizedImageData: null,
+      visualizedImageMimeType: null,
+      productDetails: {
+        title: `Custom ${productName}`,
+        price: 24.99,
+        description: `Failed to visualize design on ${productName}. Error: ${error.message}`,
+      },
+      error: error.message,
+    };
+  }
+}
+
+export async function visualizeProductOnSubject(promptGeneratedBase64, promptGeneratedMimeType, baseProductImageUrl, originalUserPrompt, productName) {
+  if (!GEMINI_API_KEY) {
+    console.error("[visualizeProductOnSubject] Gemini API key not configured.");
+    throw new Error("Gemini API key not configured.");
+  }
+  if (!promptGeneratedBase64 || !promptGeneratedMimeType || !baseProductImageUrl || !originalUserPrompt || !productName) {
+    console.error("[visualizeProductOnSubject] Missing required parameters.");
+    throw new Error("Missing required parameters for product visualization.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+
+  try {
+    console.log(`[visualizeProductOnSubject] Fetching base product image from: ${baseProductImageUrl}`);
+    const { base64Data: mockupBase64, mimeType: mockupMimeType } = await fetchImageAsBase64(baseProductImageUrl);
+    console.log(`[visualizeProductOnSubject] Fetched mockup: ${mockupMimeType}, length: ${mockupBase64.length}`);
+
+    const designImagePart = {
+      inlineData: {
+        mimeType: promptGeneratedMimeType,
+        data: promptGeneratedBase64,
+      },
+    };
+
+    const mockupImagePart = {
+      inlineData: {
+        mimeType: mockupMimeType,
+        data: mockupBase64,
+      },
+    };
+
+    // Construct the prompt carefully to guide Gemini
+    const textPrompt = `You are an expert product visualization AI.
+Task: Visualize the product on the reference in context: if the reference is a person, visualize the product on them. If the reference is a space, visualize the product in the space.
+The first provided image is the 'design' and the second is the '${productName}' mockup.
+Design Details: The design was conceptualized with the idea: "${originalUserPrompt}".
+Mockup: The mockup is a '${productName}'.
+Instructions:
+1. Realistically superimpose the design onto the mockup.
+2. Ensure the design conforms to the shape and texture of the mockup.
+3. Maintain the original quality and details of both the design and the mockup where appropriate.
+4. Output only the final visualized product image. Do not add any extra text or explanations in the image itself.
+`;
+
+    const contents = [
+      { text: textPrompt },
+      designImagePart, // Design image
+      mockupImagePart,   // Mockup image
+    ];
+
+    console.log(`[visualizeProductOnSubject] Calling Gemini API for ${productName} with prompt: "${originalUserPrompt}"`);
+    const response = await ai.models.generateContent({
+      model: "gemini-2.0-flash-preview-image-generation", // Or a model specifically for image editing if available and preferred
+      contents: contents,
+      safetySettings,
+      config: { responseModalities: [Modality.TEXT, Modality.IMAGE] },
+    });
+
+    let visualizedImageData = null;
+    let visualizedImageMimeType = null;
+    let apiTextResponse = "";
+
+    if (response.candidates?.[0]?.content?.parts) {
+      for (const part of response.candidates[0].content.parts) {
+        if (part.text) {
+          apiTextResponse += part.text;
+        } else if (part.inlineData?.data) {
+          visualizedImageData = part.inlineData.data;
+          visualizedImageMimeType = part.inlineData.mimeType;
+          break; // Assuming the first image part is the result
+        }
+      }
+    }
+    
+    console.log(`[visualizeProductOnSubject] API Text Response: ${apiTextResponse}`);
+
+    if (!visualizedImageData) {
+      console.error("[visualizeProductOnSubject] Failed to get visualized image data from API.", apiTextResponse);
+      throw new Error("Failed to visualize product. API did not return image data. " + (apiTextResponse || "No text explanation."));
+    }
+
+    console.log(`[visualizeProductOnSubject] Visualization successful for ${productName}. MimeType: ${visualizedImageMimeType}`);
+    return {
+      visualizedImageData,
+      visualizedImageMimeType,
+      productDetails: { // Keep existing structure for product details
+        title: `Custom ${productName} (Viz)`, // Added (Viz) for clarity if needed
+        price: 24.99, // This might need to be dynamic or passed in if it varies
+        description: `Unique ${productName} featuring the design: "${originalUserPrompt}".`,
+      },
+      apiTextResponse: apiTextResponse // Optional: return API's text response for debugging
+    };
+
+  } catch (error) {
+    console.error(`[visualizeProductOnSubject] Error visualizing ${productName}:`, error);
     // Return a structure consistent with expected failures, but with error details
     return {
       visualizedImageData: null,
