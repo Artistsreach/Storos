@@ -236,8 +236,9 @@ const ProductCard = ({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       whileHover={{ y: -6 }}
+      onClick={() => navigate(productLink)}
       >
-        <div className="aspect-square relative overflow-hidden bg-neutral-100 dark:bg-neutral-700" onClick={() => navigate(productLink)}>
+        <div className="aspect-square relative overflow-hidden bg-neutral-100 dark:bg-neutral-700">
             {(displayProduct.image?.src?.medium || (Array.isArray(displayProduct.images) && displayProduct.images.length > 0 && displayProduct.images[0])) ? (
               <motion.img
                 src={displayProduct.image?.src?.medium || displayProduct.images[0]}
@@ -303,15 +304,17 @@ const ProductCard = ({
             <Eye className="h-3.5 w-3.5 mr-1.5" />
             View Product
           </Button>
-          <Button
-            onClick={handleCheckout}
-            size="sm"
-            className="w-full mt-2 bg-primary hover:bg-primary/90 text-primary-foreground dark:text-white border-0 rounded-lg text-xs"
-            disabled={inventory_count !== undefined && inventory_count <= 0}
-          >
-            <CreditCard className="h-3.5 w-3.5 mr-1.5" />
-            {inventory_count !== undefined && inventory_count <= 0 ? 'Out of Stock' : 'Proceed to Checkout'}
-          </Button>
+          {currentStore?.type !== 'fund' && !displayProduct.isFunded && (
+            <Button
+              onClick={handleCheckout}
+              size="sm"
+              className="w-full mt-2 bg-primary hover:bg-primary/90 text-primary-foreground dark:text-white border-0 rounded-lg text-xs"
+              disabled={inventory_count !== undefined && inventory_count <= 0}
+            >
+              <CreditCard className="h-3.5 w-3.5 mr-1.5" />
+              {inventory_count !== undefined && inventory_count <= 0 ? 'Out of Stock' : 'Proceed to Checkout'}
+            </Button>
+          )}
         </div>
       </div>
     </motion.div>

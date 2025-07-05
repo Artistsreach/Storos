@@ -10,13 +10,15 @@ const ProductActions = ({ product, onVisualize, onAnalyze, onCompare }) => {
     }
   };
 
-  const handleAnalyzeClick = () => {
+  const handleAnalyzeClick = (e) => {
+    e.stopPropagation(); // Stop event propagation
     if (onAnalyze) {
       onAnalyze(product);
     }
   };
 
-  const handleCompareClick = () => {
+  const handleCompareClick = (e) => {
+    e.stopPropagation(); // Stop event propagation
     if (onCompare) {
       onCompare(product);
     }

@@ -137,7 +137,7 @@ const StoreList = ({ hideStoresOnEmptySearch = false, isDarkMode }) => {
         {
           method: 'GET',
           headers: {
-            'x-rapidapi-key': '87ea0b72c9mshc2fd7ee1776111ap12c26ajsn01d8e431ac62',
+            'x-rapidapi-key': 'a8cebf173fmshd1fb289844b9188p176c3djsn446affbcccc1',
             'x-rapidapi-host': 'real-time-amazon-data.p.rapidapi.com',
           },
         },
@@ -188,7 +188,7 @@ const StoreList = ({ hideStoresOnEmptySearch = false, isDarkMode }) => {
         {
           method: 'GET',
           headers: {
-            'x-rapidapi-key': '87ea0b72c9mshc2fd7ee1776111ap12c26ajsn01d8e431ac62',
+            'x-rapidapi-key': 'a8cebf173fmshd1fb289844b9188p176c3djsn446affbcccc1',
             'x-rapidapi-host': 'real-time-product-search.p.rapidapi.com',
           },
         },
@@ -406,7 +406,7 @@ const StoreList = ({ hideStoresOnEmptySearch = false, isDarkMode }) => {
             if (item.type === 'product') {
               const store = stores.find(s => s.name === item.storeName);
               return (
-                <div onClick={() => handleProductClick(item, index)}>
+                <div>
                   <ProductCard key={`product-${item.id}`} product={item} storeName={item.storeName} storeSlug={item.storeSlug} storeId={store?.id} />
                   <ProductActions product={item} onVisualize={() => handleVisualize(item)} onAnalyze={handleAnalyze} onCompare={handleCompare} />
                 </div>
