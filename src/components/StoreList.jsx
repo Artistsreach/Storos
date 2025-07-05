@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import StoreCard from '../components/StoreCard';
 import ProductCard from './store/fresh/product/ProductCard';
@@ -30,6 +30,7 @@ const StoreList = ({ hideStoresOnEmptySearch = false, isDarkMode }) => {
   const { stores, loadStores, isLoadingStores } = useStore();
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeSearchQuery, setActiveSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState([]);
   const [isShimmering, setIsShimmering] = useState(false);
   const [aliExpressProducts, setAliExpressProducts] = useState([]);
@@ -47,6 +48,8 @@ const StoreList = ({ hideStoresOnEmptySearch = false, isDarkMode }) => {
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
   const [filterTags, setFilterTags] = useState([]);
   const [selectedFilterTags, setSelectedFilterTags] = useState([]);
+  const [isSticky, setIsSticky] = useState(false);
+  const filterRef = useRef(null);
 
   const handleProductClick = (product, index) => {
     navigate('/product-detail', { state: { products: searchResults, product, index } });
@@ -76,6 +79,20 @@ const StoreList = ({ hideStoresOnEmptySearch = false, isDarkMode }) => {
     });
     setIsChatbotOpen(true);
   };
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (filterRef.current) {
+        const { top } = filterRef.current.getBoundingClientRect();
+        setIsSticky(top <= 64); // 64px is the height of the sticky header (top-16)
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
 
   useEffect(() => {
     let intervalId;
@@ -233,25 +250,31 @@ const StoreList = ({ hideStoresOnEmptySearch = false, isDarkMode }) => {
 
   useEffect(() => {
     const debounceTimer = setTimeout(() => {
-      handleSearch(searchTerm);
+      if (selectedFilterTags.length === 0) {
+        setActiveSearchQuery(searchTerm);
+      }
     }, 100); // 100ms debounce delay
 
     return () => {
       clearTimeout(debounceTimer);
     };
-  }, [searchTerm]);
+  }, [searchTerm, selectedFilterTags]);
+
+  useEffect(() => {
+    handleSearch(activeSearchQuery);
+  }, [activeSearchQuery]);
 
 
 
   const searchResults = useMemo(() => {
-    if (!searchTerm && selectedTags.length === 0 && selectedFilterTags.length === 0) {
+    if (!activeSearchQuery && selectedTags.length === 0 && selectedFilterTags.length === 0) {
       if (hideStoresOnEmptySearch) {
         return [];
       }
       return stores.map(s => ({ ...s, type: 'store' }));
     }
 
-    const lowercasedSearchTerm = searchTerm.toLowerCase();
+    const lowercasedSearchTerm = activeSearchQuery.toLowerCase();
     let results = [];
 
     stores.forEach(store => {
@@ -288,7 +311,7 @@ const StoreList = ({ hideStoresOnEmptySearch = false, isDarkMode }) => {
     }
 
     return combinedResults;
-  }, [stores, searchTerm, selectedTags, user, aliExpressProducts, amazonProducts, realtimeProducts, selectedFilterTags]);
+  }, [stores, activeSearchQuery, selectedTags, user, aliExpressProducts, amazonProducts, realtimeProducts, selectedFilterTags]);
 
   const toggleTag = (tag) => {
     setSelectedTags(prev =>
@@ -343,24 +366,35 @@ const StoreList = ({ hideStoresOnEmptySearch = false, isDarkMode }) => {
       </div>
 
       {filterTags.length > 0 && (
-        <div className="sticky top-16 z-40 mb-6">
-          <ScrollArea className="w-full whitespace-nowrap">
-            <div className="grid grid-rows-3 grid-flow-col gap-2 p-4">
+        <div ref={filterRef} className="sticky top-16 z-40 mb-6 transition-all duration-300">
+          <ScrollArea className="w-full whitespace-nowrap bg-transparent">
+            <motion.div
+              className={`p-4 gap-2 ${isSticky ? 'flex' : 'grid grid-rows-3 grid-flow-col'}`}
+              animate={{ height: isSticky ? 'auto' : 'auto' }}
+              transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+            >
               {filterTags.map(tag => (
-                <Button
-                  key={tag}
-                  variant={selectedFilterTags.includes(tag) ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => {
-                    setSelectedFilterTags(prev =>
-                      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
-                    );
-                  }}
-                >
-                  {tag}
-                </Button>
+                <motion.div key={tag} layout>
+                  <Button
+                    variant={selectedFilterTags.includes(tag) ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => {
+                      setSelectedFilterTags(prev => {
+                        const isAdding = !prev.includes(tag);
+                        if (isAdding) {
+                          setActiveSearchQuery(tag);
+                        } else {
+                          setActiveSearchQuery(searchTerm);
+                        }
+                        return isAdding ? [...prev, tag] : prev.filter(t => t !== tag);
+                      });
+                    }}
+                  >
+                    {tag}
+                  </Button>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
             <ScrollBar orientation="horizontal" className="transparent-scrollbar" />
           </ScrollArea>
         </div>

@@ -57,13 +57,13 @@ const RealtimeProductCard = ({ product }) => {
       </CardHeader>
       <CardContent className="pb-2">
         <div className="flex items-center justify-between">
-          <p className="text-lg font-bold text-blue-600">{product.offer?.price || 'N/A'}</p>
+          <p className="text-lg font-bold bg-black text-white dark:bg-white dark:text-black px-2 py-1 rounded-md">{product.offer?.price || 'N/A'}</p>
           {product.product_rating && <StarRating rating={product.product_rating} />}
         </div>
       </CardContent>
       <CardFooter>
         <Button
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+          className="w-full bg-black text-white dark:bg-white dark:text-black"
           onClick={() =>
             window.open(
               product.product_page_url,

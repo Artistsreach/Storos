@@ -1064,7 +1064,7 @@ const RealtimeChatbot = ({ productToAnalyze, isOpen: propIsOpen, setIsOpen: prop
         accept="image/*" 
         onChange={handleImageFileChange} 
       />
-      {!propIsOpen && location.pathname !== '/search' && (
+      {!propIsOpen && location.pathname !== '/search' && location.pathname !== '/product-detail' && (
         <Button
           onClick={toggleChatbot}
           className="fixed bottom-[96px] right-0 py-4 pl-4 pr-1.5 shadow-lg z-50 rounded-tl-[20px] rounded-bl-[20px] rounded-tr-none rounded-br-none"
