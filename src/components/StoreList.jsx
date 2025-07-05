@@ -137,7 +137,7 @@ const StoreList = ({ hideStoresOnEmptySearch = false, isDarkMode }) => {
         {
           method: 'GET',
           headers: {
-            'x-rapidapi-key': '2c27bace82msh229faca82ee6c96p10ad31jsn93fff909cf5f',
+            'x-rapidapi-key': '87ea0b72c9mshc2fd7ee1776111ap12c26ajsn01d8e431ac62',
             'x-rapidapi-host': 'real-time-amazon-data.p.rapidapi.com',
           },
         },
@@ -169,7 +169,7 @@ const StoreList = ({ hideStoresOnEmptySearch = false, isDarkMode }) => {
       }
     } catch (err) {
       console.error('Error fetching Amazon products:', err);
-      setAmazonError('Failed to fetch Amazon products. Please try again later.');
+      setAmazonError(null);
       setAmazonProducts([]);
     } finally {
       setIsLoadingAmazon(false);
@@ -188,7 +188,7 @@ const StoreList = ({ hideStoresOnEmptySearch = false, isDarkMode }) => {
         {
           method: 'GET',
           headers: {
-            'x-rapidapi-key': '2c27bace82msh229faca82ee6c96p10ad31jsn93fff909cf5f',
+            'x-rapidapi-key': '87ea0b72c9mshc2fd7ee1776111ap12c26ajsn01d8e431ac62',
             'x-rapidapi-host': 'real-time-product-search.p.rapidapi.com',
           },
         },
@@ -208,7 +208,7 @@ const StoreList = ({ hideStoresOnEmptySearch = false, isDarkMode }) => {
       }
     } catch (err) {
       console.error('Error fetching real-time products:', err);
-      setRealtimeError('Failed to fetch real-time products. Please try again later.');
+      setRealtimeError(null);
       setRealtimeProducts([]);
     } finally {
       setIsLoadingRealtime(false);
@@ -287,13 +287,7 @@ const StoreList = ({ hideStoresOnEmptySearch = false, isDarkMode }) => {
       });
     }
 
-    return combinedResults.sort((a, b) => {
-      const aIsUserStore = a.type === 'store' && a.merchant_id === user?.uid;
-      const bIsUserStore = b.type === 'store' && b.merchant_id === user?.uid;
-      if (aIsUserStore && !bIsUserStore) return -1;
-      if (!aIsUserStore && bIsUserStore) return 1;
-      return 0;
-    });
+    return combinedResults;
   }, [stores, searchTerm, selectedTags, user, aliExpressProducts, amazonProducts, realtimeProducts, selectedFilterTags]);
 
   const toggleTag = (tag) => {
@@ -402,23 +396,6 @@ const StoreList = ({ hideStoresOnEmptySearch = false, isDarkMode }) => {
         </div>
       )}
 
-      {aliExpressError && (
-        <div className="text-center py-4 text-red-500">
-          <p>{aliExpressError}</p>
-        </div>
-      )}
-
-      {amazonError && (
-        <div className="text-center py-4 text-red-500">
-          <p>{amazonError}</p>
-        </div>
-      )}
-
-      {realtimeError && (
-        <div className="text-center py-4 text-red-500">
-          <p>{realtimeError}</p>
-        </div>
-      )}
 
       {searchResults.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
