@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import ProductEditModalStore from "@/components/store/ProductEditModalStore"; // Import Edit Modal
 import { useStore } from "@/contexts/StoreContext";
 import ProductActions from "@/components/ProductActions";
+import ProductVisualizationModal from "@/components/ProductVisualizationModal"; // Import ProductVisualizationModal
 import { Link, useNavigate } from "react-router-dom";
 import { loadStripe } from '@stripe/stripe-js';
 
@@ -32,6 +33,7 @@ const ProductCard = ({
   const [imageLoaded, setImageLoaded] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false); // State for edit modal
+  const [isVisualizationModalOpen, setIsVisualizationModalOpen] = useState(false); // State for visualization modal
   const isAdmin = !isPublishedView;
 
   // Encode Shopify GIDs for URL safety
@@ -237,9 +239,8 @@ const ProductCard = ({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       whileHover={{ y: -6 }}
-      onClick={() => navigate(productLink)}
       >
-        <div className="aspect-square relative overflow-hidden bg-neutral-100 dark:bg-neutral-700">
+        <div className="aspect-square relative overflow-hidden bg-neutral-100 dark:bg-neutral-700" onClick={() => navigate(productLink)}>
             {(displayProduct.image?.src?.medium || (Array.isArray(displayProduct.images) && displayProduct.images.length > 0 && displayProduct.images[0])) ? (
               <motion.img
                 src={displayProduct.image?.src?.medium || displayProduct.images[0]}
@@ -262,7 +263,7 @@ const ProductCard = ({
                 variants={quickActionsVariants} initial="hidden" animate="visible" exit="hidden"
                 className="absolute top-2.5 right-2.5 flex flex-col gap-1.5 z-10"
               >
-                <Button variant="outline" size="icon" className="h-8 w-8 bg-white/80 dark:bg-neutral-800/80 border-neutral-300/70 dark:border-neutral-600/70 text-neutral-600 dark:text-neutral-300 hover:text-primary dark:hover:text-primary-light hover:border-primary/50 backdrop-blur-sm rounded-lg shadow-sm">
+                <Button variant="outline" size="icon" className="h-8 w-8 bg-white/80 dark:bg-neutral-800/80 border-neutral-300/70 dark:border-neutral-600/70 text-neutral-600 dark:text-neutral-300 hover:text-primary dark:hover:text-primary-light hover:border-primary/50 backdrop-blur-sm rounded-lg shadow-sm" onClick={(e) => { e.stopPropagation(); navigate(productLink); }}>
                   <Eye className="h-4 w-4" />
                 </Button>
                 <Button variant="outline" size="icon" onClick={handleLike} className={`h-8 w-8 bg-white/80 dark:bg-neutral-800/80 border-neutral-300/70 dark:border-neutral-600/70 text-neutral-600 dark:text-neutral-300 hover:text-red-500 dark:hover:text-red-400 hover:border-red-500/50 backdrop-blur-sm rounded-lg shadow-sm ${isLiked ? "text-red-500 dark:text-red-400 border-red-500/50" : ""}`}>
@@ -279,25 +280,25 @@ const ProductCard = ({
         </div>
 
       <div className="p-4 sm:p-5">
-        <h3 className="text-sm sm:text-base font-semibold text-card-foreground hover:text-primary dark:hover:text-primary-light transition-colors mb-1 line-clamp-2">
+        <h3 className="text-sm sm:text-base font-semibold text-card-foreground hover:text-primary dark:hover:text-primary-light transition-colors mb-1 line-clamp-2" onClick={(e) => { e.stopPropagation(); navigate(productLink); }}>
           {displayProduct.name}
         </h3>
-        <p className="text-muted-foreground text-xs sm:text-sm mb-2 line-clamp-2 leading-snug">
+        <p className="text-muted-foreground text-xs sm:text-sm mb-2 line-clamp-2 leading-snug" onClick={(e) => { e.stopPropagation(); navigate(productLink); }}>
           {displayProduct.description}
         </p>
-        <div className="flex items-center gap-1 mb-1">
+        <div className="flex items-center gap-1 mb-1" onClick={(e) => { e.stopPropagation(); navigate(productLink); }}>
           {[...Array(5)].map((_, i) => (
             <Star key={i} className={`w-3.5 h-3.5 ${i < (displayProduct.rating || 4) ? 'fill-yellow-400 text-yellow-400' : 'fill-muted-foreground/30 text-muted-foreground/30'}`} />
           ))}
         </div>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between" onClick={(e) => { e.stopPropagation(); navigate(productLink); }}>
           <p className="text-base sm:text-lg font-bold text-primary dark:text-primary-foreground">
             {displayProduct.currencyCode || '$'}{displayProduct.price?.toFixed(2) || "N/A"}
           </p>
         </div>
         <div className="flex flex-col mt-2">
           <Button
-            onClick={() => navigate(productLink)}
+            onClick={(e) => { e.stopPropagation(); navigate(productLink); }}
             variant="outline"
             size="sm"
             className="w-full border-primary/50 text-primary dark:text-primary-foreground hover:bg-primary/10 rounded-lg text-xs"
@@ -315,7 +316,9 @@ const ProductCard = ({
             {inventory_count !== undefined && inventory_count <= 0 ? 'Out of Stock' : 'Proceed to Checkout'}
           </Button>
         </div>
-        <ProductActions product={displayProduct} onVisualize={() => {}} />
+        <div onClick={(e) => e.stopPropagation()}> {/* Add this div to stop propagation for ProductActions */}
+          <ProductActions product={displayProduct} onVisualize={(e) => { e.stopPropagation(); setIsVisualizationModalOpen(true); }} />
+        </div>
       </div>
     </motion.div>
     {isEditModalOpen && (
@@ -326,6 +329,13 @@ const ProductCard = ({
         onSave={handleSaveProductChanges}
         storeId={storeId}
         theme={theme}
+      />
+    )}
+    {isVisualizationModalOpen && (
+      <ProductVisualizationModal
+        isOpen={isVisualizationModalOpen}
+        onClose={() => setIsVisualizationModalOpen(false)}
+        product={displayProduct}
       />
     )}
     </>

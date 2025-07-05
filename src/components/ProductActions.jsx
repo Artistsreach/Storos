@@ -3,9 +3,10 @@ import { Button } from './ui/button';
 import { BarChart2, GitCompare, Scan } from 'lucide-react';
 
 const ProductActions = ({ product, onVisualize, onAnalyze, onCompare, imageUrl }) => {
-  const handleVisualizeClick = () => {
+  const handleVisualizeClick = (e) => {
+    e.stopPropagation(); // Stop event propagation
     if (onVisualize) {
-      onVisualize(product, imageUrl);
+      onVisualize(e, product, imageUrl); // Pass the event object
     }
   };
 
