@@ -977,3 +977,30 @@ export async function generateFilterTags(products) {
     return { error: `Error generating filter tags: ${error.message}` };
   }
 }
+
+export async function generateText(promptContent) {
+  if (!apiKey) {
+    console.error("API Key not configured. Cannot generate text.");
+    return { error: "API Key not configured." };
+  }
+
+  const genAI = new GoogleGenAI({ apiKey });
+
+  try {
+    const response = await genAI.models.generateContent({
+      model: "gemini-2.0-flash-lite",
+      contents: [{ role: "user", parts: [{text: promptContent}]}],
+    });
+
+    const responseText = response.text;
+    if (typeof responseText !== 'string' || responseText.trim() === '') {
+        console.error("Model did not return a text response. Response:", JSON.stringify(response));
+        throw new Error("Model response was empty or not a string.");
+    }
+    return { text: responseText };
+    
+  } catch (error) {
+    console.error("Error generating text:", error);
+    return { error: `Error generating text: ${error.message}` };
+  }
+}

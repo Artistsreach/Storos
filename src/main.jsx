@@ -36,6 +36,7 @@ import SlugPage from './pages/SlugPage';
 import GeminiLive from './pages/GeminiLive';
 import SearchPage from './pages/SearchPage';
 import StyledProductDetailPage from './pages/StyledProductDetailPage';
+import PlayPage from './app/play/page';
 
 // The index route is now the public-facing store owner dashboard.
 const IndexPageHandler = () => {
@@ -165,6 +166,10 @@ const routes = [
       {
         path: "/product-detail",
         element: <StyledProductDetailPage />,
+      },
+      {
+        path: "/play",
+        element: <PlayPage />,
       },
       {
         path: "/:slug",

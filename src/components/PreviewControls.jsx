@@ -10,7 +10,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from './ui/select'; // Import Select components
-import { ArrowLeft, Edit, Download, Copy, Eye, EyeOff, Sparkles, Palette, UploadCloud, Check, Settings, ExternalLink } from 'lucide-react'; // Added Settings, Sparkles, Palette, UploadCloud, Check
+import { ArrowLeft, Edit, Download, Copy, Eye, EyeOff, Sparkles, Palette, UploadCloud, Check, Settings, ExternalLink, Play } from 'lucide-react'; // Added Settings, Sparkles, Palette, UploadCloud, Check
 import { useToast } from './ui/use-toast';
 import { useStore } from '../contexts/StoreContext'; // Import useStore
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -349,6 +349,15 @@ const PreviewControls = ({ store, onEdit, currentTemplate, onTemplateChange, ava
             >
               <Sparkles className="sm:mr-2 h-4 w-4" />
               <span className="hidden sm:inline">Create</span>
+            </Link>
+          </Button>
+
+          <Button asChild size="sm" variant="outline">
+            <Link
+              to={`/play?storeName=${encodeURIComponent(currentStore?.name || 'default')}`}
+            >
+              <Play className="sm:mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Play</span>
             </Link>
           </Button>
 

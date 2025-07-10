@@ -728,6 +728,13 @@ const VideoCreationPage = () => {
         </div>
       </div>
       </div>
+      <div className="text-center mt-8">
+        <Button asChild variant="outline">
+          <a href="https://studio.freshfront.co/" target="_blank" rel="noopener noreferrer">
+            Continue in Studio
+          </a>
+        </Button>
+      </div>
     </>
   );
 };

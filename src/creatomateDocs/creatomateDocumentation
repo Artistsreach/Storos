@@ -1,0 +1,760 @@
+REST vs. Direct API
+There are two types of APIs, the REST API and the Direct API. Most use cases can be handled by the REST API, but in some cases, you may want to use the Direct API.
+* The REST API is asynchronous and is best used between your software application and Creatomate. You can create renders and check the status of a request via a POST or GET request, or you can use webhooks to wait for a completed render. You authenticate with an API key.
+* The Direct API is synchronous and best used between a client's browser and Creatomate. You can put all the information for rendering an image or video in the query parameters of the URL. You can protect a request by adding a cryptographic signature and the rendering process is limited to 100 seconds.
+Official libraries
+In case you use Node.js or PHP, you may also use the REST API using the official libraries available on NPM and Packagist:
+* Node.js: The official Creatomate Node.js library is available on NPM.
+* PHP: The official Creatomate PHP library is available on Packagist.
+Quick start
+Below is a quick video on how to create dynamic videos in JavaScript using the Node.js library. The process is similar for PHP using the Packagist library. Using another programming language? No problem, just refer to the examples provided on the developers page to get started, as well as the documentation available on the next pages.
+Creatomate Node.js Library
+
+Create videos and images from your Node.js application!
+Creatomate is a media generation API for editing and rendering videos and images using code. The platform uses templates and JSON for generating MP4, GIF, JPEG or PNG files. All processing is handled by Creatomate's cloud infrastructure, so you do not need to maintain your own servers.
+This library makes working with the Creatomate API even easier by providing a well-structured, lightweight interface. With just a few lines of code, you can create hundreds, even thousands, of dynamic videos and images.
+As an alternative to creating everything from code, Creatomate also comes with an online video editor to create reusable templates. These templates can then be rendered with custom and personalized data using this Node.js library. Check out Creatomate.com to learn more.
+Usage
+
+Examples of how to use this library can be found at: https://github.com/creatomate/node-examples. For general information about the Creatomate API, check out the Creatomate API docs.
+Installation
+
+Install creatomate into your Node.js project with the following command:
+npm install creatomate
+Quick example
+
+Video or images are composed from elements (videos, images, texts, shapes, compositions), that can be styled, transformed, and animated. You can compare the process to building a webpage using HTML elements, except you're creating a video or image instead. A basic implementation looks like this. Here, two videos are stitched together with a text overlay:
+const Creatomate = require('creatomate');
+
+const client = new Creatomate.Client('Insert your API key here');
+
+const source = new Creatomate.Source({
+
+  // Supported formats are mp4, gif, jpg and png
+  outputFormat: 'mp4',
+
+  // Output resolution
+  width: 1280,
+  height: 720,
+
+  // Add videos, images, texts, shapes, compositions, keyframes, animations and more. Check out:
+  // https://github.com/creatomate/node-examples
+  elements: [
+
+    // Video 1
+    new Creatomate.Video({
+      track: 1,
+      source: 'https://creatomate-static.s3.amazonaws.com/demo/video1.mp4',
+    }),
+
+    // Video 2, played after video 1 as it is on the same track
+    new Creatomate.Video({
+      track: 1,
+      source: 'https://creatomate-static.s3.amazonaws.com/demo/video2.mp4',
+      transition: new Creatomate.Fade({ duration: 1 }),
+    }),
+    
+    // Text overlay
+    new Creatomate.Text({
+      text: 'Your text overlay here',
+      
+      // Make the container as big as the screen and add some padding
+      width: '100%',
+      height: '100%',
+      xPadding: '3 vmin',
+      yPadding: '8 vmin',
+
+      // Align text to the bottom center
+      xAlignment: '50%',
+      yAlignment: '100%',
+
+      // Text style
+      font: new Creatomate.Font('Aileron', 800, 'normal', '8.48 vh'),
+      shadow: new Creatomate.Shadow('rgba(0,0,0,0.65)', '1.6 vmin'),
+      fillColor: '#ffffff',
+    }),
+  ],
+});
+
+client.render({ source })
+  .then((renders) => console.log('Your video is ready:', renders));
+
+Authentication:
+Your API key must be included as a header in any request you make to Creatomate:
+Authorization: Bearer API_KEY
+POST /v1/renders endpoint
+This endpoint allows you to start one or multiple renders. If you want to create a single render, provide a template ID or source. In order to start multiple renders at once, you can specify one or more template tags.
+A 202 Accepted response is returned when the request has been successfully received, along with an array of renders that have been queued in the format of Render.
+To be notified when a render has failed or completed, you can poll the GET /v1/renders endpoint or use a webhook. The processing of images usually takes only a couple of seconds. The time it takes to create a video depends on several factors, including its length, effects, frame rate, and resolution. After a render is finished, it will be stored for a maximum of 30 days at the specified URL.
+Request parameters
+output_format (string, optional) The output format of the render, which can be jpg, png, gif, or mp4. If it's not provided, the template's output_format is used.
+frame_rate (number, optional) The frame rate of the rendered video, which can be 1 to 60 fps for mp4, and 1 to 15 for gif. Do not provide this parameter when rendering a jpg or png. If it's not provided, the template's frame_rateis used.
+render_scale (number, optional) The scale at which you want your render to be in relation to the template. The default value is 1.0 (100%), which means the render will have the same dimensions as the template.
+max_width (number, optional) Scales the render so that its width never exceeds the provided number while maintaining its aspect ratio. This parameter can be combined with max_height. If set, render_scale will be ignored.
+max_height (number, optional) Scales the render so that its height never exceeds the provided number while maintaining its aspect ratio. This parameter can be combined with max_width. If set, render_scale will be ignored.
+template_id (string, optional) The ID of the template that you want to use. Using this parameter will always result in a single render.
+tags (an array of strings, optional) A JSON array containing one or more template tags. You can assign tags to your templates under Templates in your dashboard. Depending on how many templates are assigned to those tags, this may create a single render, multiple renders, or none at all.
+source (object, optional) You can provide the template source here directly if you do not want to use a template from your account. Using this parameter will always result in a single render.
+modifications (object, optional) A JSON map containing modifications you want to apply to your template before it is rendered.
+webhook_url (string, optional) A URL that you want to be called when the render succeeds or fails. Read more about webhooks.
+metadata (string, optional) A string you want to pass to the webhook URL. In this field, you can store your own data to identify renders later, such as a database ID.
+Response data
+If the request was successful, you will receive an array of Renders.
+Example request
+curl -X POST https://api.creatomate.com/v1/renders \
+  -H 'Authorization: Bearer API_KEY' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "tags": ["instagram"],
+    "modifications": {
+      "my-element.text": "A different text"
+    }
+  }'
+Example response
+[
+  {
+    "id": "e05f847e-2236-4da6-84d5-bb8bdbb0eeca",
+    "status": "planned",
+    "url": "https://cdn.creatomate.com/renders/e05f847e-2236-4da6-84d5-bb8bdbb0eeca.mp4",
+    "template_id": "9e90d011-52e6-49dc-8a7a-5f25058c2568",
+    "template_name": "My Template 1",
+    "template_tags": ["instagram"],
+    "output_format": "mp4",
+    "modifications": {
+      "my-element.text": "A different text"
+    }
+  },
+  {
+    "id": "8fdf79bc-b330-4e95-8715-b262f0b5ac9d",
+    "status": "planned",
+    "url": "https://cdn.creatomate.com/renders/8fdf79bc-b330-4e95-8715-b262f0b5ac9d.mp4",
+    "template_id": "1ad534f0-fe6d-4150-b8cc-90db357e3a7e",
+    "template_name": "My Template 2",
+    "template_tags": ["instagram"],
+    "output_format": "mp4",
+    "modifications": {
+      "my-element.text": "A different text"
+    }
+  }
+]
+GET /v1/renders endpoint
+Use this endpoint to get the status of a render by specifying its ID. You may want to consider using webhooks instead of this endpoint.
+Response data
+You'll receive a response in the form of Render.
+Example request
+curl -X GET https://api.creatomate.com/v1/renders/69ba407b-72a9-4050-a9fb-559827b9623d \
+  -H 'Authorization: Bearer API_KEY'
+Example response
+{
+  "id": "69ba407b-72a9-4050-a9fb-559827b9623d",
+  "status": "succeeded",
+  "url": "https://cdn.creatomate.com/renders/69ba407b-72a9-4050-a9fb-559827b9623d.mp4",
+  "snapshot_url": "https://cdn.creatomate.com/snapshots/69ba407b-72a9-4050-a9fb-559827b9623d.jpg",
+  "template_id": "9e90d011-52e6-49dc-8a7a-5f25058c2568",
+  "template_name": "Your Template Name",
+  "template_tags": [],
+  "output_format": "mp4",
+  "render_scale": 1,
+  "width": 720,
+  "height": 900,
+  "frame_rate": 60,
+  "duration": 15.5,
+  "file_size": 751089
+}
+Webhooks
+As renders may take a while to complete, it may be necessary to poll the GET /v1/rendersendpoint several times to detect when a render is complete, which is clearly not very efficient. Rather than polling, consider setting up a webhook so Creatomate can notify you when a render is finished.
+Ensure that your webhook endpoint is publicly accessible. Then, provide the webhook_urlparameter with your POST request. The metadata parameter allows you to pass through data to your webhook for further processing. As soon as the render succeeds or fails, Creatomate will call your webhook endpoint with data of the type Render.
+Your webhook should return a response instantly, otherwise its HTTP response code will not appear in your Creatomate dashboard under "API Log".
+The render object
+The POST endpoint, GET endpoint, and webhook use this format to describe a single render.
+id (string) The unique ID of the render.
+status (string) The render status, which can be one of the following:
+* planned: the render is queued for rendering
+* waiting: the render is waiting for a third-party service (e.g., OpenAI or ElevenLabs) to finish
+* transcribing: an input file is being transcribed
+* rendering: the render is being processed
+* succeeded: the render has been completed successfully
+* failed: the render failed due to the reason specified in the error_message field
+error_message (string, optional) The error that caused the render to fail. This field is only present if the render has failed (status is set to failed)
+url (string) The URL of the rendered video or image. This field is always present, but you must poll the GET endpoint or await the webhook before accessing this URL, as the file is only available after the render has been completed (status is set to succeeded).
+snapshot_url (string, optional) The URL of the snapshot image of the render. This field is only present when a snapshot is available, and only after the render has been completed. Snapshots can be enabled with the snapshot_time field in the template source.
+template_id (string, optional) The ID of the template from which the render is derived. This field is only present when the render was created from a template.
+template_name (string, optional) The name of the template from which the render is derived. This field is only present when the render was created from a template.
+template_tags (an array of strings, optional) The assigned tags of the template from which the render is derived. This field is only present when the render was created from a template.
+output_format (string) The output format of the render, which can be jpg, png, gif, or mp4.
+render_scale (number, optional) The scale of the render in relation to the template.
+width (number, optional) The width of the render. This field is only present when the render has been completed.
+height (number, optional) The height of the render. This field is only present when the render has been completed.
+frame_rate (number, optional) The frame rate of the render in frames per second. This field is only present when the render has been completed.
+duration (number, optional) The duration of the render in seconds. This field is only present when the render is a video (gif or mp4) and has been completed.
+file_size (number, optional) The file size of the render. This field is only present when the render has been completed.
+modifications (object, optional) A JSON map containing modifications that were applied to the template before it was rendered. This is the exact value that was provided in the POST request that triggered this render.
+webhook_url (string, optional) A URL that you want to be called when the render succeeds or fails. This is the exact value that was provided in the POST request that triggered this render.
+metadata (string, optional) A string you want to pass to the webhook URL. This is the exact value that was provided in the POST request that triggered this render.
+Example
+{
+  "id": "69ba407b-72a9-4050-a9fb-559827b9623d",
+  "status": "succeeded",
+  "url": "https://cdn.creatomate.com/renders/69ba407b-72a9-4050-a9fb-559827b9623d.mp4",
+  "snapshot_url": "https://cdn.creatomate.com/snapshots/69ba407b-72a9-4050-a9fb-559827b9623d.jpg",
+  "template_id": "9e90d011-52e6-49dc-8a7a-5f25058c2568",
+  "template_name": "Social Media Statistics Video",
+  "template_tags": ["infographic", "post-to-twitter"],
+  "output_format": "mp4",
+  "render_scale": 1,
+  "width": 720,
+  "height": 900,
+  "frame_rate": 60,
+  "duration": 15.5,
+  "file_size": 751089,
+  "modifications": {
+    "title_element.text": "This month's Twitter growth",
+    "growth_element.text": "+20% more retweets",
+    "circle_element.stroke_end": "20%"
+  }
+}
+The modifications object
+A modification object can be passed along with a POST request to apply changes to a template before it's rendered. Every key-value pair represents a change to the template. The key serves as a selector for an element and its property, and its value specifies its property value.
+For example, if you have an element named "caption" and wish to change its text property to "New caption", you could use the following modification:
+{
+  "caption.text": "New caption"
+}
+Omitting the property
+In the absence of a property name, the system will assume the most obvious one. For a text element, this property is the text property, and for an image element, it is the source property. Thus, the above modification could be written simply as:
+{
+  "caption": "New caption"
+}
+Referring to elements by their IDs
+An element can also be referred to by its ID. The ID of an element can be found by using the source editor in the template editor.
+{
+  "ad8bf2a1-9b2a-4a65-82cd-800300dc2919.text": "New caption"
+}
+Changing multiple properties
+In the following example, we will change the stroke color of a line shape to red, as well as its stroke length to 50%.
+{
+  "my-shape.stroke_color": "#e74c3c",
+  "my-shape.stroke_end": "50%"
+}
+Changing keyframe values
+By referring to the keyframe's index, you can change the value of a keyframe. For a better understanding of how keyframes are defined, examine the template source in the editor. As seen in this example, we are changing the value of the first keyframe:
+{
+  "my-shape.stroke_end.0.value": "80%"
+}
+Replace a value within a text value
+Here's an example using a text element with the text: "Hello, {{name}}!". To replace the text enclosed in curly brackets, use the following:
+{
+  "name": "Casper"
+}
+In order to ensure that only a specific text element is replaced, prefix it with the element's name:
+{
+  "my-text-element.text.name": "Casper"
+}
+Change template settings
+Just as any other element property, you can also override template properties. For instance, to set the width and height of the render, you can use the following:
+{
+  "width": 1920,
+  "height": 1080
+}
+Render concurrency
+Video rendering is a resource-intensive process. A video may take a few seconds up to a few minutes to render depending on the length, resolution, frame rate, and animations used.
+We automatically scale our rendering infrastructure in response to demand in order to ensure that there is always sufficient processing capacity. By doing so, video rendering capacity is maintained at all times, even during peak periods when thousands of videos are processed concurrently.
+Multipart rendering
+There is a maximum time limit of 15 minutes for each rendering task. Most users will find this to be sufficient. However, if you intend to render long segments of 1080p video, you may run into this limitation. In situations like these, it is possible to divide the rendering process into multiple concurrent processes, a process known as multipart rendering.
+Split points
+Multipart rendering is accomplished by specifying split points. As the name implies, these are the points in the video where you wish to cut the video. This allows multiple server instances to work on different parts of a video at the same time, thereby speeding up the rendering process. Once each part has been rendered, it will automatically be concatenated to produce the final video.
+If you wish to speed up the rendering process even further, make sure that the split points are distributed efficiently throughout the video. For example, splitting between scenes is recommended as only one server instance will have to download the media assets (images and video clips) associated with that scene.
+Considering that there is only a limited number of server instances available per user, it is essential that you determine the split points that are most appropriate for your setup. A ten-minute video could be split into ten parts, but that would use up a lot of server instances. Or you could break it up into four parts in order to minimize the number of server instances used per video. Please contact support@creatomate.com for assistance in this regard.
+Requirements
+There are a few requirements for multipart rendering. For the API to determine which assets need to be downloaded for each video part, it needs to know the duration of each asset ahead of time. The following requirements must be met:
+* The main composition's duration property must be specified.
+* The main composition's frame_rate property must be specified.
+* For every video and audio element, the duration property must be specified.
+* For every video and audio element, the loop property cannot be set to true.
+* Every multipart segment should be at least 60 seconds long.
+* The number of multipart segments are limited to 5.
+JSON to video & image
+Use code to create graphics
+Creatomate allows you to make videos and images using JSON, similarly to the way you would use HTML and CSS to build a website. A simple open source format is used to describe how the output file (an mp4, a gif, or a jpg) is rendered. Check out the template page to get a sense of what's possible.
+If you open a template in the designer, you can view each video's JSON source by opening the Source Editor (press F12 in the designer). It allows you to experiment with the source and observe the results in real time.
+This format was designed to provide developers with an easy, yet powerful way to create highly dynamic graphics. The way this works is that a developer can generate JSON using any programming language (for example, JavaScript, Ruby, or Python), and Creatomate can take that JSON and turn it into either a video or an image via the API.
+You can find the specification of this format in the following sections of the documentation. This is a reference for developers that wish to have full control over the rendering process. It is not a requirement for you to work with Creatomate since it is possible to generate this JSON automatically through our template editor.
+The quick start examples that we have included will help you get started right away if you are in a hurry. Otherwise, read on for an in-depth guide to the format.
+Basic structure
+In order to compose your render, you may use text, image, video, audio clip, shape, and composition elements. As an example, here is a render with a single text element that will produce a PNG:
+{
+  "output_format": "png",
+  "width": 1920,
+  "height": 1080,
+  "elements": [
+    {
+      "type": "text",
+      "text": "My text",
+      "fill_color": "#ffffff",
+      "font_family": "Open Sans"
+    }
+  ]
+}
+The timeline
+The timeline allows you to arrange elements to show at a specific time, for a certain length of time. It is composed of tracks stacked on top of each other that determine in what order the elements are rendered on the screen. As an example, to put a title over a video, you would place the video on track 1 and the title on track 2.
+In Creatomate, elements are placed on the timeline using the track, time, and durationparameters. This example shows the text element on the first track, displaying it for one second:
+{
+  "output_format": "mp4",
+  "duration": "3 s",
+  "width": 1920,
+  "height": 1080,
+  "elements": [
+    {
+      "type": "text",
+      "track": 1,
+      "time": "0 s",
+      "duration": "1 s",
+      "fill_color": "#ffffff",
+      "text": "This text is only visible for one second",
+      "font_family": "Open Sans"
+    }
+  ]
+}
+
+Arrange elements sequentially
+If we assign the elements to the same track number, they will appear after each other. The duration of the video does not need to be specified, as Creatomate will figure out how long the video will be based on the total length of both elements.
+{
+  "output_format": "mp4",
+  "width": 1920,
+  "height": 1080,
+  "elements": [
+    {
+      "type": "text",
+      "track": 1,
+      "duration": "1 s",
+      "fill_color": "#ffffff",
+      "text": "This is my first text",
+      "font_family": "Open Sans"
+    },
+    {
+      "type": "text",
+      "track": 1,
+      "duration": "1 s",
+      "fill_color": "#ffffff",
+      "text": "This is my second text",
+      "font_family": "Open Sans"
+    }
+  ]
+}
+
+Displaying elements at the same time
+To display two elements at the same time, they need to be on separate tracks. In this example, we are using a shape that is shown below the text elements. We can leave out the duration property to stretch it to the length of the video:
+{
+  "output_format": "mp4",
+  "width": 1920,
+  "height": 1080,
+  "elements": [
+    {
+      "type": "shape",
+      "track": 1,
+      "width": "90%",
+      "height": "90%",
+      "fill_color": "#ffffff",
+      "path": "M 0 0 L 100 0 L 100 100 L 0 100 L 0 0 Z"
+    },
+    {
+      "type": "text",
+      "track": 2,
+      "duration": "1 s",
+      "text": "This is my first text",
+      "font_family": "Open Sans"
+    },
+    {
+      "type": "text",
+      "track": 2,
+      "duration": "1 s",
+      "text": "This is my second text",
+      "font_family": "Open Sans"
+    }
+  ]
+}
+Using keyframes
+Keyframes allow us to animate the value of almost any element property over time. A keyframe is defined as a value at a specific time. A value is interpolated between keyframes based on the easing. Here's an example, where we move a text element left to right by animating its x property:
+{
+  "output_format": "mp4",
+  "width": 1920,
+  "height": 1080,
+  "elements": [
+    {
+      "type": "text",
+      "track": 1,
+      "duration": "2 s",
+      "x": [
+        {
+          "time": "0 s",
+          "value": "25%"
+        },
+        {
+          "time": "2 s",
+          "easing": "quintic-in-out",
+          "value": "75%"
+        }
+      ],
+      "fill_color": "#ffffff",
+      "text": "Your text here"
+    }
+  ]
+}
+
+Enter and exit animations
+You can also use one of the built-in animation keyframes. Unlike other keyframes, animation keyframes do not specify a point in time, but rather a longer period of time with the time and duration parameters. An animation keyframe can be placed at any point in time, but can also be linked to the start and end of an element. Place it at the end and use the reversed parameter to make it act as an exit animation.
+Below, we demonstrate how an element appears and disappears using a text animation.
+{
+  "output_format": "mp4",
+  "width": 1920,
+  "height": 1080,
+  "elements": [
+    {
+      "type": "text",
+      "track": 1,
+      "duration": "3 s",
+      "fill_color": "#ffffff",
+      "text": "Emoji are also supported 👋",
+      "animations": [
+        {
+          "time": "start",
+          "duration": "1 s",
+          "easing": "quadratic-out",
+          "type": "text-slide",
+          "direction": "up",
+          "split": "letter",
+          "scope": "split-clip"
+        },
+        {
+          "time": "end",
+          "duration": "1 s",
+          "easing": "quadratic-out",
+          "reversed": true,
+          "type": "text-fly",
+          "split": "word"
+        }
+      ]
+    }
+  ]
+}
+
+Dozens of effects are available for animating your elements, and most can be combined to achieve custom effects. Go to the template editor to see all the animation options available.
+Scene animations
+As previously stated, animations don't need to be at the start or end of the element. Here's an example of making a text element "bounce" starting from the 0.5-second mark:
+{
+  "output_format": "mp4",
+  "width": 1920,
+  "height": 1080,
+  "elements": [
+    {
+      "type": "text",
+      "track": 1,
+      "duration": "2 s",
+      "fill_color": "#ffffff",
+      "text": "Your text here",
+      "animations": [
+        {
+          "time": "0.5 s",
+          "duration": "1 s",
+          "easing": "linear",
+          "type": "bounce",
+          "frequency": "2 Hz",
+          "scale": "50%",
+          "y_anchor": "100%"
+        }
+      ]
+    }
+  ]
+}
+
+Transition between elements
+We can transition between two elements by using an animation that supports transitioning.
+In this example, we use the "spin" animation to transition between two elements. The elements must be on the same track after one another, and the animation must be placed on the next element. As a result, the elements will overlap during the 1-second animation (note that the total video duration is 4 seconds, while the elements each last 2.5 seconds).
+{
+  "output_format": "mp4",
+  "width": 1920,
+  "height": 1080,
+  "elements": [
+    {
+      "type": "text",
+      "track": 1,
+      "duration": "2.5 s",
+      "fill_color": "#ffffff",
+      "text": "This is my first text"
+    },
+    {
+      "type": "text",
+      "track": 1,
+      "duration": "2.5 s",
+      "fill_color": "#ffffff",
+      "text": "This is my second text",
+      "animations": [
+        {
+          "time": "start",
+          "duration": "1 s",
+          "transition": true,
+          "type": "spin",
+          "rotation": "360°"
+        }
+      ]
+    }
+  ]
+}
+
+Stretch an animation to the total length
+To make an animation that lasts as long as the element, we can omit the time and durationproperties.
+{
+  "output_format": "mp4",
+  "duration": "10 s",
+  "width": 1920,
+  "height": 1080,
+  "elements": [
+    {
+      "type": "text",
+      "track": 1,
+      "fill_color": "#ffffff",
+      "text": "Your text here",
+      "animations": [
+        {
+          "easing": "linear",
+          "type": "wiggle",
+          "frequency": "1 Hz",
+          "x_angle": "20°",
+          "y_angle": "50°",
+          "z_angle": "10°"
+        }
+      ]
+    }
+  ]
+}
+
+Keyframe easing
+The following is a list of all the possible easing options. Check out easings.net for a visual representation of the easing functions.
+Easing	Description
+linear	No easing.
+cubic-bezier	Specify a custom cubic Bézier curve in the format cubic-bezier(x1, y1, x2, y2). Learn more about the notation here on this MDN page.
+steps	Easing with equidistant steps, specified in the format steps(number of steps)
+elastic-in	Elastic easing at the start.
+elastic-out	Elastic easing at the end.
+elastic-in-out	Elastic easing at the start and end.
+bounce-in	Bounce easing at the start.
+bounce-out	Bounce easing at the end.
+bounce-in-out	Bounce easing at the start and end.
+sinusoid-in	Alias for cubic-bezier(0.12, 0, 0.39, 0)
+sinusoid-out	Alias for cubic-bezier(0.61, 1, 0.88, 1)
+sinusoid-in-out	Alias for cubic-bezier(0.37, 0, 0.63, 1)
+quadratic-in	Alias for cubic-bezier(0.11, 0, 0.5, 0)
+quadratic-out	Alias for cubic-bezier(0.5, 1, 0.89, 1)
+quadratic-in-out	Alias for cubic-bezier(0.45, 0, 0.55, 1)
+cubic-in	Alias for cubic-bezier(0.32, 0, 0.67, 0)
+cubic-out	Alias for cubic-bezier(0.33, 1, 0.68, 1)
+cubic-in-out	Alias for cubic-bezier(0.65, 0, 0.35, 1)
+quartic-in	Alias for cubic-bezier(0.5, 0, 0.75, 0)
+quartic-out	Alias for cubic-bezier(0.25, 1, 0.5, 1)
+quartic-in-out	Alias for cubic-bezier(0.76, 0, 0.24, 1)
+quintic-in	Alias for cubic-bezier(0.64, 0, 0.78, 0)
+quintic-out	Alias for cubic-bezier(0.22, 1, 0.36, 1)
+quintic-in-out	Alias for cubic-bezier(0.83, 0, 0.17, 1)
+exponential-in	Alias for cubic-bezier(0.7, 0, 0.84, 0)
+exponential-out	Alias for cubic-bezier(0.16, 1, 0.3, 1)
+exponential-in-out	Alias for cubic-bezier(0.87, 0, 0.13, 1)
+circular-in	Alias for cubic-bezier(0.55, 0, 1, 0.45)
+circular-out	Alias for cubic-bezier(0, 0.55, 0.45, 1)
+circular-in-out	Alias for cubic-bezier(0.85, 0, 0.15, 1)
+back-in	Alias for cubic-bezier(0.36, 0, 0.66, -0.56)
+back-out	Alias for cubic-bezier(0.34, 1.56, 0.64, 1)
+back-in-out	Alias for cubic-bezier(0.68, -0.6, 0.32, 1.6)
+Compositions
+Grouping elements together
+Sometimes it's easier to combine elements together, as if they were grouped together and moved together. This can be achieved with Creatomate through compositions, which work similarly to After Effects compositions. Each composition has its own track of elements and can be animated on its own.
+{
+  "output_format": "mp4",
+  "width": 1920,
+  "height": 1080,
+  "elements": [
+    {
+      "type": "composition",
+      "track": 1,
+      "duration": "2 s",
+      "y": [
+        {
+          "time": "0 s",
+          "value": "30%"
+        },
+        {
+          "time": "1 s",
+          "value": "70%"
+        },
+        {
+          "time": "2 s",
+          "value": "30%"
+        }
+      ],
+      "width": "50%",
+      "height": "50%",
+      "fill_color": "#ffffff",
+      "elements": [
+        {
+          "type": "text",
+          "track": 1,
+          "y": "40%",
+          "text": "This text element"
+        },
+        {
+          "type": "text",
+          "track": 2,
+          "y": "60%",
+          "text": "Is grouped with this one",
+          "animations": [
+            {
+              "easing": "linear",
+              "type": "wiggle",
+              "ramp_duration": "0%"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+Common properties
+The following table lists the properties that all element types support.
+Many properties use the relative unit system by default.
+Name	Default	Description
+track	null	The track number on which this element is placed. If you are rendering an image, you can leave this value at null.
+time	null	The time at which you want the element to appear within its composition.
+duration	null	The duration for which you would like the element to appear. When set to null, the element will be stretched until the end of the composition or the beginning of the next element on the same track, whichever comes first.
+dynamic	false	Determines what elements to display to the user for Bulk Generationand Shareable Forms.
+locked	false	By setting the property to false, the user is not able to interact with the element in the template designer.
+visible	true	When set to false, the element is not rendered.
+x	50%	The x-axis position of the element in the composition.
+y	50%	The y-axis position of the element in the composition.
+width	100%	The width of the element in relation to the composition.
+height	100%	The height of the element in relation to the composition.
+aspect_ratio	null	Using this property, the element will be constrained to a particular aspect ratio (width/height). A value of 1 is square, a value of 1.6 is 16:10.
+x_padding	0 vw	Padding of the element on the horizontal axis.
+y_padding	0 vh	Padding of the element on the vertical axis.
+z_index	null	The order in which the elements are rendered. When set to null (the default), the element is rendered in the same order in which it was defined.
+x_anchor	50%	The element's origin from which its x-axis position, scale, rotate, and skew are applied.
+y_anchor	50%	The element's origin from which its y-axis position, scale, rotate, and skew are applied.
+x_scale	100%	The horizontal scale transformation in percent.
+y_scale	100%	The vertical scale transformation in percent.
+x_skew	0°	The horizontal skew transformation in degrees.
+y_skew	0°	The vertical skew transformation in degrees.
+x_rotation	0°	Rotates the element along the x-axis.
+y_rotation	0°	Rotates the element along the y-axis.
+z_rotation	0°	Rotates the element along the z-axis.
+perspective	null	The distance between the z=0 plane and the camera. Use it with the z_rotation and y_rotation. As this value decreases, the 3D perspective effect will become stronger. If null, the perspective is calculated by the element's dimensions.
+backface_visible	true	Set to false to hide the backface of the element when rotated around its x and y axes.
+x_alignment	50%	The position of the element's content on the x-axis. It's often used with the aspect_ratio parameter. Also used to align text in text elements.
+y_alignment	50%	The position of the element's content on the y-axis. It's often used with the aspect_ratio parameter. Also used to align text in text elements.
+fill_color	null	The fill color of the element. It may be a string or an array of color stops if fill_mode is set to linear or radial. Use the template designer to see how color stops are formatted.
+fill_mode	solid	The fill method used. There are 3 options: solid, linear, and radial.
+fill_x0	50%	The start position of the gradient on the x-axis. Use with fill_mode linear or radial.
+fill_y0	0%	The start position of the gradient on the y-axis. Use with fill_mode linear or radial.
+fill_x1	50%	The end position of the gradient on the x-axis. Use with fill_mode linear or radial.
+fill_y1	100%	The end position of the gradient on the y-axis. Use with fill_mode linear or radial.
+fill_radius	50%	The radius of the radial gradient in relation to the element's max(width,height).
+stroke_color	null	The stroke color of the element.
+stroke_width	0.1 vmin	The size of the stroke.
+stroke_cap	round	The stroke cap. There are 3 options: but, square, and round.
+stroke_join	round	The stroke join. There are 3 options: miter, bevel, and round.
+stroke_start	0%	The start of the stroke relative to its total length.
+stroke_end	100%	The end of the stroke relative to its total length.
+stroke_offset	0%	The offset of the stroke relative to its total length.
+border_radius	0 vmin	The border radius of the element.
+shadow_color	null	The shadow color, or null to disable it.
+shadow_blur	3 vmin	The blurriness of the shadow.
+shadow_x	0 vmin	The offset of the shadow on the x-axis.
+shadow_y	0 vmin	The offset of the shadow on the y-axis.
+clip	false	When set to true, the element's content is clipped to its borders.
+opacity	100%	The opacity of the element.
+blend_mode	none	The blend mode of the element. These options are available: none, multiply, screen, overlay, darken, lighten, color-dodge, color-burn, hard-light, soft-light, lighter, difference, exclusion, hue, saturation, color, luminosity.
+color_filter	none	The color filter that is applied to the element. These options are currently available: none, brighten, contrast, hue, invert, grayscale, and sepia.
+color_filter_value	0%	This parameter allows you to control the color_filter, such as the intensity.
+color_overlay	null	A color that is applied on top the element.
+blur_radius	0	The radius of the blur that is applied to the element.
+blur_mode	stack	The algorithm used to blur the element. There are 3 options: stack, box, and box-2.
+mask_mode	null	By setting the mask mode, the element is used as a mask for the element one track below it. The options alpha and alpha-inverted use the alpha channel of this element, and luma and luma-inverted use the luminance.
+repeat	false	When set to true, the element is repeated in its composition, acting as a fill pattern.
+warp_mode	default	This parameter is used in conjunction with warp_matrix to apply a warp effect to the element. When set to default, the warp is applied based on a grid of points. By choosing the perspective option, you can warp the element using a 2 by 2 grid, similar to Adobe After Effects' "Perspective Corner Pin".
+warp_matrix	null	Array of points that control the warp effect. For a better understanding of how it should be configured, use the template designer.
+animations	null	An array of animation keyframes.
+Text element
+In addition to its common properties, the text element has several properties of its own.
+Name	Default	Description
+width	null	When set to null, the width will automatically adjust to fit the text.
+height	null	When set to null, the height will automatically adjust to fit the text.
+fill_color	#000000	The default fill color is #000000 (black).
+x_alignment	0%	The horizontal text alignment. A value of 0% means it is left aligned. A value of 100% means it is right aligned.
+y_alignment	0%	The vertical text alignment. A value of 0% means it is aligned at the top. A value of 100% means it is aligned at the bottom.
+text	(Empty string)	The text displayed in the element.
+font_family	Aileron	The font family used to render the text. You can define your own custom fonts at the top of the template.
+font_weight	400	The font's weight.
+font_style	normal	The font's style (e.g., italics).
+font_size	null	Use this property to set a fixed font size, or keep it at null if you want the font size to be automatically sized based on the available space.
+font_size_minimum	1 vmin	Use this property to specify the minimum font size when the text is auto-sized.
+font_size_maximum	100 vmin	Use this property to specify the maximum font size when the text is auto-sized.
+letter_spacing	0%	The text's letter spacing as a percentage of the font size.
+line_height	115%	The text's line height as a percentage of the font size.
+text_wrap	true	If this is set to false, text will not wrap to the next line when there isn't enough space available in the element.
+text_clip	false	Set this to true to clip off text that overflows the element's borders. An ellipsis (...) will be displayed if the text is clipped off. If you do not want to display an ellipsis, use the common property clip instead.
+text_transform	none	A transformation applied to the text content. It can be set to none, capitalize, uppercase, or lowercase.
+background_color	null	The text background color.
+background_x_padding	25%	Horizontal padding added to the text background as a percentage of the font size.
+background_y_padding	25%	Vertical padding added to the text background as a percentage of the font size.
+background_border_radius	0%	Border radius of the text background.
+background_align_threshold	20%	You can use this threshold to align the text background with other text lines. It is a percentage of the element's width. A value of 0% disables alignment.
+transcript_source	null	To use auto-transcription for this text element, set it to the ID of the video element for which subtitles are to be generated.
+transcript_effect	color	The transcript effect: color, karaoke, highlight, fade, bounce, slide, or enlarge.
+transcript_split	word	The transcript split: none, word, or line.
+transcript_placement	static	The transcript placement: static, animate, or align.
+transcript_maximum_length	null	The maximum number of characters shown simultaneously.
+transcript_color	#e74c3c	The color applied to the currently spoken text (word or line). Use this in conjunction with "transcript_split".
+Image element
+In addition to its common properties, the image element has several properties of its own.
+Name	Default	Description
+source	null	The URL of an image (a jpg, png, or svg) you want to display. If it was uploaded using the template editor, it may also be its internal GUID.
+provider	null	This optional parameter indicates whether to generate the image using a third-party AI platform (such as OpenAI or Stability AI). Refer to the template editor for details on setting up a provider.
+fit	cover	This property specifies how the image should be resized to fit the element. It can be set to cover, contain, or fill.
+smart_crop	false	Experimental feature. If smart cropping is enabled and fit is set to cover, an edge detection algorithm scans the image to find the best cropping.
+Video element
+In addition to its common properties, the video element has several properties of its own.
+Name	Default	Description
+duration	media	Identical to duration from the common properties, but with the addition that it can be set to media to make the element as long as the source video.
+source	null	The URL of an video (an mp4) you want to display. If it was uploaded using the template editor, it may also be its internal GUID.
+provider	null	This optional parameter indicates whether to generate the video using a third-party AI platform (such as Stability AI). Refer to the template editor for details on setting up a provider.
+trim_start	null	Trims the source video to begin at the specified time (in seconds) rather than at the beginning.
+trim_duration	null	Trims the source video so that it stops playing after the specified duration (in seconds) rather than at the end of the source video.
+loop	false	When set to true, the video starts over when it reaches the end. This property cannot be used in conjunction with the trim_start and trim_duration properties.
+volume	100%	Adjusts the volume from 0% to 100%. Set it to 0% to mute the video.
+audio_fade_in	null	Fades in the volume for the specified duration (in seconds) at the beginning of the video clip.
+audio_fade_out	null	Fades out the volume for the specified duration (in seconds) at the end of the video clip.
+fit	cover	This property specifies how the video should be resized to fit the element. It can be set to cover, contain, or fill.
+Audio element
+In addition to its common properties, the audio element has several properties of its own.
+Name	Default	Description
+duration	media	Identical to duration from the common properties, but with the addition that it can be set to media to make the element as long as the source audio clip.
+source	null	The URL of an audio clip (an mp3) you want to insert. If it was uploaded using the template editor, it may also be its internal GUID.
+provider	null	This optional parameter indicates whether to generate the audio using a third-party AI platform (such as ElevenLabs or OpenAI). Refer to the template editor for details on setting up a provider.
+trim_start	null	Trims the source audio clip to begin at the specified time (in seconds) rather than at the beginning of the audio file.
+trim_duration	null	Trims the source audio clip so that it stops playing after the specified duration (in seconds) rather than at the end of the clip.
+loop	false	When set to true, the audio clip starts over when it reaches the end. This property cannot be used in conjunction with the trim_start and trim_duration properties.
+volume	100%	Adjusts the volume from 0% to 100%.
+audio_fade_in	null	Fades in the volume for the specified duration (in seconds) at the beginning of the audio clip.
+audio_fade_out	null	Fades out the volume for the specified duration (in seconds) at the end of the audio clip.
+Shape element
+In addition to its common properties, the shape element has several properties of its own.
+Name	Default	Description
+width	null	Set this property to null to use unboxed coordinates with the path property.
+height	null	Set this property to null to use unboxed coordinates with the path property.
+path	null	The path of a shape can be defined either using unboxed or boxed coordinates.
+- In order to use the unboxed coordinate system, set the width and height to null. The path can then be expressed as a series of coordinates that are relative to the element's x and y position.
+- When you want to use boxed coordinates, define your path in relation to the width and height of the element using coordinates from 0% to 100%.
+Composition element
+In addition to its common properties, the composition element has several properties of its own.
+Name	Default	Description
+width	100%	Identical to width from the common properties, but with the addition that it can be set to null to make the composition as big as all relatively positioned elements together.
+height	100%	Identical to height from the common properties, but with the addition that it can be set to null to make the composition as big as all relatively positioned elements together.
+flow_direction	vertical	The direction in which relatively positioned elements are laid out.
+loop	false	Set to true to loop the content of the composition.
+plays	null	Use this with loop to set the number of repetitions. Keep it at null to loop indefinitely.
