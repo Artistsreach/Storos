@@ -99,7 +99,7 @@ const SeeItInAction = ({ id, activeVideo, setActiveVideo }: SeeItInActionProps) 
                     className="w-full h-full object-cover rounded-[18px]"
                   >
                     <source
-                      src="https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/Video.mp4?alt=media&token=a46fdc7b-a0af-4d00-a1b2-7a40c6d4e405"
+                      src="https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/Video.mp4?alt=media&token=a46fdc7b-a0af-4d00-a1b2-7a40c6d4e405"
                       type="video/mp4"
                     />
                   </video>

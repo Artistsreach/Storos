@@ -115,7 +115,7 @@ const EditProfileModal = ({ isOpen, onClose, user }) => {
     let photoURL = user.profilePhoto;
 
     if (formData.profilePhoto && typeof formData.profilePhoto !== 'string') {
-      const photoRef = ref(storage, `profile_photos/${authUser.uid}`);
+      const photoRef = ref(storage, `profile_pictures/${authUser.uid}/${formData.profilePhoto.name}`);
       await uploadBytes(photoRef, formData.profilePhoto);
       photoURL = await getDownloadURL(photoRef);
     }

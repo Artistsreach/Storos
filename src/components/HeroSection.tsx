@@ -52,15 +52,15 @@ const SAMPLE_PRODUCTS: SampleProduct[] = [
   },
   {
     name: "Tiffany Necklace",
-    image: "https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/Tiffany.jpeg?alt=media&token=75cb2ccd-4b70-48dc-a7bd-17e406a411be",
+    image: "https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/Tiffany.jpeg?alt=media&token=75cb2ccd-4b70-48dc-a7bd-17e406a411be",
   },
   {
     name: "Gucci Bag",
-    image: "https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/Guccibag.jpeg?alt=media&token=30004678-84aa-4ba7-aa3e-38b1138da66b",
+    image: "https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/Guccibag.jpeg?alt=media&token=30004678-84aa-4ba7-aa3e-38b1138da66b",
   },
   {
     name: "Fireplace Mantle",
-    image: "https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/Fireplace.jpeg?alt=media&token=3bf2a162-ac90-488f-b520-e11f78317128",
+    image: "https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/Fireplace.jpeg?alt=media&token=3bf2a162-ac90-488f-b520-e11f78317128",
   },
 ];
 
@@ -244,7 +244,12 @@ const HeroSection = ({ onGetStarted = () => {} }: HeroSectionProps) => {
       }
 
       // Find the image part in the response
-      for (const part of response.candidates[0].content.parts) {
+      const content = response.candidates[0].content;
+      if (!content || !content.parts) {
+        console.error("No content or parts in response");
+        throw new Error("No content or parts in response");
+      }
+      for (const part of content.parts) {
         console.log("Processing part:", part);
         if (
           part.inlineData &&
@@ -410,11 +415,7 @@ const HeroSection = ({ onGetStarted = () => {} }: HeroSectionProps) => {
 
       const response = await ai.models.generateContent({
         model: "gemini-2.0-flash-preview-image-generation",
-        contents: [
-          {
-            parts: contentParts,
-          },
-        ],
+        contents: contentParts,
         config: {
           responseModalities: [Modality.TEXT, Modality.IMAGE],
         },
@@ -431,7 +432,11 @@ const HeroSection = ({ onGetStarted = () => {} }: HeroSectionProps) => {
       }
 
       // Find the image part in the response
-      for (const part of response.candidates[0].content.parts) {
+      const content = response.candidates[0].content;
+      if (!content || !content.parts) {
+        throw new Error("No content or parts in response");
+      }
+      for (const part of content.parts) {
         if (
           part.inlineData &&
           part.inlineData.mimeType &&

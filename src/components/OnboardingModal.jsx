@@ -10,7 +10,7 @@ const OnboardingModal = ({ onClose }) => {
   const [bio, setBio] = useState('');
   const [dob, setDob] = useState('');
   const [profilePicture, setProfilePicture] = useState(null);
-  const [profilePicturePreview, setProfilePicturePreview] = useState('https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/IMG_6563.jpeg?alt=media&token=599269ac-9e1f-4e5d-84d1-bdd482cbc535');
+  const [profilePicturePreview, setProfilePicturePreview] = useState('https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6563.jpeg?alt=media&token=599269ac-9e1f-4e5d-84d1-bdd482cbc535');
   const [error, setError] = useState('');
   const [usernameAvailable, setUsernameAvailable] = useState(null);
   const [isCheckingUsername, setIsCheckingUsername] = useState(false);

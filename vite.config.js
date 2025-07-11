@@ -1,6 +1,6 @@
 import path from 'node:path';
 import react from '@vitejs/plugin-react';
-import { createLogger, defineConfig } from 'vite';
+import { createLogger, defineConfig, loadEnv } from 'vite';
 
 const configHorizonsViteErrorHandler = `
 const observer = new MutationObserver((mutations) => {
@@ -181,9 +181,15 @@ logger.error = (msg, options) => {
 	loggerError(msg, options);
 }
 
-export default defineConfig({
-	customLogger: logger,
-	plugins: [react(), addTransformIndexHtml],
+export default defineConfig(({ mode }) => {
+	const env = loadEnv(mode, process.cwd(), '');
+
+	return {
+		define: {
+			'process.env': env
+		},
+		customLogger: logger,
+		plugins: [react(), addTransformIndexHtml],
 	// optimizeDeps: {
 	// 	exclude: ['@ffmpeg/ffmpeg'], // Removed to allow Vite to process ffmpeg
 	// },
@@ -207,9 +213,10 @@ export default defineConfig({
 			'@': path.resolve(__dirname, './src'),
 		},
 	},
-	build: {
-		// rollupOptions: {
-		// 	external: ['@ffmpeg/ffmpeg'], // Removed to allow Vite to bundle ffmpeg
-		// },
-	},
+		build: {
+			// rollupOptions: {
+			// 	external: ['@ffmpeg/ffmpeg'], // Removed to allow Vite to bundle ffmpeg
+			// },
+		},
+	}
 });

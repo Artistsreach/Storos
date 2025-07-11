@@ -364,7 +364,7 @@ const PageGenerator = () => {
               isMobilePreview ? 'w-[375px] mx-auto' : 'w-full'
             } h-screen border border-gray-300 rounded-b-lg overflow-auto transition-all duration-300 flex items-center justify-center`}
             style={!generatedCode ? {
-              backgroundImage: `url('https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/windows-xp-bliss-landscape-rainbow-blue-sky-5k-5333x4000-3187.jpg?alt=media&token=f32b8264-ac0c-4c39-9f3a-7c1020b3a7b8')`,
+              backgroundImage: `url('https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/windows-xp-bliss-landscape-rainbow-blue-sky-5k-5333x4000-3187.jpg?alt=media&token=f32b8264-ac0c-4c39-9f3a-7c1020b3a7b8')`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
             } : {}}

@@ -335,7 +335,7 @@ const PreviewControls = ({ store, onEdit, currentTemplate, onTemplateChange, ava
                     </p>
                   </div>
                   <Button onClick={handleStripeOnboarding}>
-                    Onboard with <img src="https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/Stripelogo.PNG?alt=media&token=7b989f42-b2c9-4a3c-a7e1-9ed280b6a9ea" alt="Stripe" className="inline-block h-4 ml-2" />
+                    Onboard with <img src="https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/Stripelogo.PNG?alt=media&token=7b989f42-b2c9-4a3c-a7e1-9ed280b6a9ea" alt="Stripe" className="inline-block h-4 ml-2" />
                   </Button>
                 </div>
               </PopoverContent>
@@ -354,7 +354,7 @@ const PreviewControls = ({ store, onEdit, currentTemplate, onTemplateChange, ava
 
           <Button asChild size="sm" variant="outline">
             <Link
-              to={`/play?storeName=${encodeURIComponent(currentStore?.name || 'default')}`}
+              to={`/frontst?storeName=${encodeURIComponent(currentStore?.name || 'default')}`}
             >
               <Play className="sm:mr-2 h-4 w-4" />
               <span className="hidden sm:inline">Play</span>

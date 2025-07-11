@@ -245,7 +245,7 @@ const UserProfilePage = () => {
     username: userProfile.username || 'No username',
     email: userProfile.email,
     bio: userProfile.bio || 'No bio yet.',
-    photoURL: userProfile.photoURL || 'https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/IMG_6563.jpeg?alt=media&token=599269ac-9e1f-4e5d-84d1-bdd482cbc535',
+    photoURL: userProfile.photoURL || 'https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6563.jpeg?alt=media&token=599269ac-9e1f-4e5d-84d1-bdd482cbc535',
     notificationSettings: userProfile.notificationSettings
   };
 

@@ -7,12 +7,12 @@ import { generateStoreUrl } from "./utils.js";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyD-SN32SMJ0KvfJOTfQZhUybhMNYhJUFwk",
-  authDomain: "fresh-dfe30.firebaseapp.com",
-  projectId: "fresh-dfe30",
-  storageBucket: "fresh-dfe30.firebasestorage.app",
-  messagingSenderId: "351642971625",
-  appId: "1:351642971625:web:0fce09447c86ab9b0a6f78"
+  apiKey: "AIzaSyAPhFkGh2WZxZZa4UvQF4M1mXMZiO7RyPA",
+  authDomain: "freshfront-89dc9.firebaseapp.com",
+  projectId: "freshfront-89dc9",
+  storageBucket: "freshfront-89dc9.firebasestorage.app",
+  messagingSenderId: "1067812221297",
+  appId: "1:1067812221297:web:152fc4525fe7ba3e1706d0"
 };
 
 // Initialize Firebase

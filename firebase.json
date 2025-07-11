@@ -12,6 +12,9 @@
   "firestore": {
     "rules": "firestore.rules"
   },
+  "storage": {
+    "rules": "storage.rules"
+  },
   "hosting": {
     "public": "dist",
     "ignore": [
@@ -25,6 +28,6 @@
         "destination": "/index.html"
       }
     ],
-    "site": "fresh-dfe30"
+    "site": "freshfront-89dc9"
   }
 }

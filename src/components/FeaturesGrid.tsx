@@ -147,11 +147,11 @@ const FeatureTab = ({
 
 const FeaturesGrid = () => {
   const newImageUrls = [
-    "https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/IMG_5952.webp?alt=media&token=e24b221e-241a-4d99-bf34-9b6cb5e2c74a",
-    "https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/IMG_5948.webp?alt=media&token=c8884511-968a-41b6-98b1-4e95dcd529a5",
-    "https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/IMG_5946.webp?alt=media&token=11bfb7ad-49ec-4d1e-ba14-1e9fe4c29356",
-    "https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/Gemini_Generated_Image_krzg3lkrzg3lkrzg.png?alt=media&token=b3515e9f-c79b-4619-a7dc-79560dcaf84d",
-    "https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/IMG_6562.jpeg?alt=media&token=8390a03c-2248-4f62-a517-81aaf09cebe4"
+    "https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_5952.webp?alt=media&token=e24b221e-241a-4d99-bf34-9b6cb5e2c74a",
+    "https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_5948.webp?alt=media&token=c8884511-968a-41b6-98b1-4e95dcd529a5",
+    "https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_5946.webp?alt=media&token=11bfb7ad-49ec-4d1e-ba14-1e9fe4c29356",
+    "https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/Gemini_Generated_Image_krzg3lkrzg3lkrzg.png?alt=media&token=b3515e9f-c79b-4619-a7dc-79560dcaf84d",
+    "https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6562.jpeg?alt=media&token=8390a03c-2248-4f62-a517-81aaf09cebe4"
   ];
 
   const templates = [
@@ -204,7 +204,7 @@ const FeaturesGrid = () => {
       description:
         "Smooth, minimal interface with subtle animations and elegant typography",
       imageUrl:
-        "https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/IMG_5954.webp?alt=media&token=50318e0f-b02a-49d4-89e7-bed587e97f6c",
+        "https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_5954.webp?alt=media&token=50318e0f-b02a-49d4-89e7-bed587e97f6c",
       features: [
         "Subtle animations",
         "Elegant typography",
@@ -220,7 +220,7 @@ const FeaturesGrid = () => {
       description:
         "Edit any text with a simple click - no complex interfaces needed",
       mediaUrl:
-        "https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/Video-ezgif.com-video-to-gif-converter.gif?alt=media&token=4e7e59ba-eccc-4842-943c-142e8e54367f",
+        "https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/Video-ezgif.com-video-to-gif-converter.gif?alt=media&token=4e7e59ba-eccc-4842-943c-142e8e54367f",
       mediaType: "gif",
       icon: <Edit className="h-6 w-6 text-blue-600" />,
       features: ["Click to edit", "Real-time preview", "Auto-save"],
@@ -229,7 +229,7 @@ const FeaturesGrid = () => {
       title: "AI Content Creation",
       description: "Generate professional content with AI-powered tools",
       mediaUrl:
-        "https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/CopyofUntitled-ezgif.com-video-to-gif-converter%202.gif?alt=media&token=72f9989b-4a18-4441-a55d-c758c219494d",
+        "https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/CopyofUntitled-ezgif.com-video-to-gif-converter%202.gif?alt=media&token=72f9989b-4a18-4441-a55d-c758c219494d",
       mediaType: "gif",
       icon: <Image className="h-6 w-6 text-purple-600" />,
       features: [
@@ -242,7 +242,7 @@ const FeaturesGrid = () => {
       title: "Product Visualization",
       description: "Showcase products with immersive 3D views and AR features",
       mediaUrl:
-        "https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/visualize%202.mp4?alt=media&token=334b9b3c-6aef-4972-a245-f6e99a77bb80",
+        "https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/visualize%202.mp4?alt=media&token=334b9b3c-6aef-4972-a245-f6e99a77bb80",
       mediaType: "video",
       icon: <Layers className="h-6 w-6 text-green-600" />,
       features: ["360° product views", "AR try-on", "Interactive demos"],

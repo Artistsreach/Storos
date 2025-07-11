@@ -158,6 +158,7 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
   const [isLoadingProductCatalog, setIsLoadingProductCatalog] = useState(false);
   const [showCatalogPicker, setShowCatalogPicker] = useState(false);
   const [viewingMedia, setViewingMedia] = useState(null); // State for the media viewer
+  const [currentStore, setCurrentStore] = useState(null);
 
   const handleDownloadMedia = async () => {
     if (!viewingMedia || !viewingMedia.url) return;
@@ -212,8 +213,9 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
             currentStoreDetails = getStoreById(product.store_id);
         }
     }
+    setCurrentStore(currentStoreDetails);
     
-    if (currentStoreDetails && currentStoreDetails.products) {
+    if (currentStoreDetails && currentStoreDetails.products && currentStoreDetails.products.length > 0) {
       setIsLoadingProductCatalog(true);
       const mappedCatalog = currentStoreDetails.products.map(p => ({
         id: p.id,
@@ -507,6 +509,33 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
         toast({ title: "No Image", description: `Product ${selectedProduct.name} has no image.`, variant: "destructive"});
     }
     setShowCatalogPicker(false);
+  };
+
+  const handleContinueToStudio = () => {
+    if (!currentStore) {
+      toast({
+        title: "Store details not available",
+        description: "Please wait for store details to load before continuing.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const imageUrls = productCatalog
+      .map(p => p.image?.src?.medium)
+      .filter(Boolean) // Ensure we don't have undefined/null urls
+      .slice(0, 6);
+
+    const params = new URLSearchParams();
+    params.append("storeName", currentStore.name || "");
+    params.append("storeDescription", currentStore.description || "");
+
+    imageUrls.forEach((url, index) => {
+      params.append(`image_url_${index + 1}`, url);
+    });
+
+    const finalUrl = `https://creatomate-ai-canvas-57.vercel.app?${params.toString()}`;
+    window.open(finalUrl, "_blank", "noopener,noreferrer");
   };
 
 
@@ -839,10 +868,13 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
         </div>
       </div>
       <div className="text-center mt-8">
-        <Button asChild variant="outline">
-          <a href="https://studio.freshfront.co/" target="_blank" rel="noopener noreferrer">
-            Continue in Studio
-          </a>
+        <Button
+          variant="default"
+          size="lg"
+          onClick={handleContinueToStudio}
+          className="px-8 py-4 text-lg bg-primary text-primary-foreground hover:bg-primary/90 dark:bg-primary/90 dark:hover:bg-primary dark:text-primary-foreground"
+        >
+          Continue to Studio
         </Button>
       </div>
     </div>

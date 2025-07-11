@@ -1,7 +1,7 @@
 {
   "projects": {
-    "default": "fresh-dfe30",
-    "staging": "fresh-dfe30"
+    "default": "freshfront-89dc9",
+    "staging": "freshfront-89dc9"
   },
   "targets": {},
   "etags": {}

@@ -24,7 +24,7 @@ The `functions` directory contains the source code for your Cloud Functions.
 
 *   `functions/index.js`: The main entry point for your Cloud Functions.
 *   `functions/.env`: Environment variables for your functions.
-*   `functions/.env.fresh-dfe30`: Environment variables for your functions.
+*   `functions/.env.freshfront-89dc9`: Environment variables for your functions.
 *   `functions/.env.local`: Environment variables for your functions.
 
 ## Hosting

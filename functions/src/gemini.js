@@ -1,5 +1,4 @@
 const functions = require("firebase-functions");
-const { generateText } = require("./lib/gemini");
 
 exports.generateText = functions.https.onCall(async (data, context) => {
   const { prompt } = data;
@@ -11,6 +10,7 @@ exports.generateText = functions.https.onCall(async (data, context) => {
   }
 
   try {
+    const { generateText } = await import("../../src/lib/gemini.js");
     const result = await generateText(prompt);
     return result;
   } catch (error) {

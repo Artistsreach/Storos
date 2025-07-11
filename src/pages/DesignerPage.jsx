@@ -19,84 +19,84 @@ const sampleReferences = [
   {
     id: 'ref1',
     name: 'Retro Futurism',
-    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/IMG_6520.webp?alt=media&token=1d048052-9fc5-4e5f-9e01-92104c17f217',
+    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6520.webp?alt=media&token=1d048052-9fc5-4e5f-9e01-92104c17f217',
     designStyle: 'Retro Futurism (from Looka)',
     aiPrompt: 'A design inspired by retro-futurism and classic arcade games. The layout features bold, white, pixelated typography as the centerpiece, set against a dark, heavily textured and scratched background. The composition is framed by colorful, geometric, pixel-block patterns at the top and bottom, creating a strong contrast and a vintage, high-tech vibe.'
   },
   {
     id: 'ref2',
     name: 'Neominimalism',
-    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/IMG_6521.webp?alt=media&token=84a0010f-9ec7-453b-abdd-c6fb3bee326a',
+    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6521.webp?alt=media&token=84a0010f-9ec7-453b-abdd-c6fb3bee326a',
     designStyle: 'Neominimalism (from Looka)',
     aiPrompt: 'A neominimalist poster design with a vibrant, monochromatic background in a shocking pink or other saturated hue. The central visual element is a duotone photograph contained within a large, simple, organic shape like a flower. The typography is a clean, elegant serif font, creating a bold yet airy composition that balances minimalism with unapologetic color.'
   },
   {
     id: 'ref3',
     name: '70s Retro',
-    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/IMG_6522.webp?alt=media&token=c2125fd3-7e8f-4197-ba9a-6f7efd41a921',
+    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6522.webp?alt=media&token=c2125fd3-7e8f-4197-ba9a-6f7efd41a921',
     designStyle: '70s Retro (from Looka)',
     aiPrompt: 'A retro-themed design with a 70s aesthetic. It features a very bold, chunky serif font as the main headline. The background has a warm, off-white, speckled texture. The composition is decorated with simple, stylized starburst graphics, and the color palette is limited to a classic pairing like bold blue on a neutral cream, evoking a friendly and nostalgic feeling.'
   },
   {
     id: 'ref4',
     name: '90s Nostalgia',
-    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/IMG_6523.webp?alt=media&token=9fb70a9f-925c-45c8-8e52-347c3c5f27d4',
+    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6523.webp?alt=media&token=9fb70a9f-925c-45c8-8e52-347c3c5f27d4',
     designStyle: '90s Nostalgia (from Looka)',
     aiPrompt: 'A retro graphic inspired by 90s design. The style features extremely bold, heavy, geometric block lettering that fills the frame. The background has a subtly distressed or crumpled paper texture. The color palette is simple but strong, using high-contrast colors like black on yellow. Thin, clean lines and secondary sans-serif fonts frame the central text, adding to the vintage, edgy feel.'
   },
   {
     id: 'ref5',
     name: 'Art Deco',
-    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/IMG_6524.webp?alt=media&token=d2d1474e-b512-49ad-918c-5bc634f1b661',
+    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6524.webp?alt=media&token=d2d1474e-b512-49ad-918c-5bc634f1b661',
     designStyle: 'Art Deco (from Looka)',
     aiPrompt: 'A minimalist and elegant logo design in the Art Deco style. The central feature is a sophisticated, classic script font, encircled by arched, sans-serif text. This typography is enclosed within a delicate, symmetrical frame made of clean, intersecting geometric lines with notched corners. The design uses a simple, high-contrast color scheme like black on an off-white background to convey timeless luxury.'
   },
   {
     id: 'ref6',
     name: 'Mixed Media',
-    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/IMG_6525.webp?alt=media&token=040f2016-6268-44de-aae9-7b494f1b80e0',
+    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6525.webp?alt=media&token=040f2016-6268-44de-aae9-7b494f1b80e0',
     designStyle: 'Mixed Media (from Looka)',
     aiPrompt: 'A mixed media poster design combining classical and modern elements. It features a photographic cutout of a Greco-Roman bust, which is creatively interrupted by hand-drawn, cartoonish line art. The background is a flat, solid color with a subtle, large floral silhouette. The typography is a loose, handwritten script, enhancing the design\'s artistic, scrapbook-like feel.'
   },
   {
     id: 'ref7',
     name: 'Doodles and Scribbles',
-    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/IMG_6526.webp?alt=media&token=b063e508-b222-4f5b-9def-c3c2043d6fa6',
+    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6526.webp?alt=media&token=b063e508-b222-4f5b-9def-c3c2043d6fa6',
     designStyle: 'Doodles and Scribbles (from Looka)',
     aiPrompt: 'A design that mimics a page from a notebook, with a pale yellow, lined-paper background. The main visual is a continuous-line illustration, creating a sophisticated yet simple doodle. The typography is a casual, handwritten script, giving the overall composition an informal, brainstorming-session aesthetic.'
   },
   {
     id: 'ref8',
     name: 'Mixed Media',
-    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/IMG_6527.jpeg?alt=media&token=a407e32d-57fc-4700-b02c-69f6ead2adbc',
+    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6527.jpeg?alt=media&token=a407e32d-57fc-4700-b02c-69f6ead2adbc',
     designStyle: 'Mixed Media (from Looka)',
     aiPrompt: 'A surrealist and maximalist collage. The design features a central grayscale photographic cutout of a face, layered over a vibrant, dreamlike background with abstract shapes and textures. The composition is adorned with disparate and colorful elements like floating objects, botanical illustrations, and snippets of nature photography, creating a psychedelic and visually dense aesthetic.'
   },
   {
     id: 'ref9',
     name: 'Expressive and Experimental Lettering',
-    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/IMG_6528.jpeg?alt=media&token=e8942cb0-c527-4afa-8986-c491364729f8',
+    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6528.jpeg?alt=media&token=e8942cb0-c527-4afa-8986-c491364729f8',
     designStyle: 'Expressive and Experimental Lettering (from Looka)',
     aiPrompt: 'A diptych poster design with a bold, experimental typographic treatment. The layout features dramatic, oversized, and vertically oriented text that dominates the composition. This text is layered over gritty, high-contrast, duotone photographs. The intense color palette and the way the images are seen through the text create a powerful, modern, and edgy aesthetic.'
   },
   {
     id: 'ref10',
     name: 'Collage Craze',
-    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/IMG_6533.webp?alt=media&token=3047b284-098b-4b43-810b-44ea7c39ba2e',
+    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6533.webp?alt=media&token=3047b284-098b-4b43-810b-44ea7c39ba2e',
     designStyle: 'Collage Craze (from Shopify)',
     aiPrompt: 'A maximalist and chaotic collage. The design should be built around a central photographic figure, which is then densely surrounded by a variety of layered elements, including smaller photos, vibrant and colorful stickers, pop-art graphics, and bold, playful text. The composition is tight and energetic, set against a bright, solid-colored background to make the layered elements pop.'
   },
   {
     id: 'ref11',
     name: 'Acid Graphics',
-    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/IMG_6537.png?alt=media&token=4b00be20-bec0-4625-9de5-8a2cc3caa2bc',
+    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6537.png?alt=media&token=4b00be20-bec0-4625-9de5-8a2cc3caa2bc',
     designStyle: 'Acid Graphics (from Shopify)',
     aiPrompt: 'A graphic design asset pack with a psychedelic, "acid graphics" theme. The style features bold, cartoonish illustrations with a futuristic or sci-fi edge. The color palette is intensely vibrant and limited, relying on high-contrast pairings like neon green and electric purple against a black background. The overall aesthetic is energetic, edgy, and slightly surreal.'
   },
   {
     id: 'ref12',
     name: 'Holographic',
-    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/fresh-dfe30.firebasestorage.app/o/IMG_6519.webp?alt=media&token=c2595865-b36c-4056-9277-52704d51b5fa',
+    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6519.webp?alt=media&token=c2595865-b36c-4056-9277-52704d51b5fa',
     designStyle: 'Holographic (from Looka)',
     aiPrompt: 'A design with a holographic and iridescent effect. The layout features shimmering, metallic colors and a sense of depth. The typography is modern and sleek, complementing the futuristic aesthetic.'
   }
