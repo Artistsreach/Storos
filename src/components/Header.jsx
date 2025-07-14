@@ -202,13 +202,23 @@ src={isDarkMode
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem asChild>
-              <Link to="/store-generator" className="font-bold">Store</Link>
+              <Link to="/feed">Post</Link>
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link to="/page-generator">Page</Link>
+              <a href="https://build.freshfront.co" target="_blank" rel="noopener noreferrer">App</a>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <div className="font-bold">Store</div>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link to="/designer">Design</Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <a href="https://nft.freshfront.co" target="_blank" rel="noopener noreferrer">NFT</a>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/page-generator">Website</Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <a href="https://www.musicmigo.com" target="_blank" rel="noopener noreferrer">Music</a>
@@ -218,10 +228,6 @@ src={isDarkMode
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link to="/video">Video</Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link to="/feed">Post</Link>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -361,13 +367,23 @@ src={isDarkMode
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem asChild>
-                  <Link to="/store-generator" className="font-bold">Store</Link>
+                  <Link to="/feed">Post</Link>
                 </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link to="/page-generator">Page</Link>
+                  <a href="https://build.freshfront.co" target="_blank" rel="noopener noreferrer">App</a>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <div className="font-bold">Store</div>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link to="/designer">Design</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <a href="https://nft.freshfront.co" target="_blank" rel="noopener noreferrer">NFT</a>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/page-generator">Website</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <a href="https://www.musicmigo.com" target="_blank" rel="noopener noreferrer">Music</a>
@@ -377,10 +393,6 @@ src={isDarkMode
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link to="/video">Video</Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to="/feed">Post</Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
