@@ -674,6 +674,13 @@ const VideoCreationPage = () => {
                 </AnimatePresence>
               )}
             </ScrollArea>
+            <div className="flex justify-end mt-4">
+                <Button asChild>
+                  <a href="https://studio.freshfront.co/" target="_blank" rel="noopener noreferrer">
+                    Continue in Studio
+                  </a>
+                </Button>
+            </div>
             {timelineItems.length > 0 && <Separator className="my-4" />}
             
             {/* Media Viewer Section */}
@@ -727,13 +734,6 @@ const VideoCreationPage = () => {
           </div>
         </div>
       </div>
-      </div>
-      <div className="text-center mt-8">
-        <Button asChild variant="outline">
-          <a href="https://studio.freshfront.co/" target="_blank" rel="noopener noreferrer">
-            Continue in Studio
-          </a>
-        </Button>
       </div>
     </>
   );

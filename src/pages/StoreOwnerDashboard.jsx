@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Header from '../components/Header';
+import FloatingSwitch from '../components/FloatingSwitch';
 import StoreGenerator from '../components/StoreGenerator';
 import StoreList from '../components/StoreList';
 import ImportWizard from '../components/ImportWizard'; // Changed from ShopifyImportWizard
@@ -152,6 +153,7 @@ const StoreOwnerDashboard = () => {
       )}
 
       {isAuthModalOpen && <AuthModal onClose={closeAuthModal} />}
+      <FloatingSwitch className="fixed bottom-4 left-4 z-50" />
     </div>
   );
 };

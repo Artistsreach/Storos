@@ -7,6 +7,7 @@ import App from './App';
 import './index.css';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { WishlistProvider } from './contexts/WishlistContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 // Page Imports
 import ContentCreationPage from './pages/ContentCreationPage';
@@ -38,6 +39,7 @@ import SearchPage from './pages/SearchPage';
 import StyledProductDetailPage from './pages/StyledProductDetailPage';
 import PlayPage from './app/play/page';
 import FrontStPage from './pages/FrontStPage';
+import MacOSPage from './pages/MacOSPage';
 
 // The index route is now the public-facing store owner dashboard.
 const IndexPageHandler = () => {
@@ -68,9 +70,11 @@ const routes = [
     element: (
       <AuthProvider>
         <WishlistProvider>
-          <Elements stripe={stripePromise}>
-            <App /> {/* App provides StoreProvider and <Outlet /> for child routes */}
-          </Elements>
+          <ThemeProvider>
+            <Elements stripe={stripePromise}>
+              <App /> {/* App provides StoreProvider and <Outlet /> for child routes */}
+            </Elements>
+          </ThemeProvider>
         </WishlistProvider>
       </AuthProvider>
     ),
@@ -175,6 +179,10 @@ const routes = [
       {
         path: "/frontst",
         element: <FrontStPage />,
+      },
+      {
+        path: "/macos",
+        element: <MacOSPage />,
       },
       {
         path: "/:slug",

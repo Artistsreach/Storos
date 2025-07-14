@@ -137,6 +137,14 @@ const Header = () => {
                 Create
               </a>
               <a
+                href="https://build.freshfront.co"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer"
+              >
+                App
+              </a>
+              <a
                 href="#integrations"
                 className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer"
                 onClick={(e) => {

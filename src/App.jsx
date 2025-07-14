@@ -44,7 +44,7 @@ const App = () => {
       <ScrollToTop />
       {showOnboarding && <OnboardingModal onClose={handleOnboardingComplete} />}
       <GenerationProgressDisplay /> {/* Add the progress display here */}
-      <main className="min-h-screen bg-white dark:bg-gray-900">
+      <main className="min-h-screen bg-white dark:bg-black">
         <Outlet /> {/* Child routes will render here */}
         <Toaster />
         <RealtimeChatbot isOpen={isChatbotOpen} setIsOpen={setIsChatbotOpen} />

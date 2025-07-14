@@ -83,7 +83,7 @@ const SocialFeedPage = () => {
   }, [posts, searchTerm, filters, sortOrder]);
 
   return (
-    <div className="container mx-auto p-4 sm:p-6 md:p-8 dark:bg-black">
+    <div className="container mx-auto p-4 sm:p-6 md:p-8">
       <div className="flex items-center mb-8">
         <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-neutral-700">
           <ArrowLeft className="h-6 w-6" />

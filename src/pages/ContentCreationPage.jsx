@@ -534,7 +534,7 @@ const ContentCreationPage = ({ product: productProp, storeId: storeIdProp, onCon
       params.append(`image_url_${index + 1}`, url);
     });
 
-    const finalUrl = `https://studio.freshfront.co?${params.toString()}`;
+    const finalUrl = `https://creatomate-ai-canvas-57.vercel.app?${params.toString()}`;
     window.open(finalUrl, "_blank", "noopener,noreferrer");
   };
 

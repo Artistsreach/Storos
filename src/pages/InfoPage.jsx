@@ -170,21 +170,21 @@ const InvestorPackage = () => {
             <Card>
               <CardHeader><CardTitle>Instagram Creator Marketplace</CardTitle></CardHeader>
               <CardContent>
-                <img src="https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6489.webp?alt=media&token=87d39f94-58da-482e-9e1a-6fd41a79a302" alt="Instagram Creator Marketplace" className="rounded-lg mb-4" />
+                <img src="https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6489.webp?alt=media&token=f79511e2-e85f-4d4f-8208-9afc5d72059e" alt="Instagram Creator Marketplace" className="rounded-lg mb-4" />
                 <p>Connects brands and creators within the Meta ecosystem. Features AI-boosted discovery, direct messaging, and campaign management. No explicit platform fee; rates are negotiated directly. Strengths include streamlined discovery and high potential for ROI, but creators have expressed dissatisfaction with low-budget campaigns.</p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader><CardTitle>TikTok Creator Marketplace</CardTitle></CardHeader>
               <CardContent>
-                <img src="https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6497.webp?alt=media&token=c4b9438b-e239-4678-a5bb-9f9e43de9937" alt="TikTok Creator Marketplace" className="rounded-lg mb-4" />
+                <img src="https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6497.webp?alt=media&token=a8c43aaf-8794-45a9-a96b-f7990d9d651d" alt="TikTok Creator Marketplace" className="rounded-lg mb-4" />
                 <p>TikTok's official platform for collaborations. It's free to use and features a vast creator pool, fostering authentic, trend-driven content. While there are no platform fees for collaborations, the high follower requirement for creators can be a limitation.</p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader><CardTitle>YouTube BrandConnect</CardTitle></CardHeader>
               <CardContent>
-                <img src="https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6500.gif?alt=media&token=3b44a760-6c78-4bbf-953b-88b636a16064" alt="YouTube BrandConnect" className="rounded-lg mb-4" />
+                <img src="https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6500.gif?alt=media&token=b242f001-758c-41fb-a663-edf5935143bf" alt="YouTube BrandConnect" className="rounded-lg mb-4" />
                 <p>A premium service for larger brands and macro-influencers on YouTube. It offers deep integration with Google Ads, extensive analytics (including Brand Lift metrics), and robust compliance support. It comes with a 10% service fee and is currently invite-only.</p>
                 <h4 className="font-bold mt-4">Product Cards for Google Merchants</h4>
                 <p>YouTube offers great opportunities to showcase your own products, be discovered and allow YouTube audiences to check out on your website. There are several ways to show your products on YouTube, depending on which programs you participate in.</p>
@@ -193,7 +193,7 @@ const InvestorPackage = () => {
             <Card>
               <CardHeader><CardTitle>Shopify App Marketplace</CardTitle></CardHeader>
               <CardContent>
-                <img src="https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6501.png?alt=media&token=8a5c116d-b474-472c-ba94-8096f046c050" alt="Shopify App Marketplace" className="rounded-lg mb-4" />
+                <img src="https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6502.webp?alt=media&token=5e57c4fc-14ab-404d-b4d6-f4cdf223904c" alt="Shopify App Marketplace" className="rounded-lg mb-4" />
                 <p>An indispensable extension of the Shopify platform, with over 8,000 apps enhancing capabilities for over 20 million stores. It allows for a high degree of customization and operational efficiency. Challenges include app saturation, quality inconsistencies, and potential hidden costs.</p>
               </CardContent>
             </Card>
@@ -203,7 +203,7 @@ const InvestorPackage = () => {
           <Section id="solution">
             <SectionTitle>Product Deep Dive: Platform Walkthrough</SectionTitle>
             <video loop playsInline controls className="w-full h-full object-cover rounded-lg mb-12 mx-auto">
-              <source src="https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/Video.mp4?alt=media&token=a46fdc7b-a0af-4d00-a1b2-7a40c6d4e405" type="video/mp4" />
+              <source src="https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/Video.mp4?alt=media&token=fc959276-e2d5-46f4-a632-e13d553d9832" type="video/mp4" />
             </video>
             <img src="https://utdrojtjfwjcvuzmkooj.supabase.co/storage/v1/object/public/content//Copy%20of%20FreshFront.zip%20-%206.png" alt="Platform Walkthrough" className="rounded-lg mb-12 mx-auto" />
             <div className="space-y-8">
@@ -984,7 +984,7 @@ const InvestorPackage = () => {
                   <p>Email: info@freshfront.co</p>
                   <p>Phone: 647-615-2293</p>
                   <p>Website: www.freshfront.co</p>
-                  <p>Demo Portal: app.freshfront.co</p>
+                  <p>Demo Portal: freshfront.co</p>
                 </CardContent>
               </Card>
             </div>
