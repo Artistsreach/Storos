@@ -9,7 +9,7 @@ const TrafficLightButton = ({ color, onClick }) => (
 
 const FinderItem = ({ icon, name, isComingSoon, onPin, file, onFileDoubleClick }) => (
   <div
-    className={`relative flex flex-col items-center space-y-1 p-2 rounded-lg hover:bg-gray-200/70 ${isComingSoon ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+    className={`relative flex flex-col items-center space-y-1 p-2 rounded-lg hover:bg-gray-200/70 text-black ${isComingSoon ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
     onDoubleClick={() => onFileDoubleClick(file)}
   >
     {icon}
@@ -102,12 +102,12 @@ export default function FinderWindow({ isOpen, onClose, onMinimize, onMaximize, 
           <TrafficLightButton color="bg-yellow-500" onClick={onMinimize} />
           <TrafficLightButton color="bg-green-500" onClick={onMaximize} />
         </div>
-        <div className="font-semibold text-sm text-gray-700">{initialFolder ? initialFolder.name : 'Finder'}</div>
+        <div className="font-semibold text-sm text-black">{initialFolder ? initialFolder.name : 'Finder'}</div>
         <div>
           {iframeUrl && (
             <button
               onClick={() => window.open(iframeUrl, '_blank')}
-              className="p-1 hover:bg-gray-300/50 rounded-md"
+              className="p-1 hover:bg-gray-300/50 rounded-md text-black"
             >
               <ExternalLink size={16} />
             </button>

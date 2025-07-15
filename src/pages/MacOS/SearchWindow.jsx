@@ -51,16 +51,16 @@ export default function SearchWindow({ isOpen, onClose, zIndex, onClick, onFileO
           <TrafficLightButton color="bg-yellow-500" onClick={() => {}} />
           <TrafficLightButton color="bg-green-500" onClick={() => {}} />
         </div>
-        <div className="font-semibold text-sm text-gray-700">Search</div>
+        <div className="font-semibold text-sm text-black">Search</div>
         <div></div>
       </div>
       <div className="p-4 flex-grow flex flex-col">
         <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-black" />
           <input
             type="text"
             placeholder="Search..."
-            className="w-full bg-white/50 border border-gray-300/50 rounded-md pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full bg-white/50 border border-gray-300/50 rounded-md pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder:text-black"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -69,7 +69,7 @@ export default function SearchWindow({ isOpen, onClose, zIndex, onClick, onFileO
           {searchResults.map(file => (
             <div
               key={file.id}
-              className="flex items-center p-2 rounded-md hover:bg-gray-200/70 cursor-pointer"
+              className="flex items-center p-2 rounded-md hover:bg-gray-200/70 cursor-pointer text-black"
               onDoubleClick={() => onFileOpen(file)}
             >
               {file.type === 'folder' ? <Folder className="w-5 h-5 mr-2" /> : <FileIcon className="w-5 h-5 mr-2" />}

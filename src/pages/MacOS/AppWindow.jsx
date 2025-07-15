@@ -28,12 +28,12 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
           <TrafficLightButton color="bg-yellow-500" onClick={onMinimize} />
           <TrafficLightButton color="bg-green-500" onClick={onMaximize} />
         </div>
-        <div className="font-semibold text-sm text-gray-700">{app.name}</div>
+        <div className="font-semibold text-sm text-black">{app.name}</div>
         <div>
           {app.url && (
             <button
               onClick={() => window.open(app.url, '_blank')}
-              className="p-1 hover:bg-gray-300/50 rounded-md"
+              className="p-1 hover:bg-gray-300/50 rounded-md text-black"
             >
               <ExternalLink size={16} />
             </button>
