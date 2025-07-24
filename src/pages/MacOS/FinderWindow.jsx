@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { File as FileIcon, Video, ImageIcon, Package, Music, Mic, Store, AppWindow, Globe, Gamepad2, Search, Building, Pin, ExternalLink } from 'lucide-react';
+import { File as FileIcon, Video, ImageIcon, Package, Music, Mic, Store, AppWindow as AppWindowIcon, Globe, Gamepad2, Search, Building, Pin, ExternalLink } from 'lucide-react';
 import { File } from '../../entities/File';
+import AutomationWorkflowPage from './AutomationWorkflowPage';
 
 const TrafficLightButton = ({ color, onClick }) => (
   <button onClick={onClick} className={`w-3 h-3 rounded-full ${color}`}></button>
@@ -30,6 +31,13 @@ const FinderItem = ({ icon, name, isComingSoon, onPin, file, onFileDoubleClick }
 
 const getIcon = (file) => {
   if (file.icon) {
+    if (file.icon.startsWith('http')) {
+      return (
+        <div className="w-12 h-12 flex items-center justify-center">
+          <img src={file.icon} alt={file.name} className="max-w-full max-h-full object-contain" />
+        </div>
+      );
+    }
     switch (file.icon) {
       case '🎥': return <Video size={32} />;
       case '🖼️': return <ImageIcon size={32} />;
@@ -37,7 +45,7 @@ const getIcon = (file) => {
       case '🎵': return <Music size={32} />;
       case '🎙️': return <Mic size={32} />;
       case '🛍️': return <Store size={32} />;
-      case '⚙️': return <AppWindow size={32} />;
+      case '⚙️': return <AppWindowIcon size={32} />;
       case '🌐': return <Globe size={32} />;
       case '🎮': return <Gamepad2 size={32} />;
       case '🔍': return <Search size={32} />;
@@ -51,14 +59,19 @@ const getIcon = (file) => {
 export default function FinderWindow({ isOpen, onClose, onMinimize, onMaximize, isMaximized, initialFolder, zIndex, onClick, onPin, onFileDoubleClick, initialUrl }) {
   const [folderFiles, setFolderFiles] = useState([]);
   const [iframeUrl, setIframeUrl] = useState(initialUrl);
+  const [selectedFile, setSelectedFile] = useState(null);
   const [height, setHeight] = useState(400);
 
   const handleFileDoubleClick = (file) => {
-    if (file.url) {
+    if (file.workflow) {
+      setSelectedFile(file);
+      setIframeUrl(null);
+    } else if (file.url) {
       if (file.url.startsWith('/')) {
         window.location.href = file.url;
       } else {
         setIframeUrl(file.url);
+        setSelectedFile(null);
       }
     } else if (onFileDoubleClick) {
       onFileDoubleClick(file);
@@ -118,11 +131,13 @@ export default function FinderWindow({ isOpen, onClose, onMinimize, onMaximize, 
           )}
         </div>
       </div>
-      <div className="flex-grow flex flex-col">
-        {iframeUrl ? (
+      <div className="flex-grow flex flex-col overflow-y-auto">
+        {selectedFile ? (
+          <AutomationWorkflowPage file={selectedFile} />
+        ) : iframeUrl ? (
           <iframe src={iframeUrl} className="w-full h-full flex-grow" />
         ) : (
-          <div className="p-4 flex-grow">
+          <div className="p-4 flex-grow overflow-y-auto">
             <div className="grid grid-cols-3 gap-2">
               {folderFiles.map(file => (
                 <FinderItem key={file.id} icon={getIcon(file)} name={file.name} isComingSoon={file.name.includes('soon')} onPin={handlePin} file={file} onFileDoubleClick={handleFileDoubleClick} />
@@ -130,7 +145,7 @@ export default function FinderWindow({ isOpen, onClose, onMinimize, onMaximize, 
             </div>
           </div>
         )}
-      {!isMaximized && (
+        {!isMaximized && (
         <motion.div
           drag="y"
           dragConstraints={{ top: 0, bottom: 0 }}

@@ -11,7 +11,11 @@ export default function DesktopIcon({ file, onDoubleClick, onDrag, onUnpin, isWi
   const getIcon = () => {
     const iconUrl = theme === 'dark' && file.dark_icon ? file.dark_icon : file.icon;
     if (typeof iconUrl === 'string' && iconUrl.startsWith('http')) {
-      return <img src={iconUrl} alt={name} className="w-12 h-12" />;
+      return (
+        <div className="w-12 h-12 flex items-center justify-center">
+          <img src={iconUrl} alt={name} className="max-w-full max-h-full object-contain" />
+        </div>
+      );
     }
     if (React.isValidElement(iconUrl)) {
       return iconUrl;

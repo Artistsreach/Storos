@@ -63,11 +63,11 @@ export default function StatusBar({ onSearchClick }) {
         <button onClick={onSearchClick} className="flex items-center space-x-1 focus:outline-none">
           <Search className="w-4 h-4" />
         </button>
-        <div className="flex items-center space-x-1">
+        <div className="hidden sm:flex items-center space-x-1">
           <Wifi className="w-4 h-4" />
         </div>
         <div className="flex items-center space-x-1">
-          <Battery className="w-4 h-4" />
+          <Battery className="w-4 h-4" fill="lightgreen" />
         </div>
         <span className="text-sm leading-none">{formatTime(currentTime)}</span>
         <span className="text-sm leading-none">{formatDate(currentTime)}</span>
