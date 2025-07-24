@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { File } from '../../entities/File';
 import StatusBar from './StatusBar';
 import Dock from './Dock';
@@ -13,10 +13,12 @@ export default function Desktop() {
   const { theme } = useTheme();
   const { profile } = useAuth();
   const [desktopFiles, setDesktopFiles] = useState([]);
+  const dockRef = useRef(null);
   const [openWindows, setOpenWindows] = useState([]);
   const [minimizedWindows, setMinimizedWindows] = useState([]);
   const [windowZIndex, setWindowZIndex] = useState(10);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isWiggleMode, setIsWiggleMode] = useState(false);
 
   useEffect(() => {
     loadDesktopFiles();
@@ -56,6 +58,7 @@ export default function Desktop() {
     // Force re-render when desktopFiles changes
   }, [desktopFiles]);
 
+
   const loadDesktopFiles = async () => {
     try {
       const files = await File.filter({ parent_id: null });
@@ -67,25 +70,32 @@ export default function Desktop() {
 
   const handleDesktopIconDoubleClick = (file) => {
     if (file.url) {
-      const windowId = `finder-${file.id || file.name}`;
-      if (!openWindows.find(w => w.id === windowId)) {
-        setOpenWindows(prev => [
-          ...prev,
-          {
-            id: windowId,
-            type: 'finder',
-            title: file.name,
-            folder: file,
-            isMaximized: false,
-            zIndex: windowZIndex,
-            url: file.url,
-          },
-        ]);
-        setWindowZIndex(prev => prev + 1);
+      if (file.url.startsWith('/')) {
+        window.location.href = file.url;
+      } else {
+        const windowId = `finder-${file.id || file.name}`;
+        if (!openWindows.find(w => w.id === windowId)) {
+          setOpenWindows(prev => [
+            ...prev,
+            {
+              id: windowId,
+              type: 'finder',
+              title: file.name,
+              folder: file,
+              isMaximized: false,
+              zIndex: windowZIndex,
+              url: file.url,
+            },
+          ]);
+          setWindowZIndex(prev => prev + 1);
+        }
       }
     } else if (file.type === 'folder') {
       const windowId = `finder-${file.id}`;
-      if (!openWindows.find(w => w.id === windowId)) {
+      const existingWindow = openWindows.find(w => w.id === windowId);
+      if (existingWindow) {
+        bringToFront(windowId);
+      } else {
         setOpenWindows(prev => [
           ...prev,
           {
@@ -205,11 +215,67 @@ export default function Desktop() {
     bringToFront('search-window');
   };
 
+  const handleDropFromDock = async (app, x, y) => {
+    try {
+      let icon = app.icon;
+      if (React.isValidElement(icon)) {
+        icon = icon.props.src;
+      }
+      const newFile = {
+        name: app.name,
+        icon: icon,
+        url: app.url,
+        type: 'file',
+        parent_id: null,
+        position_x: x,
+        position_y: y,
+        is_shortcut: true,
+        original_id: app.id,
+      };
+      const createdFile = await File.create(newFile);
+      setDesktopFiles(prev => [...prev, createdFile]);
+    } catch (error) {
+      console.error('Error creating file from dock drop:', error);
+    }
+  };
+
+  const handleUnpin = async (file) => {
+    try {
+      await File.delete(file.id);
+      setDesktopFiles(prev => prev.filter(f => f.id !== file.id));
+    } catch (error) {
+      console.error('Error unpinning file:', error);
+    }
+  };
+
+  const handleIconHold = () => {
+    setIsWiggleMode(true);
+  };
+
+  const handleDropOnFolder = async (file, folder) => {
+    try {
+      await File.update(file.id, { parent_id: folder.id });
+      setDesktopFiles(prev => prev.filter(f => f.id !== file.id));
+    } catch (error) {
+      console.error('Error dropping file on folder:', error);
+    }
+  };
+
+  const handleDropOnDock = async (file) => {
+    try {
+      await File.delete(file.id);
+      setDesktopFiles(prev => prev.filter(f => f.id !== file.id));
+    } catch (error) {
+      console.error('Error dropping file on dock:', error);
+    }
+  };
+
   return (
     <div
       className={`min-h-screen relative ${
         theme === 'light' ? 'bg-[#ededed]' : 'bg-[#0a0a0a]'
       }`}
+      onClick={() => setIsWiggleMode(false)}
     >
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <img
@@ -234,6 +300,13 @@ export default function Desktop() {
               file={file}
               onDoubleClick={() => handleDesktopIconDoubleClick(file)}
               onDrag={handleIconDrag}
+              onUnpin={handleUnpin}
+              isWiggleMode={isWiggleMode}
+              onHold={handleIconHold}
+              onDropOnFolder={handleDropOnFolder}
+              onDropOnDock={handleDropOnDock}
+              dockRef={dockRef}
+              folders={desktopFiles.filter(f => f.type === 'folder')}
             />
           ))}
         </div>
@@ -284,7 +357,7 @@ export default function Desktop() {
           onFileOpen={handleDesktopIconDoubleClick}
         />
 
-        <Dock onClick={handleAppClick} />
+        <Dock onClick={handleAppClick} onDrop={handleDropFromDock} ref={dockRef} />
       </div>
     </div>
   );

@@ -55,7 +55,11 @@ export default function FinderWindow({ isOpen, onClose, onMinimize, onMaximize, 
 
   const handleFileDoubleClick = (file) => {
     if (file.url) {
-      setIframeUrl(file.url);
+      if (file.url.startsWith('/')) {
+        window.location.href = file.url;
+      } else {
+        setIframeUrl(file.url);
+      }
     } else if (onFileDoubleClick) {
       onFileDoubleClick(file);
     }
