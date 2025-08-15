@@ -21,12 +21,21 @@ export const tools = [
         parameters: {
           type: "object",
           properties: {
+            name: {
+              type: "string",
+              description: "The name of the store to create.",
+            },
             description: {
               type: "string",
-              description: "The description of the store to create.",
+              description: "The description of the store to create (what it sells, vibe, audience).",
+            },
+            storeType: {
+              type: "string",
+              description: "The type of store to create. One of: print_on_demand, dropship, fund.",
+              enum: ["print_on_demand", "dropship", "fund"],
             },
           },
-          required: ["description"],
+          required: ["name", "description", "storeType"],
         },
       },
       {

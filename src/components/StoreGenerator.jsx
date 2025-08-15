@@ -332,6 +332,44 @@ const StoreGenerator = ({ generatedImage }) => {
     setIsEditModalOpen(false);
   };
 
+  // Cross-origin automation: announce ready and handle FF_CREATE_STORE messages
+  useEffect(() => {
+    try {
+      window.parent?.postMessage({ type: 'FF_READY_GEN' }, '*');
+    } catch (_) {}
+
+    const onMessage = (e) => {
+      const data = e?.data;
+      if (!data || data.type !== 'FF_CREATE_STORE') return;
+      const { name, description, storeType } = data;
+
+      // Apply incoming values
+      if (typeof name === 'string') setStoreName(name);
+      if (typeof description === 'string') setPrompt(description);
+      if (storeType === 'print_on_demand') {
+        setIsPrintOnDemand(true); setIsDropshipping(false); setIsFund(false);
+      } else if (storeType === 'dropship') {
+        setIsPrintOnDemand(false); setIsDropshipping(true); setIsFund(false);
+      } else if (storeType === 'fund') {
+        setIsPrintOnDemand(false); setIsDropshipping(false); setIsFund(true);
+      }
+
+      // Validate name then attempt submit
+      (async () => {
+        try {
+          await handleManualStoreNameCheck(name);
+        } catch (_) {}
+        setTimeout(() => {
+          const btn = document.getElementById('generateStoreButton');
+          if (btn && !btn.disabled) btn.click();
+        }, 250);
+      })();
+    };
+
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [handleManualStoreNameCheck]);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -582,6 +620,7 @@ const StoreGenerator = ({ generatedImage }) => {
           </div>
 
             <Button
+              id="generateStoreButton"
               type="submit"
               disabled={
                 !storeName.trim() ||

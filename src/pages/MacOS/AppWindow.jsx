@@ -102,9 +102,19 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
     const sendPostMessage = () => {
       try {
         const srcUrl = frameEl.getAttribute('src') || app?.url || '';
-        const origin = srcUrl ? new URL(srcUrl).origin : '*';
-        console.debug('[Desktop] postMessage FF_BUILD_APP to', origin);
-        frameEl.contentWindow?.postMessage({ type: 'FF_BUILD_APP', prompt: automation.prompt }, origin || '*');
+        const desiredOrigin = srcUrl ? new URL(srcUrl).origin : '*';
+        let targetOrigin = desiredOrigin || '*';
+        // If the iframe is still about:blank or inherits parent origin (localhost), fall back to '*'
+        try {
+          const actualOrigin = frameEl.contentWindow?.location?.origin;
+          if (actualOrigin && desiredOrigin && actualOrigin !== desiredOrigin) {
+            targetOrigin = '*';
+          }
+        } catch (_) {
+          // Cross-origin access throws; keep desiredOrigin
+        }
+        console.debug('[Desktop] postMessage FF_BUILD_APP to', targetOrigin);
+        frameEl.contentWindow?.postMessage({ type: 'FF_BUILD_APP', prompt: automation.prompt }, targetOrigin);
       } catch (_) {
         // ignore
       }
@@ -173,6 +183,157 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
     };
   }, [automation, app?.url]);
 
+  useEffect(() => {
+    if (!automation || automation.type !== 'createStore') return;
+    const frameEl = iframeRef.current;
+    if (!frameEl) return;
+
+    const desiredType = automation.storeType || 'print_on_demand';
+
+    const trySameOriginInject = () => {
+      try {
+        const win = frameEl.contentWindow;
+        const doc = win?.document;
+        if (!doc) return false;
+        console.debug('[Desktop] [Store] Attempting same-origin injection');
+
+        // Fill name
+        const nameEl = doc.getElementById('storeName') || doc.querySelector('input#storeName, input[name="storeName"], input[placeholder*="store" i]');
+        if (nameEl) {
+          nameEl.focus();
+          nameEl.value = automation.name || '';
+          nameEl.dispatchEvent(new Event('input', { bubbles: true }));
+          nameEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        // Fill description
+        const descEl = doc.getElementById('storePrompt') || doc.querySelector('textarea#storePrompt, textarea[name="storePrompt"], textarea');
+        if (descEl) {
+          descEl.focus();
+          descEl.value = automation.description || '';
+          descEl.dispatchEvent(new Event('input', { bubbles: true }));
+          descEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        // Toggle the correct checkbox (mutually exclusive handled by app)
+        const idMap = {
+          print_on_demand: 'printOnDemandCheckbox',
+          dropship: 'dropshippingCheckbox',
+          fund: 'fundCheckbox',
+        };
+        const checkboxId = idMap[desiredType];
+        const cbEl = checkboxId ? doc.getElementById(checkboxId) : null;
+        if (cbEl) {
+          if (!cbEl.checked) cbEl.click(); // click to ensure onChange logic runs
+        }
+
+        // Click submit button
+        let submitEl = doc.getElementById('generateStoreButton');
+        if (!submitEl) {
+          const btns = Array.from(doc.querySelectorAll('form button[type="submit"], button[type="submit"], button, [role="button"], input[type="submit"]'));
+          submitEl = btns.find(b => /generate\s*store/i.test(b.textContent || b.value || '')) || btns.find(b => b.type === 'submit');
+        }
+        if (submitEl) {
+          console.debug('[Desktop] [Store] Clicking generate');
+          submitEl.click();
+          return true;
+        }
+        return false;
+      } catch (e) {
+        return false;
+      }
+    };
+
+    const sendPostMessage = () => {
+      try {
+        const srcUrl = frameEl.getAttribute('src') || app?.url || '';
+        const desiredOrigin = srcUrl ? new URL(srcUrl).origin : '*';
+        let targetOrigin = desiredOrigin || '*';
+        try {
+          const actualOrigin = frameEl.contentWindow?.location?.origin;
+          if (actualOrigin && desiredOrigin && actualOrigin !== desiredOrigin) {
+            targetOrigin = '*';
+          }
+        } catch (_) {
+          // ignore
+        }
+        console.debug('[Desktop] postMessage FF_CREATE_STORE to', targetOrigin);
+        frameEl.contentWindow?.postMessage({
+          type: 'FF_CREATE_STORE',
+          name: automation.name || '',
+          description: automation.description || '',
+          storeType: desiredType,
+        }, targetOrigin);
+      } catch (_) { }
+    };
+
+    const setUrlParamsFallback = () => {
+      try {
+        const current = frameEl.getAttribute('src') || app?.url || '';
+        if (!current) return;
+        const url = new URL(current);
+        url.searchParams.set('storeName', automation.name || '');
+        url.searchParams.set('storePrompt', automation.description || '');
+        url.searchParams.set('autocreate', '1');
+        // encode type flags
+        url.searchParams.set('pod', desiredType === 'print_on_demand' ? '1' : '0');
+        url.searchParams.set('dropship', desiredType === 'dropship' ? '1' : '0');
+        url.searchParams.set('fund', desiredType === 'fund' ? '1' : '0');
+
+        // mirror to hash as well
+        const hashParams = new URLSearchParams(url.hash.replace(/^#/, ''));
+        hashParams.set('storeName', automation.name || '');
+        hashParams.set('storePrompt', automation.description || '');
+        hashParams.set('autocreate', '1');
+        hashParams.set('pod', desiredType === 'print_on_demand' ? '1' : '0');
+        hashParams.set('dropship', desiredType === 'dropship' ? '1' : '0');
+        hashParams.set('fund', desiredType === 'fund' ? '1' : '0');
+        url.hash = hashParams.toString();
+
+        const next = url.toString();
+        if (next !== current) frameEl.setAttribute('src', next);
+      } catch (_) { }
+    };
+
+    const successImmediate = trySameOriginInject();
+    sendPostMessage();
+    if (!successImmediate) setUrlParamsFallback();
+
+    let attempts = 0;
+    const maxAttempts = 5;
+    const retryInterval = setInterval(() => {
+      attempts += 1;
+      sendPostMessage();
+      if (attempts >= maxAttempts) clearInterval(retryInterval);
+    }, 1000);
+
+    const onMessage = (e) => {
+      try {
+        const srcUrl = frameEl.getAttribute('src') || app?.url || '';
+        const origin = srcUrl ? new URL(srcUrl).origin : '';
+        if (origin && e.origin !== origin) return;
+      } catch (_) {}
+      if (e.data && (e.data.type === 'FF_READY_GEN' || e.data.type === 'FF_READY')) {
+        console.debug('[Desktop] Received store READY from iframe');
+        sendPostMessage();
+      }
+    };
+    window.addEventListener('message', onMessage);
+
+    const onLoad = () => {
+      setTimeout(() => {
+        const success = trySameOriginInject();
+        if (!success) sendPostMessage();
+      }, 250);
+    };
+    frameEl.addEventListener('load', onLoad);
+    return () => {
+      frameEl.removeEventListener('load', onLoad);
+      clearInterval(retryInterval);
+      window.removeEventListener('message', onMessage);
+    };
+  }, [automation, app?.url]);
+
   return (
     <motion.div
       drag
@@ -206,18 +367,27 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
       <div className="flex-grow flex flex-col">
         {app.url ? (
           <iframe ref={iframeRef} src={useMemo(() => {
-            if (automation?.type === 'buildApp' && automation?.prompt) {
-              try {
+            try {
+              if (automation?.type === 'buildApp' && automation?.prompt) {
                 const u = new URL(app.url);
                 u.searchParams.set('prompt', automation.prompt);
                 u.searchParams.set('autobuild', '1');
                 return u.toString();
-              } catch (_) {
-                return app.url;
               }
-            }
+              if (automation?.type === 'createStore') {
+                const u = new URL(app.url);
+                if (automation.name) u.searchParams.set('storeName', automation.name);
+                if (automation.description) u.searchParams.set('storePrompt', automation.description);
+                u.searchParams.set('autocreate', '1');
+                const t = automation.storeType || 'print_on_demand';
+                u.searchParams.set('pod', t === 'print_on_demand' ? '1' : '0');
+                u.searchParams.set('dropship', t === 'dropship' ? '1' : '0');
+                u.searchParams.set('fund', t === 'fund' ? '1' : '0');
+                return u.toString();
+              }
+            } catch (_) { /* fallthrough */ }
             return app.url;
-          }, [app.url, automation?.type, automation?.prompt])} className="w-full h-full flex-grow" />
+          }, [app.url, automation?.type, automation?.prompt, automation?.name, automation?.description, automation?.storeType])} className="w-full h-full flex-grow" />
         ) : (
           <div className="p-4 flex-grow">
             {/* App content goes here */}
