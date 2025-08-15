@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { ExternalLink } from 'lucide-react';
 
@@ -21,16 +21,42 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
         const win = frameEl.contentWindow;
         const doc = win?.document;
         if (!doc) return false;
+        console.debug('[Desktop] Attempting same-origin injection');
         // 1) Prefer explicit element IDs provided by the builder
         const explicitInput = doc.getElementById('home-prompt-field');
         const explicitButton = doc.getElementById('home-build-button');
         if (explicitInput) {
-          explicitInput.focus();
-          explicitInput.value = automation.prompt;
-          explicitInput.dispatchEvent(new Event('input', { bubbles: true }));
+          // If the ID is a container, find a real input/textarea/contenteditable inside
+          const innerPrompt = explicitInput.matches('textarea, input, [contenteditable="true"]')
+            ? explicitInput
+            : explicitInput.querySelector('textarea, input[type="text"], input:not([type]), [contenteditable="true"]');
+          if (innerPrompt) {
+            if (innerPrompt.getAttribute('contenteditable') === 'true') {
+              innerPrompt.focus();
+              innerPrompt.textContent = automation.prompt;
+              innerPrompt.dispatchEvent(new Event('input', { bubbles: true }));
+              innerPrompt.dispatchEvent(new Event('change', { bubbles: true }));
+            } else {
+              innerPrompt.focus();
+              innerPrompt.value = automation.prompt;
+              innerPrompt.dispatchEvent(new Event('input', { bubbles: true }));
+              innerPrompt.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            // Simulate Enter key to trigger any listeners
+            innerPrompt.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+            innerPrompt.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', bubbles: true }));
+          }
+
           if (explicitButton) {
-            explicitButton.click();
-            return true;
+            // If the ID is a container, find a real clickable button inside
+            const innerBtn = explicitButton.matches('button, [role="button"], input[type="submit"]')
+              ? explicitButton
+              : explicitButton.querySelector('button, [role="button"], input[type="submit"]');
+            if (innerBtn) {
+              console.debug('[Desktop] Clicking explicit build button');
+              innerBtn.click();
+              return true;
+            }
           }
         }
 
@@ -54,6 +80,9 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
         inputEl.focus();
         inputEl.value = automation.prompt;
         inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+        inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+        inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        inputEl.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', bubbles: true }));
         // Find a likely build button
         const btnById = doc.getElementById('home-build-button');
         if (btnById) { btnById.click(); return true; }
@@ -72,7 +101,10 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
 
     const sendPostMessage = () => {
       try {
-        frameEl.contentWindow?.postMessage({ type: 'FF_BUILD_APP', prompt: automation.prompt }, '*');
+        const srcUrl = frameEl.getAttribute('src') || app?.url || '';
+        const origin = srcUrl ? new URL(srcUrl).origin : '*';
+        console.debug('[Desktop] postMessage FF_BUILD_APP to', origin);
+        frameEl.contentWindow?.postMessage({ type: 'FF_BUILD_APP', prompt: automation.prompt }, origin || '*');
       } catch (_) {
         // ignore
       }
@@ -85,6 +117,11 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
         const url = new URL(current);
         url.searchParams.set('prompt', automation.prompt);
         url.searchParams.set('autobuild', '1');
+        // Also mirror in hash for apps that read from location.hash
+        const hashParams = new URLSearchParams(url.hash.replace(/^#/, ''));
+        hashParams.set('prompt', automation.prompt);
+        hashParams.set('autobuild', '1');
+        url.hash = hashParams.toString();
         const next = url.toString();
         if (next !== current) frameEl.setAttribute('src', next);
       } catch (_) {
@@ -97,13 +134,43 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
     sendPostMessage();
     if (!successImmediate) setUrlParamsFallback();
 
+    // Retry postMessage a few times in case the iframe app initializes late
+    let attempts = 0;
+    const maxAttempts = 5;
+    const retryInterval = setInterval(() => {
+      attempts += 1;
+      sendPostMessage();
+      if (attempts >= maxAttempts) clearInterval(retryInterval);
+    }, 1000);
+
+    // Listen for handshake messages from the iframe (e.g., FF_READY)
+    const onMessage = (e) => {
+      try {
+        const srcUrl = frameEl.getAttribute('src') || app?.url || '';
+        const origin = srcUrl ? new URL(srcUrl).origin : '';
+        if (origin && e.origin !== origin) return;
+      } catch (_) {}
+      if (e.data && e.data.type === 'FF_READY') {
+        console.debug('[Desktop] Received FF_READY from iframe');
+        sendPostMessage();
+      }
+    };
+    window.addEventListener('message', onMessage);
+
     // Also attempt again on load
     const onLoad = () => {
-      const success = trySameOriginInject();
-      if (!success) sendPostMessage();
+      // Wait a tick for inner scripts to attach
+      setTimeout(() => {
+        const success = trySameOriginInject();
+        if (!success) sendPostMessage();
+      }, 250);
     };
-    frameEl.addEventListener('load', onLoad, { once: true });
-    return () => frameEl.removeEventListener('load', onLoad);
+    frameEl.addEventListener('load', onLoad);
+    return () => {
+      frameEl.removeEventListener('load', onLoad);
+      clearInterval(retryInterval);
+      window.removeEventListener('message', onMessage);
+    };
   }, [automation, app?.url]);
 
   return (
@@ -138,7 +205,19 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
       </div>
       <div className="flex-grow flex flex-col">
         {app.url ? (
-          <iframe ref={iframeRef} src={app.url} className="w-full h-full flex-grow" />
+          <iframe ref={iframeRef} src={useMemo(() => {
+            if (automation?.type === 'buildApp' && automation?.prompt) {
+              try {
+                const u = new URL(app.url);
+                u.searchParams.set('prompt', automation.prompt);
+                u.searchParams.set('autobuild', '1');
+                return u.toString();
+              } catch (_) {
+                return app.url;
+              }
+            }
+            return app.url;
+          }, [app.url, automation?.type, automation?.prompt])} className="w-full h-full flex-grow" />
         ) : (
           <div className="p-4 flex-grow">
             {/* App content goes here */}
