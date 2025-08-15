@@ -16,34 +16,9 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
     const frameEl = iframeRef.current;
     if (!frameEl) return;
 
+    // For createStore, defer to the dedicated effect below to avoid premature submission
     if (automation.type === 'createStore') {
-      const { name, prompt, storeType } = automation;
-      const onLoad = () => {
-        const win = frameEl.contentWindow;
-        if (!win) return;
-        const doc = win.document;
-        const storeNameInput = doc.getElementById('storeName');
-        const storePromptInput = doc.getElementById('storePrompt');
-        const printOnDemandCheckbox = doc.getElementById('printOnDemandCheckbox');
-        const dropshippingCheckbox = doc.getElementById('dropshippingCheckbox');
-        const fundCheckbox = doc.getElementById('fundCheckbox');
-        const generateButton = doc.querySelector('button[type="submit"]');
-
-        if (storeNameInput) storeNameInput.value = name;
-        if (storePromptInput) storePromptInput.value = prompt;
-
-        if (storeType === 'print on demand' && printOnDemandCheckbox) {
-          printOnDemandCheckbox.checked = true;
-        } else if (storeType === 'dropship' && dropshippingCheckbox) {
-          dropshippingCheckbox.checked = true;
-        } else if (storeType === 'crowdfund' && fundCheckbox) {
-          fundCheckbox.checked = true;
-        }
-        
-        if (generateButton) generateButton.click();
-      };
-      frameEl.addEventListener('load', onLoad);
-      return () => frameEl.removeEventListener('load', onLoad);
+      return;
     }
 
     if (automation.type !== 'buildApp' || !automation.prompt) return;
@@ -242,7 +217,7 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
         const descEl = doc.getElementById('storePrompt') || doc.querySelector('textarea#storePrompt, textarea[name="storePrompt"], textarea');
         if (descEl) {
           descEl.focus();
-          descEl.value = automation.description || '';
+          descEl.value = automation.prompt || '';
           descEl.dispatchEvent(new Event('input', { bubbles: true }));
           descEl.dispatchEvent(new Event('change', { bubbles: true }));
         }
@@ -293,7 +268,7 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
         frameEl.contentWindow?.postMessage({
           type: 'FF_CREATE_STORE',
           name: automation.name || '',
-          description: automation.description || '',
+          description: automation.prompt || '',
           storeType: desiredType,
         }, targetOrigin);
       } catch (_) { }
@@ -305,7 +280,7 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
         if (!current) return;
         const url = new URL(current);
         url.searchParams.set('storeName', automation.name || '');
-        url.searchParams.set('storePrompt', automation.description || '');
+        url.searchParams.set('storePrompt', automation.prompt || '');
         url.searchParams.set('autocreate', '1');
         // encode type flags
         url.searchParams.set('pod', desiredType === 'print_on_demand' ? '1' : '0');
@@ -315,7 +290,7 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
         // mirror to hash as well
         const hashParams = new URLSearchParams(url.hash.replace(/^#/, ''));
         hashParams.set('storeName', automation.name || '');
-        hashParams.set('storePrompt', automation.description || '');
+        hashParams.set('storePrompt', automation.prompt || '');
         hashParams.set('autocreate', '1');
         hashParams.set('pod', desiredType === 'print_on_demand' ? '1' : '0');
         hashParams.set('dropship', desiredType === 'dropship' ? '1' : '0');

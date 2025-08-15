@@ -367,6 +367,37 @@ const StoreGenerator = ({ generatedImage }) => {
     };
 
     window.addEventListener('message', onMessage);
+    // URL params fallback (supports both search and hash)
+    try {
+      const applyFromParams = async (params) => {
+        const n = params.get('storeName');
+        const p = params.get('storePrompt');
+        const autocreate = params.get('autocreate');
+        const pod = params.get('pod');
+        const dropship = params.get('dropship');
+        const fund = params.get('fund');
+
+        if (n) setStoreName(n);
+        if (p) setPrompt(p);
+        if (pod === '1') { setIsPrintOnDemand(true); setIsDropshipping(false); setIsFund(false); }
+        if (dropship === '1') { setIsPrintOnDemand(false); setIsDropshipping(true); setIsFund(false); }
+        if (fund === '1') { setIsPrintOnDemand(false); setIsDropshipping(false); setIsFund(true); }
+
+        if (autocreate === '1' && (n || p)) {
+          try { await handleManualStoreNameCheck(n || storeName); } catch (_) {}
+          setTimeout(() => {
+            const btn = document.getElementById('generateStoreButton');
+            if (btn && !btn.disabled) btn.click();
+          }, 250);
+        }
+      };
+
+      const searchParams = new URLSearchParams(window.location.search);
+      const hashParams = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
+      if ([...searchParams.keys()].length) applyFromParams(searchParams);
+      else if ([...hashParams.keys()].length) applyFromParams(hashParams);
+    } catch (_) {}
+
     return () => window.removeEventListener('message', onMessage);
   }, [handleManualStoreNameCheck]);
 
