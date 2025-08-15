@@ -112,8 +112,8 @@ export default function Desktop() {
         case "createStore":
           openAppWithAutomation('store-shortcut', {
             type: 'createStore',
+            prompt: args?.description || '',
             name: args?.name || '',
-            description: args?.description || '',
             storeType: args?.storeType || 'print_on_demand',
           });
           break;

@@ -12,9 +12,41 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
   if (!isOpen) return null;
 
   useEffect(() => {
-    if (!automation || automation.type !== 'buildApp' || !automation.prompt) return;
+    if (!automation) return;
     const frameEl = iframeRef.current;
     if (!frameEl) return;
+
+    if (automation.type === 'createStore') {
+      const { name, prompt, storeType } = automation;
+      const onLoad = () => {
+        const win = frameEl.contentWindow;
+        if (!win) return;
+        const doc = win.document;
+        const storeNameInput = doc.getElementById('storeName');
+        const storePromptInput = doc.getElementById('storePrompt');
+        const printOnDemandCheckbox = doc.getElementById('printOnDemandCheckbox');
+        const dropshippingCheckbox = doc.getElementById('dropshippingCheckbox');
+        const fundCheckbox = doc.getElementById('fundCheckbox');
+        const generateButton = doc.querySelector('button[type="submit"]');
+
+        if (storeNameInput) storeNameInput.value = name;
+        if (storePromptInput) storePromptInput.value = prompt;
+
+        if (storeType === 'print on demand' && printOnDemandCheckbox) {
+          printOnDemandCheckbox.checked = true;
+        } else if (storeType === 'dropship' && dropshippingCheckbox) {
+          dropshippingCheckbox.checked = true;
+        } else if (storeType === 'crowdfund' && fundCheckbox) {
+          fundCheckbox.checked = true;
+        }
+        
+        if (generateButton) generateButton.click();
+      };
+      frameEl.addEventListener('load', onLoad);
+      return () => frameEl.removeEventListener('load', onLoad);
+    }
+
+    if (automation.type !== 'buildApp' || !automation.prompt) return;
 
     const trySameOriginInject = () => {
       try {

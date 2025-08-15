@@ -195,6 +195,10 @@ const routes = [
         element: <HomePage />,
       },
       {
+        path: "/store",
+        element: <StoreOwnerDashboard />,
+      },
+      {
         path: "/gen",
         element: <StoreOwnerDashboard />,
       },
