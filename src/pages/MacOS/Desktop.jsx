@@ -110,7 +110,12 @@ export default function Desktop() {
           findAndOpenFile(129);
           break;
         case "createStore":
-          findAndOpenFile('store-shortcut');
+          openAppWithAutomation('store-shortcut', {
+            type: 'createStore',
+            prompt: args?.description || '',
+            name: args?.name || '',
+            storeType: args?.storeType || '',
+          });
           break;
         case "buildApp":
           openAppWithAutomation('app-shortcut', { type: 'buildApp', prompt: args?.description || '' });
@@ -232,7 +237,7 @@ export default function Desktop() {
             id: 'store-shortcut',
             name: 'Store',
             icon: '🛍️',
-            url: 'https://freshfront.co',
+            url: 'https://freshfront.co/store',
             type: 'link',
             is_shortcut: true,
             position_x: profileShortcut.position_x + 80,

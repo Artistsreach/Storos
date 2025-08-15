@@ -2,31 +2,25 @@ export const tools = [
   {
     functionDeclarations: [
       {
-        name: "automateTask",
-        description: "Automate a task on the desktop interface.",
-        parameters: {
-          type: "object",
-          properties: {
-            task: {
-              type: "string",
-              description: "The task to automate.",
-            },
-          },
-          required: ["task"],
-        },
-      },
-      {
         name: "createStore",
         description: "Create a new store on the desktop interface.",
         parameters: {
           type: "object",
           properties: {
+            name: {
+              type: "string",
+              description: "The name of the store to create.",
+            },
             description: {
               type: "string",
               description: "The description of the store to create.",
             },
+            storeType: {
+              type: "string",
+              description: "The type of store to create. Options: print on demand, inventory, dropship, crowdfund.",
+            },
           },
-          required: ["description"],
+          required: ["name", "description", "storeType"],
         },
       },
       {
