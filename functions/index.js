@@ -5,6 +5,7 @@ const https = require("https");
 Object.assign(exports, require('./src/users.js'));
 Object.assign(exports, require('./src/notifications.js'));
 Object.assign(exports, require('./src/gemini.js'));
+Object.assign(exports, require('./src/stripe.js'));
 
 exports.aliexpressProxy = functions.https.onRequest((request, response) => {
   response.set('Access-Control-Allow-Origin', '*');

@@ -18,73 +18,68 @@ import { db } from '@/lib/firebaseClient';
 const sampleReferences = [
   {
     id: 'ref1',
-    name: 'Retro',
-    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6520.webp?alt=media&token=943b1f04-1d83-441e-b97f-f2205d4c01ee',
-    designStyle: 'Retro Futurism (from Looka)',
-    aiPrompt: 'A design inspired by retro-futurism and classic arcade games. The layout features bold, white, pixelated typography as the centerpiece, set against a dark, heavily textured and scratched background. The composition is framed by colorful, geometric, pixel-block patterns at the top and bottom, creating a strong contrast and a vintage, high-tech vibe.'
+    name: 'holographic',
+    imageUrl: 'https://inrveiaulksfmzsbyzqj.supabase.co/storage/v1/object/public/images/IMG_6519.webp'
   },
   {
     id: 'ref2',
-    name: 'Holographic',
-    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6519.webp?alt=media&token=c22014f8-e78b-40e4-9094-49a83e55790f',
-    designStyle: 'Holographic (from Looka)',
-    aiPrompt: 'A design with a holographic and iridescent effect. The layout features shimmering, metallic colors and a sense of depth. The typography is modern and sleek, complementing the futuristic aesthetic.'
+    name: 'retro',
+    imageUrl: 'https://inrveiaulksfmzsbyzqj.supabase.co/storage/v1/object/public/images/IMG_6520.webp'
   },
   {
     id: 'ref3',
-    name: 'Modern',
-    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6518.webp?alt=media&token=0cf2ecfc-fb49-4709-b6fb-9319d814d8db',
-    designStyle: 'Neominimalism (from Looka)',
-    aiPrompt: 'A neominimalist poster design with a vibrant, monochromatic background in a shocking pink or other saturated hue. The central visual element is a duotone photograph contained within a large, simple, organic shape like a flower. The typography is a clean, elegant serif font, creating a bold yet airy composition that balances minimalism with unapologetic color.'
+    name: 'groovy',
+    imageUrl: 'https://inrveiaulksfmzsbyzqj.supabase.co/storage/v1/object/public/images/IMG_6521.webp'
   },
   {
     id: 'ref4',
-    name: 'Bold & Playful',
-    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6522.webp?alt=media&token=2866383e-df27-456f-9103-aa5adc477aac',
-    designStyle: '70s Retro (from Looka)',
-    aiPrompt: 'A retro-themed design with a 70s aesthetic. It features a very bold, chunky serif font as the main headline. The background has a warm, off-white, speckled texture. The composition is decorated with simple, stylized starburst graphics, and the color palette is limited to a classic pairing like bold blue on a neutral cream, evoking a friendly and nostalgic feeling.'
+    name: 'funky',
+    imageUrl: 'https://inrveiaulksfmzsbyzqj.supabase.co/storage/v1/object/public/images/IMG_6522.webp'
   },
   {
     id: 'ref5',
-    name: 'Thick & Funky',
-    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6523.webp?alt=media&token=a9669441-d018-4926-a437-5162b74e9f96',
-    designStyle: '90s Nostalgia (from Looka)',
-    aiPrompt: 'A retro graphic inspired by 90s design. The style features extremely bold, heavy, geometric block lettering that fills the frame. The background has a subtly distressed or crumpled paper texture. The color palette is simple but strong, using high-contrast colors like black on yellow. Thin, clean lines and secondary sans-serif fonts frame the central text, adding to the vintage, edgy feel.'
+    name: 'bold',
+    imageUrl: 'https://inrveiaulksfmzsbyzqj.supabase.co/storage/v1/object/public/images/IMG_6523.webp'
   },
   {
     id: 'ref6',
-    name: 'Collage',
-    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6525.webp?alt=media&token=1bdbf49b-f85a-402d-9589-614070ab100e',
-    designStyle: 'Mixed Media (from Looka)',
-    aiPrompt: 'A mixed media poster design combining classical and modern elements. It features a photographic cutout of a Greco-Roman bust, which is creatively interrupted by hand-drawn, cartoonish line art. The background is a flat, solid color with a subtle, large floral silhouette. The typography is a loose, handwritten script, enhancing the design\'s artistic, scrapbook-like feel.'
+    name: 'elegant',
+    imageUrl: 'https://inrveiaulksfmzsbyzqj.supabase.co/storage/v1/object/public/images/IMG_6524.webp'
   },
   {
     id: 'ref7',
-    name: 'Handwriting',
-    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6526.webp?alt=media&token=dd3b152e-1218-43d5-a99a-625905819732',
-    designStyle: 'Doodles and Scribbles (from Looka)',
-    aiPrompt: 'A design that mimics a page from a notebook, with a pale yellow, lined-paper background. The main visual is a continuous-line illustration, creating a sophisticated yet simple doodle. The typography is a casual, handwritten script, giving the overall composition an informal, brainstorming-session aesthetic.'
+    name: 'collage',
+    imageUrl: 'https://inrveiaulksfmzsbyzqj.supabase.co/storage/v1/object/public/images/IMG_6525.webp'
   },
   {
     id: 'ref8',
-    name: 'Bold Contrast',
-    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6537.png?alt=media&token=968a44f7-4e91-43eb-afbb-19b71232146a',
-    designStyle: 'Acid Graphics (from Shopify)',
-    aiPrompt: 'A graphic design asset pack with a psychedelic, "acid graphics" theme. The style features bold, cartoonish illustrations with a futuristic or sci-fi edge. The color palette is intensely vibrant and limited, relying on high-contrast pairings like neon green and electric purple against a black background. The overall aesthetic is energetic, edgy, and slightly surreal.'
+    name: 'hand drawn',
+    imageUrl: 'https://inrveiaulksfmzsbyzqj.supabase.co/storage/v1/object/public/images/IMG_6526.webp'
   },
   {
     id: 'ref9',
-    name: 'Bit Gothic',
-    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6538.webp?alt=media&token=a185092f-bb93-4e7c-b4a9-85069c0d9dfe',
-    designStyle: 'Expressive and Experimental Lettering (from Looka)',
-    aiPrompt: 'A diptych poster design with a bold, experimental typographic treatment. The layout features dramatic, oversized, and vertically oriented text that dominates the composition. This text is layered over gritty, high-contrast, duotone photographs. The intense color palette and the way the images are seen through the text create a powerful, modern, and edgy aesthetic.'
+    name: 'mixed media',
+    imageUrl: 'https://inrveiaulksfmzsbyzqj.supabase.co/storage/v1/object/public/images/IMG_6527.jpeg'
   },
   {
     id: 'ref10',
-    name: '3D Lettering',
-    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6647.png?alt=media&token=56cb29e7-3fa4-47a7-abdc-9f7192b3fd1a',
-    designStyle: 'Art Deco (from Looka)',
-    aiPrompt: 'A minimalist and elegant logo design in the Art Deco style. The central feature is a sophisticated, classic script font, encircled by arched, sans-serif text. This typography is enclosed within a delicate, symmetrical frame made of clean, intersecting geometric lines with notched corners. The design uses a simple, high-contrast color scheme like black on an off-white background to convey timeless luxury.'
+    name: 'advertisement',
+    imageUrl: 'https://inrveiaulksfmzsbyzqj.supabase.co/storage/v1/object/public/images/IMG_6528.jpeg'
+  },
+  {
+    id: 'ref11',
+    name: 'modern',
+    imageUrl: 'https://inrveiaulksfmzsbyzqj.supabase.co/storage/v1/object/public/images/IMG_6530.webp'
+  },
+  {
+    id: 'ref12',
+    name: 'noisey',
+    imageUrl: 'https://inrveiaulksfmzsbyzqj.supabase.co/storage/v1/object/public/images/IMG_6533.webp'
+  },
+  {
+    id: 'ref13',
+    name: 'alien',
+    imageUrl: 'https://inrveiaulksfmzsbyzqj.supabase.co/storage/v1/object/public/images/IMG_6537.png'
   }
 ];
 

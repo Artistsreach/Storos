@@ -1,5 +1,6 @@
 import { GoogleGenAI, Modality } from '@google/genai';
 import { createBlob, decode, decodeAudioData } from './utils.js'; // Assuming utils are moved or available
+import { tools } from './tools.js';
 
 export class GeminiLive {
   constructor(apiKey, onMessage, onError, onOpen, onClose, config = {}) {
@@ -41,6 +42,7 @@ export class GeminiLive {
         },
         contextWindowCompression: { slidingWindow: {} },
         ...this.config,
+        tools,
         sessionResumption: { handle: sessionHandle }
       };
 
@@ -56,6 +58,20 @@ export class GeminiLive {
               this.sessionHandle = message.sessionResumptionUpdate.newHandle;
             }
             if (this.onMessage) this.onMessage(message);
+
+            if (message.toolCall) {
+              const functionResponses = [];
+              for (const fc of message.toolCall.functionCalls) {
+                const event = new CustomEvent('gemini-tool-call', { detail: fc });
+                window.dispatchEvent(event);
+                functionResponses.push({
+                  id: fc.id,
+                  name: fc.name,
+                  response: { result: "ok" }
+                });
+              }
+              this.session.sendToolResponse({ functionResponses });
+            }
 
             const audio = message.serverContent?.modelTurn?.parts[0]?.inlineData;
             if (audio) {

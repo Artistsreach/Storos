@@ -6,11 +6,19 @@ import DesktopIcon from './DesktopIcon';
 import FinderWindow from './FinderWindow';
 import AppWindow from './AppWindow';
 import SearchWindow from './SearchWindow';
+import AgentModal from './AgentModal';
+import ExplorerWindow from './ExplorerWindow';
+import ImageViewerWindow from './ImageViewerWindow';
+import NotepadWindow from './NotepadWindow';
+import TableWindow from './TableWindow';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { deepResearch } from '../../lib/firecrawl';
+import { generateImage } from '../../lib/geminiImageGeneration';
+import { GoogleGenAI } from '@google/genai';
 
 export default function Desktop() {
-  const { theme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
   const { profile } = useAuth();
   const [desktopFiles, setDesktopFiles] = useState([]);
   const dockRef = useRef(null);
@@ -18,38 +26,232 @@ export default function Desktop() {
   const [minimizedWindows, setMinimizedWindows] = useState([]);
   const [windowZIndex, setWindowZIndex] = useState(10);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isAgentModalOpen, setIsAgentModalOpen] = useState(false);
   const [isWiggleMode, setIsWiggleMode] = useState(false);
+  const [explorerWindow, setExplorerWindow] = useState({ isOpen: false, content: '' });
+  const [imageViewerWindow, setImageViewerWindow] = useState({ isOpen: false, imageData: '' });
+  const [notepadWindow, setNotepadWindow] = useState({ isOpen: false, content: '' });
+  const [tableWindow, setTableWindow] = useState({ isOpen: false, data: { headers: [], rows: [] } });
 
   useEffect(() => {
     loadDesktopFiles();
-  }, []);
+
+    window.addEventListener('toggle-theme', toggleTheme);
+
+    const handleSaveNotepad = async (event) => {
+      const { title, content } = event.detail;
+      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+      const result = await ai.models.generateContent({
+        model: "gemini-2.5-flash-lite",
+        contents: `Generate a short, descriptive title for the following note (maximum 3 words):\n\n${content}`,
+      });
+      const newFile = {
+        name: result.text.split(' ').slice(0, 3).join(' '),
+        content,
+        type: 'file',
+        parent_id: null,
+        is_shortcut: true,
+        icon: '🗒️',
+      };
+      const createdFile = await File.create(newFile);
+      setDesktopFiles(prev => [...prev, createdFile]);
+    };
+
+    window.addEventListener('save-notepad', handleSaveNotepad);
+
+    return () => {
+      window.removeEventListener('toggle-theme', toggleTheme);
+      window.removeEventListener('save-notepad', handleSaveNotepad);
+    };
+  }, [toggleTheme]);
+
+  useEffect(() => {
+    const handleToolCall = (event) => {
+      const { name, args } = event.detail;
+      const findAndOpenFile = (fileId) => {
+        const file = desktopFiles.find(f => f.id === fileId);
+        if (file) {
+          handleDesktopIconDoubleClick(file);
+        } else {
+          console.warn(`File with id ${fileId} not found.`);
+        }
+      };
+
+      switch (name) {
+        case "automateTask":
+          findAndOpenFile(129);
+          break;
+        case "createStore":
+          findAndOpenFile('store-shortcut');
+          break;
+        case "buildApp":
+          findAndOpenFile('app-shortcut');
+          break;
+        case "createVideo":
+          findAndOpenFile('video-shortcut');
+          break;
+        case "createNFT":
+          findAndOpenFile('nft-shortcut');
+          break;
+        case "createPodcast":
+          findAndOpenFile('podcast-shortcut');
+          break;
+        case "toggleTheme":
+          window.dispatchEvent(new CustomEvent('toggle-theme'));
+          break;
+        case "deepResearch":
+          setExplorerWindow({ isOpen: true, content: '' });
+          deepResearch(args.query, (log) => {
+            setExplorerWindow(prev => ({ ...prev, content: `${prev.content}\n\n${log}` }));
+          }).then(content => {
+            setExplorerWindow(prev => ({ ...prev, content: `${prev.content}\n\n${content}` }));
+          });
+          break;
+        case "generateImage":
+          setImageViewerWindow({ isOpen: true, imageData: '' });
+          generateImage(args.prompt).then(({ imageData }) => {
+            setImageViewerWindow({ isOpen: true, imageData: `data:image/png;base64,${imageData}` });
+          });
+          break;
+        case "openNotepad":
+          setNotepadWindow({ isOpen: true, content: '' });
+          const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+          ai.models.generateContentStream({
+            model: "gemini-2.5-flash-lite",
+            contents: args.prompt,
+          }).then(async (response) => {
+            for await (const chunk of response) {
+              setNotepadWindow(prev => ({ ...prev, content: prev.content + chunk.text }));
+            }
+          });
+          break;
+        case "createTable":
+          setTableWindow({ isOpen: true, data: { headers: [], rows: [] } });
+          const ai2 = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+          ai2.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: `Generate a table with the following data: ${args.prompt}. Return the data as a JSON object with two keys: "headers" (an array of strings) and "rows" (an array of arrays of strings).`,
+          }).then(response => {
+            const data = JSON.parse(response.text.replace(/```json/g, '').replace(/```/g, ''));
+            setTableWindow({ isOpen: true, data });
+          });
+          break;
+        default:
+          console.warn("Unknown tool call:", name);
+      }
+    };
+
+    window.addEventListener('gemini-tool-call', handleToolCall);
+
+    return () => {
+      window.removeEventListener('gemini-tool-call', handleToolCall);
+    };
+  }, [desktopFiles]);
 
   useEffect(() => {
     if (profile && profile.username) {
       setDesktopFiles(prevFiles => {
-        if (prevFiles.some(f => f.id === 'profile-shortcut')) {
-          return prevFiles; // Already added
+        // Create a mutable copy to work with
+        let newFiles = [...prevFiles];
+        let profileShortcut = newFiles.find(f => f.id === 'profile-shortcut');
+
+        // Add profile shortcut if it doesn't exist
+        if (!profileShortcut) {
+          const exploreFolder = newFiles.find(f => f.name === 'Explore');
+          const position = { x: 20, y: 120 };
+
+          if (exploreFolder && typeof exploreFolder.position_x === 'number' && typeof exploreFolder.position_y === 'number') {
+            position.x = exploreFolder.position_x;
+            position.y = exploreFolder.position_y + 100;
+          }
+
+          profileShortcut = {
+            id: 'profile-shortcut',
+            name: 'Profile',
+            icon: '👤',
+            url: `/${profile.username}`,
+            type: 'link',
+            position_x: position.x,
+            position_y: position.y,
+          };
+          newFiles.unshift(profileShortcut); // Add to the beginning
         }
 
-        const exploreFolder = prevFiles.find(f => f.name === 'Explore');
-        const position = { x: 20, y: 120 };
+        // Add agent icon if it doesn't exist
+        if (!newFiles.some(f => f.id === 'agent-icon')) {
+          const automateFolder = newFiles.find(f => f.name === 'Automate');
+          const position = { x: 20, y: 200 };
 
-        if (exploreFolder && typeof exploreFolder.position_x === 'number' && typeof exploreFolder.position_y === 'number') {
-          position.x = exploreFolder.position_x;
-          position.y = exploreFolder.position_y + 100;
+          if (automateFolder && typeof automateFolder.position_x === 'number' && typeof automateFolder.position_y === 'number') {
+            position.x = automateFolder.position_x + 80;
+            position.y = automateFolder.position_y;
+          }
+
+          const agentIcon = {
+            id: 'agent-icon',
+            name: 'Agent',
+            icon: '💬',
+            type: 'app',
+            position_x: position.x,
+            position_y: position.y,
+          };
+          newFiles.push(agentIcon);
         }
 
-        const profileShortcut = {
-          id: 'profile-shortcut',
-          name: 'Profile',
-          icon: '👤',
-          url: `/${profile.username}`,
-          type: 'link',
-          position_x: position.x,
-          position_y: position.y,
+        // Add store shortcut if it doesn't exist
+        if (!newFiles.some(f => f.id === 'store-shortcut')) {
+          const storeShortcut = {
+            id: 'store-shortcut',
+            name: 'Store',
+            icon: '🛍️',
+            url: 'https://freshfront.co',
+            type: 'link',
+            is_shortcut: true,
+            position_x: profileShortcut.position_x + 80,
+            position_y: profileShortcut.position_y,
+          };
+          newFiles.push(storeShortcut);
+        }
+
+        const appShortcut = {
+          id: 'app-shortcut', name: 'App', icon: '📱', url: 'https://build.freshfront.co',
+          position_x: newFiles.find(f => f.id === 'agent-icon')?.position_x,
+          position_y: newFiles.find(f => f.id === 'agent-icon')?.position_y + 80,
+        };
+        const videoShortcut = {
+          id: 'video-shortcut', name: 'Video', icon: '🎥', url: 'https://studio.freshfront.co',
+          position_x: profileShortcut.position_x,
+          position_y: profileShortcut.position_y + 80,
+        };
+        const nftShortcut = {
+          id: 'nft-shortcut', name: 'NFT', icon: '🎨', url: 'https://nft.freshfront.co',
+          position_x: newFiles.find(f => f.id === 'store-shortcut')?.position_x,
+          position_y: newFiles.find(f => f.id === 'store-shortcut')?.position_y + 80,
+        };
+        const podcastShortcut = {
+          id: 'podcast-shortcut', name: 'Podcast', icon: '🎙️', url: 'https://freshfront.co/podcast',
+          position_x: appShortcut.position_x,
+          position_y: appShortcut.position_y + 80,
         };
 
-        return [profileShortcut, ...prevFiles];
+        const shortcuts = [appShortcut, videoShortcut, nftShortcut, podcastShortcut];
+
+        shortcuts.forEach(shortcut => {
+          if (!newFiles.some(f => f.id === shortcut.id)) {
+            newFiles.push({
+              ...shortcut,
+              type: 'app',
+              is_shortcut: true,
+            });
+          }
+        });
+
+        // Only update state if there were changes
+        if (newFiles.length > prevFiles.length) {
+          return newFiles;
+        }
+        
+        return prevFiles;
       });
     }
   }, [profile]);
@@ -61,7 +263,7 @@ export default function Desktop() {
 
   const loadDesktopFiles = async () => {
     try {
-      const files = await File.filter({ parent_id: null });
+      let files = await File.filter({ parent_id: null });
       setDesktopFiles(files);
     } catch (error) {
       console.error('Error loading desktop files:', error);
@@ -69,27 +271,29 @@ export default function Desktop() {
   };
 
   const handleDesktopIconDoubleClick = (file) => {
+    if (file.id === 'agent-icon') {
+      setIsAgentModalOpen(true);
+      return;
+    }
+    if (file.content) {
+      setNotepadWindow({ isOpen: true, content: file.content });
+      return;
+    }
     if (file.url) {
-      if (file.url.startsWith('/')) {
-        window.location.href = file.url;
-      } else {
-        const windowId = `finder-${file.id || file.name}`;
+        const windowId = `app-${file.id || file.name}`;
         if (!openWindows.find(w => w.id === windowId)) {
           setOpenWindows(prev => [
             ...prev,
             {
               id: windowId,
-              type: 'finder',
-              title: file.name,
-              folder: file,
+              type: 'app',
+              app: file,
               isMaximized: false,
               zIndex: windowZIndex,
-              url: file.url,
             },
           ]);
           setWindowZIndex(prev => prev + 1);
         }
-      }
     } else if (file.type === 'folder') {
       const windowId = `finder-${file.id}`;
       const existingWindow = openWindows.find(w => w.id === windowId);
@@ -174,10 +378,10 @@ export default function Desktop() {
   };
 
   const handleIconDrag = async (fileId, x, y) => {
-    if (fileId === 'profile-shortcut') {
+    if (fileId === 'profile-shortcut' || fileId === 'store-shortcut') {
       setDesktopFiles(files =>
         files.map(f =>
-          f.id === 'profile-shortcut' ? { ...f, position_x: x, position_y: y } : f
+          f.id === fileId ? { ...f, position_x: x, position_y: y } : f
         )
       );
     } else {
@@ -355,6 +559,44 @@ export default function Desktop() {
           zIndex={openWindows.find(w => w.id === 'search-window')?.zIndex || 10}
           onClick={() => bringToFront('search-window')}
           onFileOpen={handleDesktopIconDoubleClick}
+        />
+
+        <AgentModal isOpen={isAgentModalOpen} onClose={() => setIsAgentModalOpen(false)} />
+
+        <ExplorerWindow
+          isOpen={explorerWindow.isOpen}
+          onClose={() => setExplorerWindow({ isOpen: false, content: '' })}
+          title="Research Results"
+          content={explorerWindow.content}
+          zIndex={windowZIndex}
+          onClick={() => bringToFront('explorer-window')}
+        />
+
+        <ImageViewerWindow
+          isOpen={imageViewerWindow.isOpen}
+          onClose={() => setImageViewerWindow({ isOpen: false, imageData: '' })}
+          title="Generated Image"
+          imageData={imageViewerWindow.imageData}
+          zIndex={windowZIndex}
+          onClick={() => bringToFront('image-viewer-window')}
+        />
+
+        <NotepadWindow
+          isOpen={notepadWindow.isOpen}
+          onClose={() => setNotepadWindow({ isOpen: false, content: '' })}
+          title="Notepad"
+          content={notepadWindow.content}
+          zIndex={windowZIndex}
+          onClick={() => bringToFront('notepad-window')}
+        />
+
+        <TableWindow
+          isOpen={tableWindow.isOpen}
+          onClose={() => setTableWindow({ isOpen: false, data: { headers: [], rows: [] } })}
+          title="Table"
+          data={tableWindow.data}
+          zIndex={windowZIndex}
+          onClick={() => bringToFront('table-window')}
         />
 
         <Dock onClick={handleAppClick} onDrop={handleDropFromDock} ref={dockRef} />

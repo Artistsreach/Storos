@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Wifi, Battery, Search, Sun, Moon } from 'lucide-react'; // Assuming lucide-react is the icon library
+import { Wifi, Battery, Search, Sun, Moon } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
+import { GeminiDesktopLive } from '../../lib/geminiDesktopLive.js';
 
 export default function StatusBar({ onSearchClick }) {
   const { theme, toggleTheme } = useTheme();
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [geminiLive, setGeminiLive] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -29,6 +32,25 @@ export default function StatusBar({ onSearchClick }) {
       month: 'short',
       day: 'numeric',
     });
+  };
+
+  const handleGeminiClick = async () => {
+    if (isRecording) {
+      geminiLive.stopRecording();
+      setIsRecording(false);
+    } else {
+      const newGeminiLive = new GeminiDesktopLive(
+        import.meta.env.VITE_GEMINI_API_KEY,
+        (message) => console.log('onMessage', message),
+        (error) => console.error('onError', error),
+        () => console.log('onOpen'),
+        () => console.log('onClose')
+      );
+      await newGeminiLive.init();
+      newGeminiLive.startRecording();
+      setGeminiLive(newGeminiLive);
+      setIsRecording(true);
+    }
   };
 
   const statusBarClasses = `
@@ -57,6 +79,9 @@ export default function StatusBar({ onSearchClick }) {
 
       {/* Right side - System controls w/ time and battery */}
       <div className="flex items-center space-x-3">
+        <button onClick={handleGeminiClick} className="focus:outline-none">
+          <div className={`w-4 h-4 rounded-full ${isRecording ? 'bg-green-500' : 'bg-red-500'}`}></div>
+        </button>
         <button onClick={toggleTheme} className="focus:outline-none">
           {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
         </button>

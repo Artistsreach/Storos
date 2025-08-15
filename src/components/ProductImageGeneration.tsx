@@ -90,15 +90,15 @@ const SAMPLE_PRODUCTS: SampleProduct[] = [
   },
   {
     name: "Tiffany",
-    image: "https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/Tiffany.jpeg?alt=media&token=d76b942c-5c48-4896-b50a-54a6d9536e4e",
+    image: "https://firebasestorage.googleapis.com/v0/b/fresh25.firebasestorage.app/o/Tiffany.jpeg?alt=media&token=d76b942c-5c48-4896-b50a-54a6d9536e4e",
   },
   {
     name: "Gucci bag",
-    image: "https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/Guccibag.jpeg?alt=media&token=9fa836c0-5dd5-4e23-a666-d247a9deb36e",
+    image: "https://firebasestorage.googleapis.com/v0/b/fresh25.firebasestorage.app/o/Guccibag.jpeg?alt=media&token=9fa836c0-5dd5-4e23-a666-d247a9deb36e",
   },
   {
     name: "Fireplace mantle",
-    image: "https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/Fireplace.jpeg?alt=media&token=e29850cd-133e-41bd-b845-12e96be815e6",
+    image: "https://firebasestorage.googleapis.com/v0/b/fresh25.firebasestorage.app/o/Fireplace.jpeg?alt=media&token=e29850cd-133e-41bd-b845-12e96be815e6",
   },
 ];
 

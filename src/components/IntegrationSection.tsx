@@ -80,7 +80,7 @@ const IntegrationSection = () => {
                 className="flex items-center justify-center gap-2"
               >
                 <img
-                  src="https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/Shopifylogo.PNG?alt=media&token=66a3c796-5618-474a-b45a-8d3b14e2ff1d"
+                  src="https://firebasestorage.googleapis.com/v0/b/fresh25.firebasestorage.app/o/Shopifylogo.PNG?alt=media&token=66a3c796-5618-474a-b45a-8d3b14e2ff1d"
                   alt="Shopify Logo"
                   className="h-6 w-auto -mt-2"
                 />
@@ -90,7 +90,7 @@ const IntegrationSection = () => {
                 className="flex items-center justify-center gap-2"
               >
                 <img
-                  src="https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/Bigcommerce.WEBP?alt=media&token=9199a87b-9426-487f-ac89-e3412598d137"
+                  src="https://firebasestorage.googleapis.com/v0/b/fresh25.firebasestorage.app/o/Bigcommerce.WEBP?alt=media&token=9199a87b-9426-487f-ac89-e3412598d137"
                   alt="BigCommerce Logo"
                   className="h-8 w-auto -mt-2"
                 />
@@ -100,7 +100,7 @@ const IntegrationSection = () => {
                 className="flex items-center justify-center gap-2"
               >
                 <img
-                  src="https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/IMG_6560.png?alt=media&token=4d235f5d-6a8c-4c62-9039-ac6121097424"
+                  src="https://firebasestorage.googleapis.com/v0/b/fresh25.firebasestorage.app/o/IMG_6560.png?alt=media&token=4d235f5d-6a8c-4c62-9039-ac6121097424"
                   alt="Etsy Logo"
                   className="h-6 w-auto"
                 />

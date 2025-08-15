@@ -11,7 +11,6 @@ import { ThemeProvider } from './contexts/ThemeContext';
 
 // Page Imports
 import ContentCreationPage from './pages/ContentCreationPage';
-import StoreOwnerDashboard from './pages/StoreOwnerDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import StorePreview from './pages/StorePreview';
 import ProductDetail from './pages/ProductDetail';
@@ -39,11 +38,22 @@ import SearchPage from './pages/SearchPage';
 import StyledProductDetailPage from './pages/StyledProductDetailPage';
 import PlayPage from './app/play/page';
 import FrontStPage from './pages/FrontStPage';
-import MacOSPage from './pages/MacOSPage';
+import HomePage from './pages/HomePage';
+import StoreOwnerDashboard from './pages/StoreOwnerDashboard';
 
 // The index route is now the public-facing store owner dashboard.
 const IndexPageHandler = () => {
-  return <StoreOwnerDashboard />;
+  const { isAuthenticated, loadingProfile } = useAuth();
+
+  if (loadingProfile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-xl">Loading...</p>
+      </div>
+    );
+  }
+
+  return !isAuthenticated ? <AuthPage /> : <Navigate to="/home" replace />;
 };
 
 // Helper component to handle auth logic for the AuthPage route
@@ -58,7 +68,7 @@ const AuthPageWrapper = () => {
     );
   }
   
-  return !isAuthenticated ? <AuthPage /> : <Navigate to="/" replace />;
+  return !isAuthenticated ? <AuthPage /> : <Navigate to="/home" replace />;
 };
 
 // Load Stripe
@@ -86,7 +96,7 @@ const routes = [
       },
       {
         path: "auth",
-        element: <AuthPageWrapper />,
+        element: <AuthPage />,
       },
       {
         path: "pricing",
@@ -181,8 +191,12 @@ const routes = [
         element: <FrontStPage />,
       },
       {
-        path: "/macos",
-        element: <MacOSPage />,
+        path: "/home",
+        element: <HomePage />,
+      },
+      {
+        path: "/gen",
+        element: <StoreOwnerDashboard />,
       },
       {
         path: "/:slug",
@@ -190,7 +204,7 @@ const routes = [
       },
       {
         path: "*",
-        element: <Navigate to="/" replace />,
+        element: <Navigate to="/home" replace />,
       },
     ],
   },

@@ -290,7 +290,7 @@ const HomePage = () => {
                 description:
                   "Edit any text with a simple click - no complex interfaces needed",
                   mediaUrl:
-                  "https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/Inlinetextedit.gif?alt=media&token=fcbbe4c8-bea4-463b-8216-4e4ffcc0ce90",
+                  "https://firebasestorage.googleapis.com/v0/b/fresh25.firebasestorage.app/o/Inlinetextedit.gif?alt=media&token=fcbbe4c8-bea4-463b-8216-4e4ffcc0ce90",
                 mediaType: "gif",
                 icon: <Edit className="h-6 w-6 text-blue-600" />,
                 features: ["Click to edit", "Real-time preview", "Auto-save"],
@@ -300,7 +300,7 @@ const HomePage = () => {
                 description:
                   "Generate professional content with AI-powered tools",
                 mediaUrl:
-                  "https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/CopyofUntitled-ezgif.com-video-to-gif-converter%202.gif?alt=media&token=54b577d7-b356-4b1b-9710-bbc5a82952b2",
+                  "https://firebasestorage.googleapis.com/v0/b/fresh25.firebasestorage.app/o/CopyofUntitled-ezgif.com-video-to-gif-converter%202.gif?alt=media&token=54b577d7-b356-4b1b-9710-bbc5a82952b2",
                 mediaType: "gif",
                 icon: <Image className="h-6 w-6 text-purple-600" />,
                 features: [
@@ -314,7 +314,7 @@ const HomePage = () => {
                 description:
                   "Upload a reference image and see how products look in that space using AI",
                 mediaUrl:
-                  "https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/visualize.mp4?alt=media&token=6f5fe538-7da3-47e2-804c-a2ccc1212b4b",
+                  "https://firebasestorage.googleapis.com/v0/b/fresh25.firebasestorage.app/o/visualize.mp4?alt=media&token=6f5fe538-7da3-47e2-804c-a2ccc1212b4b",
                 mediaType: "video",
                 icon: <Layers className="h-6 w-6 text-green-600" />,
                 features: [
@@ -857,7 +857,7 @@ const HomePage = () => {
             <div className="text-center mb-12">
               <div className="flex justify-center mb-6">
                 <img
-                  src="https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/Stripe%20logo.PNG?alt=media&token=d02bee47-02e7-4845-b2a9-459ab531bcfa"
+                  src="https://firebasestorage.googleapis.com/v0/b/fresh25.firebasestorage.app/o/Stripe%20logo.PNG?alt=media&token=d02bee47-02e7-4845-b2a9-459ab531bcfa"
                   alt="Stripe Logo"
                   className="h-12 w-auto"
                 />
@@ -1006,7 +1006,7 @@ const HomePage = () => {
             <div>
               <div className="flex items-center gap-3 mb-4">
                 <img
-                  src="https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/ffwhite.png?alt=media&token=b5dfc968-f771-4589-85f2-3484566bbdb0"
+                  src="https://firebasestorage.googleapis.com/v0/b/fresh25.firebasestorage.app/o/ffwhite.png?alt=media&token=b5dfc968-f771-4589-85f2-3484566bbdb0"
                   alt="FreshFront Logo"
                   className="h-8 w-auto"
                 />

@@ -126,7 +126,7 @@ const StoreList = ({ hideStoresOnEmptySearch = false, isDarkMode }) => {
     setAliExpressError(null);
 
     try {
-      const response = await fetch(`https://us-central1-freshfront-89dc9.cloudfunctions.net/aliexpressProxy?q=${encodeURIComponent(query)}`);
+      const response = await fetch(`https://us-central1-fresh25.cloudfunctions.net/aliexpressProxy?q=${encodeURIComponent(query)}`);
       const data = await response.json();
       if (data.result && data.result.resultList) {
         setAliExpressProducts(data.result.resultList.map(p => ({ ...p, type: 'ali-product' })));
@@ -420,15 +420,6 @@ const StoreList = ({ hideStoresOnEmptySearch = false, isDarkMode }) => {
         </div>
       )}
 
-      {!isLoadingStores && searchResults.length === 0 && searchTerm.trim() === '' && (
-        <div className="text-center py-12">
-          {isDarkMode ? (
-            <img src="https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/image%205.png?alt=media&token=ec483dc5-ac3e-4fdb-b9bf-ac63efca37c9" alt="Empty search" className="mx-auto w-2/3" />
-          ) : (
-            <img src="https://firebasestorage.googleapis.com/v0/b/freshfront-89dc9.firebasestorage.app/o/image%205.png?alt=media&token=ec483dc5-ac3e-4fdb-b9bf-ac63efca37c9" alt="Empty search" className="mx-auto w-2/3" />
-          )}
-        </div>
-      )}
 
 
       {searchResults.length > 0 && (

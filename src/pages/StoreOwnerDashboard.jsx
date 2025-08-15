@@ -153,7 +153,6 @@ const StoreOwnerDashboard = () => {
       )}
 
       {isAuthModalOpen && <AuthModal onClose={closeAuthModal} />}
-      <FloatingSwitch className="fixed bottom-4 left-4 z-50" />
     </div>
   );
 };

@@ -3,10 +3,7 @@ const admin = require('firebase-admin');
 
 // To prevent re-initialization issues
 try {
-  admin.initializeApp({
-    credential: admin.credential.applicationDefault(),
-    serviceAccountId: 'cloud-functions-sa@freshfront-89dc9.iam.gserviceaccount.com'
-  });
+  admin.initializeApp();
 } catch (e) {
   console.log('Re-initializing admin not required');
 }

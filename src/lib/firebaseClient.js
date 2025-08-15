@@ -6,13 +6,15 @@ import { getFunctions } from "firebase/functions"; // Import getFunctions
 import { generateStoreUrl } from "./utils.js";
 
 // Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyAPhFkGh2WZxZZa4UvQF4M1mXMZiO7RyPA",
-  authDomain: "freshfront-89dc9.firebaseapp.com",
-  projectId: "freshfront-89dc9",
-  storageBucket: "freshfront-89dc9.firebasestorage.app",
-  messagingSenderId: "1067812221297",
-  appId: "1:1067812221297:web:152fc4525fe7ba3e1706d0"
+  apiKey: "AIzaSyBAZLKhYHLevVvBVfWG9ZLwVZMlQ9Fh8zA",
+  authDomain: "fresh25.firebaseapp.com",
+  projectId: "fresh25",
+  storageBucket: "fresh25.firebasestorage.app",
+  messagingSenderId: "382962850342",
+  appId: "1:382962850342:web:4a87b6ee30d0c77bf2a4e7",
+  measurementId: "G-CZZW8LMXN3"
 };
 
 // Initialize Firebase
