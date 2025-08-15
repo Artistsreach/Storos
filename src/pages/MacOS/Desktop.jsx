@@ -77,6 +77,34 @@ export default function Desktop() {
         }
       };
 
+      const openAppWithAutomation = (fileId, automation) => {
+        const file = desktopFiles.find(f => f.id === fileId);
+        if (!file) {
+          console.warn(`File with id ${fileId} not found.`);
+          return;
+        }
+        const windowId = `app-${file.id || file.name}`;
+        const existing = openWindows.find(w => w.id === windowId);
+        if (existing) {
+          // Bring to front and attach/replace automation payload
+          setOpenWindows(prev => prev.map(w => w.id === windowId ? { ...w, automation } : w));
+          bringToFront(windowId);
+        } else {
+          setOpenWindows(prev => [
+            ...prev,
+            {
+              id: windowId,
+              type: 'app',
+              app: file,
+              isMaximized: false,
+              zIndex: windowZIndex,
+              automation,
+            },
+          ]);
+          setWindowZIndex(prev => prev + 1);
+        }
+      };
+
       switch (name) {
         case "automateTask":
           findAndOpenFile(129);
@@ -85,7 +113,7 @@ export default function Desktop() {
           findAndOpenFile('store-shortcut');
           break;
         case "buildApp":
-          findAndOpenFile('app-shortcut');
+          openAppWithAutomation('app-shortcut', { type: 'buildApp', prompt: args?.description || '' });
           break;
         case "createVideo":
           findAndOpenFile('video-shortcut');
@@ -547,6 +575,7 @@ export default function Desktop() {
                 app={window.app}
                 zIndex={window.zIndex}
                 onClick={() => bringToFront(window.id)}
+                automation={window.automation}
               />
             );
           }
