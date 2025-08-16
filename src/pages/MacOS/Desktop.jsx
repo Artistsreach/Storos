@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { File } from '../../entities/File';
 import StatusBar from './StatusBar';
 import Dock from './Dock';
+import StripeAnalyticsWidget from './StripeAnalyticsWidget';
 import DesktopIcon from './DesktopIcon';
 import FinderWindow from './FinderWindow';
 import AppWindow from './AppWindow';
@@ -266,7 +267,6 @@ export default function Desktop() {
           position_x: appShortcut.position_x,
           position_y: appShortcut.position_y + 80,
         };
-
         const shortcuts = [appShortcut, videoShortcut, nftShortcut, podcastShortcut];
 
         shortcuts.forEach(shortcut => {
@@ -274,7 +274,7 @@ export default function Desktop() {
             newFiles.push({
               ...shortcut,
               type: 'app',
-              is_shortcut: true,
+              is_shortcut: shortcut.is_shortcut ?? true,
             });
           }
         });
@@ -529,9 +529,11 @@ export default function Desktop() {
       <div className="relative z-10 h-full">
         <StatusBar onSearchClick={handleSearchClick} />
 
+        {/* Test button removed */}
+
         {/* Desktop Icons */}
         <div className="absolute inset-0 pt-7 pb-20">
-          {desktopFiles.map((file) => (
+          {desktopFiles.filter(f => f.id !== 'stripe-analytics').map((file) => (
             <DesktopIcon
               key={file.id}
               file={file}
@@ -632,6 +634,11 @@ export default function Desktop() {
           zIndex={windowZIndex}
           onClick={() => bringToFront('table-window')}
         />
+
+        {/* Persistent Stripe Analytics widget on desktop */}
+        <div className="absolute right-4 bottom-24 w-[420px] max-h-[60vh] overflow-auto rounded-xl shadow-lg border border-gray-200 bg-white/90 dark:bg-zinc-900/90 backdrop-blur p-3 z-[9]">
+          <StripeAnalyticsWidget />
+        </div>
 
         <Dock onClick={handleAppClick} onDrop={handleDropFromDock} ref={dockRef} />
       </div>

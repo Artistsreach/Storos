@@ -1,0 +1,16 @@
+{
+  "name": "youtube-quickstart",
+  "version": "1.0.0",
+  "description": "YouTube Data API v3 Node.js Quickstart - retrieves GoogleDevelopers channel info",
+  "main": "quickstart.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node quickstart.js"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "google-auth-library": "^9.13.0",
+    "googleapis": "^132.0.0"
+  }
+}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { ExternalLink } from 'lucide-react';
+import StripeAnalyticsWidget from './StripeAnalyticsWidget';
 
 const TrafficLightButton = ({ color, onClick }) => (
   <button onClick={onClick} className={`w-3 h-3 rounded-full ${color}`}></button>
@@ -396,8 +397,14 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
             return app.url;
           }, [app.url, automation?.type, automation?.prompt, automation?.name, automation?.description, automation?.storeType])} className="w-full h-full flex-grow" />
         ) : (
-          <div className="p-4 flex-grow">
-            {/* App content goes here */}
+          <div className="p-4 flex-grow overflow-auto">
+            {app?.id === 'stripe-analytics' ? (
+              <StripeAnalyticsWidget />
+            ) : (
+              <div>
+                {/* App content goes here */}
+              </div>
+            )}
           </div>
         )}
       {!isMaximized && (
