@@ -192,6 +192,15 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
   }, [automation, app?.url]);
 
   useEffect(() => {
+    if (!automation || automation.type !== 'automateTask') return;
+    const frameEl = iframeRef.current;
+    if (!frameEl) return;
+
+    const url = `https://commandr.co/?command=${encodeURIComponent(automation.task)}`;
+    frameEl.setAttribute('src', url);
+  }, [automation]);
+
+  useEffect(() => {
     if (!automation || automation.type !== 'createStore') return;
     const frameEl = iframeRef.current;
     if (!frameEl) return;

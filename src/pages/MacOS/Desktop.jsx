@@ -108,7 +108,7 @@ export default function Desktop() {
 
       switch (name) {
         case "automateTask":
-          findAndOpenFile(129);
+          openAppWithAutomation('automation-shortcut', { type: 'automateTask', task: args.task });
           break;
         case "createStore":
           openAppWithAutomation('store-shortcut', {
@@ -267,7 +267,12 @@ export default function Desktop() {
           position_x: appShortcut.position_x,
           position_y: appShortcut.position_y + 80,
         };
-        const shortcuts = [appShortcut, videoShortcut, nftShortcut, podcastShortcut];
+        const automationShortcut = {
+          id: 'automation-shortcut', name: 'Automate', icon: '🤖', url: 'https://commandr.co',
+          position_x: podcastShortcut.position_x,
+          position_y: podcastShortcut.position_y + 80,
+        };
+        const shortcuts = [appShortcut, videoShortcut, nftShortcut, podcastShortcut, automationShortcut];
 
         shortcuts.forEach(shortcut => {
           if (!newFiles.some(f => f.id === shortcut.id)) {

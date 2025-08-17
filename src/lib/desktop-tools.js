@@ -148,6 +148,20 @@ export const tools = [
           required: ["prompt"],
         },
       },
+      {
+        name: "automateTask",
+        description: "Automate a task by leveraging an AI agent.",
+        parameters: {
+          type: "object",
+          properties: {
+            task: {
+              type: "string",
+              description: "The task to automate.",
+            },
+          },
+          required: ["task"],
+        },
+      },
     ],
   },
 ];
