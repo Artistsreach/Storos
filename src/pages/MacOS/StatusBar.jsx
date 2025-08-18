@@ -71,7 +71,7 @@ export default function StatusBar({ onSearchClick }) {
                 : 'https://utdrojtjfwjcvuzmkooj.supabase.co/storage/v1/object/public/content//Untitled%20design%20(4).png'
             }
             alt="logo"
-            className="w-4 h-4"
+            className="w-4 h-4 flex-shrink-0"
           />
         </Link>
         <span className="font-semibold">FreshFront</span> {/* This will likely be dynamic in a real app */}
@@ -91,7 +91,7 @@ export default function StatusBar({ onSearchClick }) {
         <div className="hidden sm:flex items-center space-x-1">
           <Wifi className="w-4 h-4" />
         </div>
-        <div className="flex items-center space-x-1">
+        <div className="hidden sm:flex items-center space-x-1">
           <Battery className="w-4 h-4" fill="lightgreen" />
         </div>
         <span className="text-sm leading-none">{formatTime(currentTime)}</span>

@@ -7,6 +7,7 @@ import DesktopIcon from './DesktopIcon';
 import FinderWindow from './FinderWindow';
 import AppWindow from './AppWindow';
 import SearchWindow from './SearchWindow';
+import YouTubePlayer from './YouTubePlayer';
 import AgentModal from './AgentModal';
 import ExplorerWindow from './ExplorerWindow';
 import ImageViewerWindow from './ImageViewerWindow';
@@ -27,6 +28,7 @@ export default function Desktop() {
   const [minimizedWindows, setMinimizedWindows] = useState([]);
   const [windowZIndex, setWindowZIndex] = useState(10);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [youtubePlayerId, setYoutubePlayerId] = useState(null);
   const [isAgentModalOpen, setIsAgentModalOpen] = useState(false);
   const [isWiggleMode, setIsWiggleMode] = useState(false);
   const [explorerWindow, setExplorerWindow] = useState({ isOpen: false, content: '' });
@@ -241,7 +243,7 @@ export default function Desktop() {
             url: 'https://freshfront.co/gen',
             type: 'link',
             is_shortcut: true,
-            position_x: profileShortcut.position_x + 80,
+            position_x: profileShortcut.position_x + 95,
             position_y: profileShortcut.position_y,
           };
           newFiles.push(storeShortcut);
@@ -250,7 +252,7 @@ export default function Desktop() {
         const appShortcut = {
           id: 'app-shortcut', name: 'App', icon: '📱', url: 'https://build.freshfront.co',
           position_x: newFiles.find(f => f.id === 'agent-icon')?.position_x,
-          position_y: newFiles.find(f => f.id === 'agent-icon')?.position_y + 80,
+          position_y: newFiles.find(f => f.id === 'agent-icon')?.position_y + 100,
         };
         const videoShortcut = {
           id: 'video-shortcut', name: 'Video', icon: '🎥', url: 'https://studio.freshfront.co',
@@ -264,13 +266,13 @@ export default function Desktop() {
         };
         const podcastShortcut = {
           id: 'podcast-shortcut', name: 'Podcast', icon: '🎙️', url: 'https://freshfront.co/podcast',
-          position_x: appShortcut.position_x,
-          position_y: appShortcut.position_y + 80,
+          position_x: 227,
+          position_y: 250,
         };
         const automationShortcut = {
           id: 'automation-shortcut', name: 'Automate', icon: '🤖', url: 'https://commandr.co',
-          position_x: podcastShortcut.position_x,
-          position_y: podcastShortcut.position_y + 80,
+          position_x: podcastShortcut.position_x - 10,
+          position_y: podcastShortcut.position_y + 101,
         };
         const shortcuts = [appShortcut, videoShortcut, nftShortcut, podcastShortcut, automationShortcut];
 
@@ -292,7 +294,7 @@ export default function Desktop() {
         return prevFiles;
       });
     }
-  }, [profile]);
+  }, [profile, theme]);
 
   useEffect(() => {
     // Force re-render when desktopFiles changes
@@ -457,6 +459,10 @@ export default function Desktop() {
     bringToFront('search-window');
   };
 
+  const handlePlayYoutubeVideo = (videoId) => {
+    setYoutubePlayerId(videoId);
+  };
+
   const handleDropFromDock = async (app, x, y) => {
     try {
       let icon = app.icon;
@@ -600,6 +606,13 @@ export default function Desktop() {
           zIndex={openWindows.find(w => w.id === 'search-window')?.zIndex || 10}
           onClick={() => bringToFront('search-window')}
           onFileOpen={handleDesktopIconDoubleClick}
+          onPlayYoutubeVideo={handlePlayYoutubeVideo}
+        />
+
+        <YouTubePlayer
+          videoId={youtubePlayerId}
+          onClose={() => setYoutubePlayerId(null)}
+          zIndex={windowZIndex + 1}
         />
 
         <AgentModal isOpen={isAgentModalOpen} onClose={() => setIsAgentModalOpen(false)} />

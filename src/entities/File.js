@@ -389,7 +389,7 @@ let files = [
   { id: 122, name: 'Store Creation', type: 'file', parent_id: 47, icon: '🛍️' },
   { id: 123, name: 'App Development', type: 'file', parent_id: 47, icon: '💻' },
   { id: 124, name: 'App Store Publishing', type: 'file', parent_id: 47, icon: '🚀' },
-  { id: 129, name: 'Commandr', type: 'file', parent_id: null, position_x: 150, position_y: 250, icon: 'https://utdrojtjfwjcvuzmkooj.supabase.co/storage/v1/object/public/content//IMG_1655.png', dark_icon: 'https://utdrojtjfwjcvuzmkooj.supabase.co/storage/v1/object/public/content//IMG_1654.png', url: 'https://commandr.co' },
+  { id: 129, name: 'Commandr', type: 'file', parent_id: null, position_x: 139, position_y: 250, icon: 'https://utdrojtjfwjcvuzmkooj.supabase.co/storage/v1/object/public/content//IMG_1655.png', dark_icon: 'https://utdrojtjfwjcvuzmkooj.supabase.co/storage/v1/object/public/content//IMG_1654.png', url: 'https://commandr.co' },
 ];
 
 let nextId = 130;

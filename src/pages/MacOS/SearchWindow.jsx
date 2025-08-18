@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { Search, File as FileIcon, Folder, PlayCircle, X, Youtube as YoutubeIcon } from 'lucide-react';
 import { File } from '../../entities/File';
@@ -8,14 +7,13 @@ const TrafficLightButton = ({ color, onClick }) => (
   <button onClick={onClick} className={`w-3 h-3 rounded-full ${color}`}></button>
 );
 
-export default function SearchWindow({ isOpen, onClose, zIndex, onClick, onFileOpen }) {
+export default function SearchWindow({ isOpen, onClose, zIndex, onClick, onFileOpen, onPlayYoutubeVideo }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [allFiles, setAllFiles] = useState([]);
   const [searchResults, setSearchResults] = useState([]);
   const [ytResults, setYtResults] = useState([]);
   const [ytLoading, setYtLoading] = useState(false);
   const [ytError, setYtError] = useState('');
-  const [playerVideoId, setPlayerVideoId] = useState(null);
 
   useEffect(() => {
     const fetchFiles = async () => {
@@ -165,7 +163,7 @@ export default function SearchWindow({ isOpen, onClose, zIndex, onClick, onFileO
                 const channel = item?.snippet?.channelTitle;
                 return (
                   <div key={vid || Math.random()} className="flex gap-3 p-2 rounded-md bg-white/60 hover:bg-white/80 cursor-pointer border border-gray-300/40"
-                       onClick={() => vid && setPlayerVideoId(vid)}>
+                       onClick={() => vid && onPlayYoutubeVideo(vid)}>
                     <div className="shrink-0 w-28 h-16 bg-gray-200 rounded overflow-hidden flex items-center justify-center">
                       {thumb ? <img src={thumb} alt={title} className="w-full h-full object-cover" /> : <PlayCircle className="w-8 h-8 text-gray-600" />}
                     </div>
@@ -192,36 +190,6 @@ export default function SearchWindow({ isOpen, onClose, zIndex, onClick, onFileO
           ))}
         </div>
       </div>
-      {playerVideoId && createPortal(
-        (
-          <motion.div
-            drag
-            dragMomentum={false}
-            className="fixed right-4 bottom-4 w-[360px] bg-black rounded-lg shadow-2xl overflow-hidden border border-gray-800"
-            style={{ zIndex: 9999 }}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-          >
-            <div className="flex items-center justify-between px-2 py-1 bg-gray-900 text-white text-xs">
-              <span>YouTube Player</span>
-              <button className="p-1 hover:text-red-400" onClick={() => setPlayerVideoId(null)}><X className="w-4 h-4" /></button>
-            </div>
-            <div className="aspect-video bg-black">
-              <iframe
-                key={playerVideoId}
-                className="w-full h-full"
-                src={`https://www.youtube.com/embed/${playerVideoId}`}
-                title="YouTube video player"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                referrerPolicy="strict-origin-when-cross-origin"
-                allowFullScreen
-              />
-            </div>
-          </motion.div>
-        ),
-        document.body
-      )}
     </motion.div>
   );
 }
