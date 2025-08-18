@@ -106,8 +106,8 @@ export default function FinderWindow({ isOpen, onClose, onMinimize, onMaximize, 
       drag
       dragMomentum={false}
       dragHandle=".drag-handle"
-      className={`fixed top-1/4 left-1/4 w-3/4 bg-gray-100/50 backdrop-blur-xl rounded-lg shadow-2xl flex flex-col overflow-hidden border border-gray-300/20 ${isMaximized ? 'w-full h-full top-0 left-0 rounded-none' : ''}`}
-      style={{ zIndex, height: isMaximized ? '100%' : height }}
+      className={`fixed top-12 left-1/2 transform -translate-x-1/2 w-11/12 md:w-3/4 h-3/4 md:h-1/2 bg-gray-100/50 backdrop-blur-xl rounded-lg shadow-2xl flex flex-col overflow-hidden border border-gray-300/20 ${isMaximized ? 'w-full h-full top-0 left-0 rounded-none' : ''}`}
+      style={{ zIndex }}
       onClick={onClick}
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}

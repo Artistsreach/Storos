@@ -257,12 +257,12 @@ export default function Desktop() {
         const videoShortcut = {
           id: 'video-shortcut', name: 'Video', icon: '🎥', url: 'https://studio.freshfront.co',
           position_x: profileShortcut.position_x,
-          position_y: profileShortcut.position_y + 80,
+          position_y: profileShortcut.position_y + 97,
         };
         const nftShortcut = {
           id: 'nft-shortcut', name: 'NFT', icon: '🎨', url: 'https://nft.freshfront.co',
           position_x: newFiles.find(f => f.id === 'store-shortcut')?.position_x,
-          position_y: newFiles.find(f => f.id === 'store-shortcut')?.position_y + 80,
+          position_y: newFiles.find(f => f.id === 'store-shortcut')?.position_y + 86,
         };
         const podcastShortcut = {
           id: 'podcast-shortcut', name: 'Podcast', icon: '🎙️', url: 'https://freshfront.co/podcast',

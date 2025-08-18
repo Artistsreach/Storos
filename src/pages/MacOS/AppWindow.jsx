@@ -8,6 +8,7 @@ const TrafficLightButton = ({ color, onClick }) => (
 );
 
 export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isMaximized, app, zIndex, onClick, automation }) {
+  const [width, setWidth] = useState(800);
   const [height, setHeight] = useState(400);
   const iframeRef = useRef(null);
   if (!isOpen) return null;
@@ -356,8 +357,8 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
       drag
       dragMomentum={false}
       dragHandle=".drag-handle"
-      className={`fixed top-1/4 left-1/4 w-3/4 bg-gray-100/50 backdrop-blur-xl rounded-lg shadow-2xl flex flex-col overflow-hidden border border-gray-300/20 ${isMaximized ? 'w-full h-full top-0 left-0 rounded-none' : ''}`}
-      style={{ zIndex, height: isMaximized ? '100%' : height }}
+      className={`fixed top-12 left-1/2 transform -translate-x-1/2 w-11/12 md:w-3/4 h-3/4 md:h-1/2 bg-gray-100/50 backdrop-blur-xl rounded-lg shadow-2xl flex flex-col overflow-hidden border border-gray-300/20 ${isMaximized ? 'w-full h-full top-0 left-0 rounded-none' : ''}`}
+      style={{ zIndex }}
       onClick={onClick}
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
@@ -416,19 +417,20 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
             )}
           </div>
         )}
+      </div>
       {!isMaximized && (
         <motion.div
-          drag="y"
-          dragConstraints={{ top: 0, bottom: 0 }}
+          drag
+          dragMomentum={false}
+          dragConstraints={{ left: 0, top: 0, right: 0, bottom: 0 }}
+          dragElastic={0}
           onDrag={(event, info) => {
+            setWidth(w => Math.max(300, w + info.delta.x));
             setHeight(h => Math.max(200, h + info.delta.y));
           }}
-          className="h-4 flex items-center justify-center cursor-ns-resize flex-shrink-0"
-        >
-          <div className="w-10 h-1 bg-gray-400 rounded-full" />
-        </motion.div>
+          className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize"
+        />
       )}
-      </div>
     </motion.div>
   );
 }
