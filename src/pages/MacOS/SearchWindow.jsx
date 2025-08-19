@@ -113,7 +113,7 @@ export default function SearchWindow({ isOpen, onClose, zIndex, onClick, onFileO
       dragMomentum={false}
       dragHandle=".drag-handle"
       className="absolute w-1/2 bg-gray-100/50 backdrop-blur-xl rounded-lg shadow-2xl flex flex-col overflow-hidden border border-gray-300/20"
-      style={{ zIndex, top: 100, left: '25%' }}
+      style={{ zIndex, top: 100, left: 'calc(25% - 90px)', maxWidth: '600px' }}
       onClick={onClick}
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}

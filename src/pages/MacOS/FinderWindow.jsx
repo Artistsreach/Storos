@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { File as FileIcon, Video, ImageIcon, Package, Music, Mic, Store, AppWindow as AppWindowIcon, Globe, Gamepad2, Search, Building, Pin, ExternalLink } from 'lucide-react';
 import { File } from '../../entities/File';
 import AutomationWorkflowPage from './AutomationWorkflowPage';
+import Connector from './Connector';
 
 const TrafficLightButton = ({ color, onClick }) => (
   <button onClick={onClick} className={`w-3 h-3 rounded-full ${color}`}></button>
@@ -56,7 +57,7 @@ const getIcon = (file) => {
   return <FileIcon size={32} />;
 };
 
-export default function FinderWindow({ isOpen, onClose, onMinimize, onMaximize, isMaximized, initialFolder, zIndex, onClick, onPin, onFileDoubleClick, initialUrl, position }) {
+export default function FinderWindow({ isOpen, onClose, onMinimize, onMaximize, isMaximized, initialFolder, zIndex, onClick, onPin, onFileDoubleClick, initialUrl, position, onDragEnd, windowId, onConnectorMouseDown }) {
   const [folderFiles, setFolderFiles] = useState([]);
   const [iframeUrl, setIframeUrl] = useState(initialUrl);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -87,7 +88,15 @@ export default function FinderWindow({ isOpen, onClose, onMinimize, onMaximize, 
 
   useEffect(() => {
     if (initialFolder) {
-      loadFolderFiles(initialFolder.id);
+      if (initialFolder.id === 'tools-folder') {
+        setFolderFiles([
+          { id: 'calculator-shortcut', name: 'Calculator', icon: '🧮', type: 'app', is_shortcut: true },
+          { id: 'contract-creator-shortcut', name: 'Contract Creator', icon: '✍️', type: 'app', is_shortcut: true },
+          { id: 'notepad-shortcut', name: 'Notepad', icon: '🗒️', type: 'app', is_shortcut: true },
+        ]);
+      } else {
+        loadFolderFiles(initialFolder.id);
+      }
     }
   }, [initialFolder]);
 
@@ -107,6 +116,7 @@ export default function FinderWindow({ isOpen, onClose, onMinimize, onMaximize, 
       drag
       dragMomentum={false}
       dragHandle=".drag-handle"
+      onDragEnd={onDragEnd}
       className={`absolute bg-gray-100/50 backdrop-blur-xl rounded-lg shadow-2xl flex flex-col overflow-hidden border border-gray-300/20 ${isMaximized ? 'w-full h-full top-0 left-0 rounded-none' : ''}`}
       style={{
         zIndex,
@@ -120,7 +130,7 @@ export default function FinderWindow({ isOpen, onClose, onMinimize, onMaximize, 
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
     >
-      <div className="drag-handle flex items-center justify-between p-2 bg-gray-200/80 rounded-t-lg border-b border-gray-300/40">
+      <div className="drag-handle relative flex items-center justify-between p-2 bg-gray-200/80 rounded-t-lg border-b border-gray-300/40">
         <div className="flex space-x-2">
           <TrafficLightButton color="bg-red-500" onClick={onClose} />
           <TrafficLightButton color="bg-yellow-500" onClick={onMinimize} />
@@ -137,6 +147,7 @@ export default function FinderWindow({ isOpen, onClose, onMinimize, onMaximize, 
             </button>
           )}
         </div>
+        <Connector windowId={windowId} onMouseDown={onConnectorMouseDown} />
       </div>
       <div className="flex-grow flex flex-col overflow-y-auto">
         {selectedFile ? (

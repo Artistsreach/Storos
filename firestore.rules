@@ -59,6 +59,19 @@ service cloud.firestore {
         allow read: if true;
         allow create, delete: if request.auth != null && request.auth.uid == userId;
       }
+
+      match /tasks/{taskId} {
+        allow read, write, create, delete: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    match /contracts/{contractId} {
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null;
+    }
+
+    match /leads/{leadId} {
+      allow create: if request.auth != null;
     }
 
     match /public_templates/{templateId} {

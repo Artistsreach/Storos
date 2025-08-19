@@ -9,7 +9,7 @@ const YouTubePlayer = ({ videoId, onClose, zIndex }) => {
     <motion.div
       drag
       dragMomentum={false}
-      className="fixed right-4 bottom-4 w-[360px] bg-black rounded-lg shadow-2xl overflow-hidden border border-gray-800"
+      className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[360px] bg-black rounded-lg shadow-2xl overflow-hidden border border-gray-800"
       style={{ zIndex }}
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}

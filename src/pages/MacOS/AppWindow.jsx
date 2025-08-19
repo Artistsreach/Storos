@@ -2,12 +2,13 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { ExternalLink } from 'lucide-react';
 import StripeAnalyticsWidget from './StripeAnalyticsWidget';
+import Connector from './Connector';
 
 const TrafficLightButton = ({ color, onClick }) => (
   <button onClick={onClick} className={`w-3 h-3 rounded-full ${color}`}></button>
 );
 
-export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isMaximized, app, zIndex, onClick, automation, position }) {
+export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isMaximized, app, zIndex, onClick, automation, position, onDragEnd, windowId, onConnectorMouseDown }) {
   const [width, setWidth] = useState(800);
   const [height, setHeight] = useState(400);
   const iframeRef = useRef(null);
@@ -193,15 +194,6 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
   }, [automation, app?.url]);
 
   useEffect(() => {
-    if (!automation || automation.type !== 'automateTask') return;
-    const frameEl = iframeRef.current;
-    if (!frameEl) return;
-
-    const url = `https://commandr.co/?command=${encodeURIComponent(automation.task)}`;
-    frameEl.setAttribute('src', url);
-  }, [automation]);
-
-  useEffect(() => {
     if (!automation || automation.type !== 'createStore') return;
     const frameEl = iframeRef.current;
     if (!frameEl) return;
@@ -357,6 +349,7 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
       drag
       dragMomentum={false}
       dragHandle=".drag-handle"
+      onDragEnd={onDragEnd}
       className={`absolute bg-gray-100/50 backdrop-blur-xl rounded-lg shadow-2xl flex flex-col overflow-hidden border border-gray-300/20 ${isMaximized ? 'w-full h-full top-0 left-0 rounded-none' : ''}`}
       style={{
         zIndex,
@@ -370,7 +363,7 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
     >
-      <div className="drag-handle flex items-center justify-between p-2 bg-gray-200/80 rounded-t-lg border-b border-gray-300/40">
+      <div className="drag-handle relative flex items-center justify-between p-2 bg-gray-200/80 rounded-t-lg border-b border-gray-300/40">
         <div className="flex space-x-2">
           <TrafficLightButton color="bg-red-500" onClick={onClose} />
           <TrafficLightButton color="bg-yellow-500" onClick={onMinimize} />
@@ -387,8 +380,9 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
             </button>
           )}
         </div>
+        <Connector windowId={windowId} onMouseDown={onConnectorMouseDown} />
       </div>
-      <div className="flex-grow flex flex-col">
+      <div className="flex-grow flex flex-col overflow-y-auto">
         {app.url ? (
           <iframe ref={iframeRef} src={useMemo(() => {
             try {
@@ -409,9 +403,14 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
                 u.searchParams.set('fund', t === 'fund' ? '1' : '0');
                 return u.toString();
               }
+              if (automation?.type === 'automateTask') {
+                const u = new URL(app.url);
+                u.searchParams.set('command', automation.name);
+                return u.toString();
+              }
             } catch (_) { /* fallthrough */ }
             return app.url;
-          }, [app.url, automation?.type, automation?.prompt, automation?.name, automation?.description, automation?.storeType])} className="w-full h-full flex-grow" />
+          }, [app.url, automation?.type, automation?.prompt, automation?.name, automation?.description, automation?.storeType, automation?.args])} className="w-full h-full flex-grow" />
         ) : (
           <div className="p-4 flex-grow overflow-auto">
             {app?.id === 'stripe-analytics' ? (

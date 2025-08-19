@@ -1,14 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Wifi, Battery, Search, Sun, Moon } from 'lucide-react';
+import { Wifi, Battery, Search, Sun, Moon, Pencil, Eraser, Check } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { GeminiDesktopLive } from '../../lib/geminiDesktopLive.js';
 
-export default function StatusBar({ onSearchClick }) {
+export default function StatusBar({
+  onSearchClick,
+  onMarkerClick,
+  isDrawingMode,
+  onColorChange,
+  onSizeChange,
+  onToolChange,
+}) {
   const { theme, toggleTheme } = useTheme();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [geminiLive, setGeminiLive] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [showDrawingOptions, setShowDrawingOptions] = useState(false);
+
+  const handleMarkerClick = () => {
+    onMarkerClick();
+    setShowDrawingOptions(!showDrawingOptions);
+  };
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -88,6 +101,32 @@ export default function StatusBar({ onSearchClick }) {
         <button onClick={onSearchClick} className="flex items-center space-x-1 focus:outline-none">
           <Search className="w-4 h-4" />
         </button>
+        <button onClick={handleMarkerClick} className="flex items-center space-x-1 focus:outline-none">
+          {isDrawingMode ? <Check className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
+        </button>
+        {showDrawingOptions && isDrawingMode && (
+          <div className="flex items-center space-x-2">
+            <button onClick={() => onToolChange('pencil')} className="focus:outline-none">
+              <Pencil className="w-4 h-4" />
+            </button>
+            <button onClick={() => onToolChange('eraser')} className="focus:outline-none">
+              <Eraser className="w-4 h-4" />
+            </button>
+            <input
+              type="color"
+              onChange={(e) => onColorChange(e.target.value)}
+              className="w-6 h-6"
+            />
+            <input
+              type="range"
+              min="1"
+              max="20"
+              defaultValue="5"
+              onChange={(e) => onSizeChange(e.target.value)}
+              className="w-20"
+            />
+          </div>
+        )}
         <div className="hidden sm:flex items-center space-x-1">
           <Wifi className="w-4 h-4" />
         </div>

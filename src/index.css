@@ -98,3 +98,8 @@
   white-space: nowrap;
   animation: marquee 35s linear infinite;
 }
+
+.dot-grid {
+  background-image: radial-gradient(circle, rgba(128, 128, 128, 0.3) 1px, transparent 1px);
+  background-size: 20px 20px;
+}

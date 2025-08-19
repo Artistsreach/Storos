@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import Select from 'react-select';
+import CreatableSelect from 'react-select/creatable';
+import { Lead } from '../../entities/Lead';
 
 const TrafficLightButton = ({ color, onClick }) => (
   <button onClick={onClick} className={`w-3 h-3 rounded-full ${color}`}></button>
@@ -12,6 +14,11 @@ const canadianCities = [
   { value: 'Montreal', label: 'Montreal' },
   { value: 'Calgary', label: 'Calgary' },
   { value: 'Ottawa', label: 'Ottawa' },
+  { value: 'Mississauga', label: 'Mississauga' },
+  { value: 'Brampton', label: 'Brampton' },
+  { value: 'Hamilton', label: 'Hamilton' },
+  { value: 'Markham', label: 'Markham' },
+  { value: 'Vaughan', label: 'Vaughan' },
 ];
 
 const americanCities = [
@@ -20,6 +27,54 @@ const americanCities = [
   { value: 'Chicago', label: 'Chicago' },
   { value: 'Houston', label: 'Houston' },
   { value: 'Phoenix', label: 'Phoenix' },
+  { value: 'San Francisco', label: 'San Francisco' },
+  { value: 'Miami', label: 'Miami' },
+  { value: 'Seattle', label: 'Seattle' },
+  { value: 'Boston', label: 'Boston' },
+  { value: 'Atlanta', label: 'Atlanta' },
+];
+
+const industryOptions = [
+  { value: 'E-commerce', label: 'E-commerce' },
+  { value: 'Fashion', label: 'Fashion' },
+  { value: 'Food & Beverage', label: 'Food & Beverage' },
+  { value: 'Health & Wellness', label: 'Health & Wellness' },
+  { value: 'Technology', label: 'Technology' },
+  { value: 'Travel', label: 'Travel' },
+  { value: 'Finance', label: 'Finance' },
+  { value: 'Education', label: 'Education' },
+  { value: 'Entertainment', label: 'Entertainment' },
+  { value: 'Real Estate', label: 'Real Estate' },
+  { value: 'Automotive', label: 'Automotive' },
+  { value: 'Beauty', label: 'Beauty' },
+  { value: 'Home & Garden', label: 'Home & Garden' },
+  { value: 'Sports', label: 'Sports' },
+  { value: 'Gaming', label: 'Gaming' },
+  { value: 'Music', label: 'Music' },
+  { value: 'Art & Design', label: 'Art & Design' },
+  { value: 'Photography', label: 'Photography' },
+  { value: 'Writing', label: 'Writing' },
+  { value: 'Marketing', label: 'Marketing' },
+  { value: 'Consulting', label: 'Consulting' },
+  { value: 'Non-profit', label: 'Non-profit' },
+  { value: 'Pets', label: 'Pets' },
+  { value: 'Parenting', label: 'Parenting' },
+  { value: 'DIY & Crafts', label: 'DIY & Crafts' },
+  { value: 'Software Development', label: 'Software Development' },
+  { value: 'Web Design', label: 'Web Design' },
+  { value: 'Graphic Design', label: 'Graphic Design' },
+  { value: 'Interior Design', label: 'Interior Design' },
+  { value: 'Architecture', label: 'Architecture' },
+  { value: 'Construction', label: 'Construction' },
+  { value: 'Legal', label: 'Legal' },
+  { value: 'Medical', label: 'Medical' },
+  { value: 'Dental', label: 'Dental' },
+  { value: 'Veterinary', label: 'Veterinary' },
+  { value: 'Accounting', label: 'Accounting' },
+  { value: 'Insurance', label: 'Insurance' },
+  { value: 'Human Resources', label: 'Human Resources' },
+  { value: 'Retail', label: 'Retail' },
+  { value: 'Wholesale', label: 'Wholesale' },
 ];
 
 const groupedOptions = [
@@ -38,10 +93,19 @@ export default function AgentModal({ isOpen, onClose }) {
   const [niche, setNiche] = useState('');
   const [selectedCity, setSelectedCity] = useState(null);
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [email, setEmail] = useState('');
 
   if (!isOpen) return null;
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
+    const leadData = {
+      companyName,
+      niche: niche?.value,
+      city: selectedCity?.value,
+      phoneNumber,
+      email,
+    };
+    await Lead.create(leadData);
     window.open('https://buy.stripe.com/aFafZh4iEcMF6Z7b7keEo1g', '_blank');
     onClose();
   };
@@ -82,18 +146,25 @@ export default function AgentModal({ isOpen, onClose }) {
             onChange={(e) => setCompanyName(e.target.value)}
             className="w-full bg-white/50 border border-gray-300/50 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder:text-black"
           />
-          <input
-            type="text"
+          <CreatableSelect
+            isClearable
+            options={industryOptions}
+            onChange={(newValue) => setNiche(newValue)}
             placeholder="Industry/Niche"
-            value={niche}
-            onChange={(e) => setNiche(e.target.value)}
-            className="w-full bg-white/50 border border-gray-300/50 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder:text-black"
+            className="text-black"
           />
           <input
             type="tel"
             placeholder="Phone Number"
             value={phoneNumber}
             onChange={(e) => setPhoneNumber(e.target.value)}
+            className="w-full bg-white/50 border border-gray-300/50 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder:text-black"
+          />
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             className="w-full bg-white/50 border border-gray-300/50 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder:text-black"
           />
           <button

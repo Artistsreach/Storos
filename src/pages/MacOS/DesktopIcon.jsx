@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useRef } from 'react';
+import { motion, useDragControls } from 'framer-motion';
 import { useTheme } from '../../contexts/ThemeContext';
 import { PinOff } from 'lucide-react';
 
@@ -7,6 +7,8 @@ export default function DesktopIcon({ file, onDoubleClick, onDrag, onUnpin, isWi
   const { theme } = useTheme();
   const [isDragging, setIsDragging] = useState(false);
   const { name } = file;
+  const dragControls = useDragControls();
+  const touchTimeout = useRef(null);
 
   const getIcon = () => {
     const iconUrl = theme === 'dark' && file.dark_icon ? file.dark_icon : file.icon;
@@ -34,6 +36,7 @@ export default function DesktopIcon({ file, onDoubleClick, onDrag, onUnpin, isWi
     <motion.div
       id={`folder-${file.id}`}
       drag
+      dragControls={dragControls}
       dragMomentum={false}
       onDragStart={() => setIsDragging(true)}
       onDragEnd={(event, info) => {
@@ -77,6 +80,16 @@ export default function DesktopIcon({ file, onDoubleClick, onDrag, onUnpin, isWi
       onDoubleClick={() => onDoubleClick(file)}
       className="absolute cursor-pointer select-none"
       style={{ zIndex: isDragging ? 1000 : 1 }} // Bring to front when dragging
+      onPointerDown={(e) => {
+        if (e.pointerType === 'touch') {
+          touchTimeout.current = setTimeout(() => {
+            dragControls.start(e, { snapToCursor: true });
+          }, 500);
+        }
+      }}
+      onPointerUp={() => {
+        clearTimeout(touchTimeout.current);
+      }}
       onPanStart={() => {
         let timer;
         const onPointerDown = () => {

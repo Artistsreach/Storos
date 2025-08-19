@@ -1,10 +1,10 @@
 // Mock data for files and folders
 let files = [
-  { id: 1, name: 'Create', type: 'folder', parent_id: null, position_x: 50, position_y: 50 },
-  { id: 2, name: 'Build', type: 'folder', parent_id: null, position_x: 50, position_y: 150 },
-  { id: 3, name: 'Explore', type: 'folder', parent_id: null, position_x: 50, position_y: 250 },
-  { id: 16, name: 'Automate', type: 'folder', parent_id: null, position_x: 150, position_y: 50 },
-  { id: 17, name: 'Learn', type: 'folder', parent_id: null, position_x: 150, position_y: 150 },
+  { id: 1, name: 'Create', type: 'folder', parent_id: null, position_x: 25, position_y: 50 },
+  { id: 2, name: 'Build', type: 'folder', parent_id: null, position_x: 25, position_y: 150 },
+  { id: 3, name: 'Explore', type: 'folder', parent_id: null, position_x: 25, position_y: 250 },
+  { id: 16, name: 'Automate', type: 'folder', parent_id: null, position_x: 125, position_y: 50 },
+  { id: 17, name: 'Learn', type: 'folder', parent_id: null, position_x: 125, position_y: 150 },
   { id: 4, name: 'Video', type: 'file', parent_id: 1, icon: '🎥', url: 'https://studio.freshfront.co' },
   { id: 5, name: 'NFT', type: 'file', parent_id: 1, icon: '🖼️', url: 'https://nft.freshfront.co' },
   { id: 6, name: 'Product', type: 'file', parent_id: 1, icon: '📦', url: 'https://freshfront.co/designer' },
@@ -389,7 +389,7 @@ let files = [
   { id: 122, name: 'Store Creation', type: 'file', parent_id: 47, icon: '🛍️' },
   { id: 123, name: 'App Development', type: 'file', parent_id: 47, icon: '💻' },
   { id: 124, name: 'App Store Publishing', type: 'file', parent_id: 47, icon: '🚀' },
-  { id: 129, name: 'Commandr', type: 'file', parent_id: null, position_x: 139, position_y: 250, icon: 'https://utdrojtjfwjcvuzmkooj.supabase.co/storage/v1/object/public/content//IMG_1655.png', dark_icon: 'https://utdrojtjfwjcvuzmkooj.supabase.co/storage/v1/object/public/content//IMG_1654.png', url: 'https://commandr.co' },
+  { id: 129, name: 'Commandr', type: 'file', parent_id: null, position_x: 114, position_y: 250, icon: 'https://utdrojtjfwjcvuzmkooj.supabase.co/storage/v1/object/public/content//IMG_1655.png', dark_icon: 'https://utdrojtjfwjcvuzmkooj.supabase.co/storage/v1/object/public/content//IMG_1654.png', url: 'https://commandr.co' },
 ];
 
 let nextId = 130;

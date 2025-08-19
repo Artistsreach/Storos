@@ -169,6 +169,44 @@ export const tools = [
           required: ["tool_call"],
         },
       },
+      {
+        name: "openCalculator",
+        description: "Open the calculator.",
+        parameters: {
+          type: "object",
+          properties: {},
+        },
+      },
+      {
+        name: "createContract",
+        description: "Create a new contract on the desktop interface.",
+        parameters: {
+          type: "object",
+          properties: {
+            companyName: {
+              type: "string",
+              description: "The name of the company.",
+            },
+            clientName: {
+              type: "string",
+              description: "The name of the client.",
+            },
+            services: {
+              type: "string",
+              description: "The services provided.",
+            },
+            cost: {
+              type: "number",
+              description: "The cost of the services.",
+            },
+            details: {
+              type: "string",
+              description: "The details of the agreement.",
+            },
+          },
+          required: ["companyName", "clientName", "services", "cost", "details"],
+        },
+      },
     ],
   },
 ];
