@@ -27,6 +27,7 @@ export default function Desktop() {
   const [openWindows, setOpenWindows] = useState([]);
   const [minimizedWindows, setMinimizedWindows] = useState([]);
   const [windowZIndex, setWindowZIndex] = useState(10);
+  const [nextWindowPosition, setNextWindowPosition] = useState({ top: 50, left: 50 });
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [youtubePlayerId, setYoutubePlayerId] = useState(null);
   const [isAgentModalOpen, setIsAgentModalOpen] = useState(false);
@@ -86,14 +87,8 @@ export default function Desktop() {
           console.warn(`File with id ${fileId} not found.`);
           return;
         }
-        const windowId = `app-${file.id || file.name}`;
-        const existing = openWindows.find(w => w.id === windowId);
-        if (existing) {
-          // Bring to front and attach/replace automation payload
-          setOpenWindows(prev => prev.map(w => w.id === windowId ? { ...w, automation } : w));
-          bringToFront(windowId);
-        } else {
-          setOpenWindows(prev => [
+        const windowId = `app-${file.id || file.name}-${Date.now()}`;
+        setOpenWindows(prev => [
             ...prev,
             {
               id: windowId,
@@ -102,15 +97,16 @@ export default function Desktop() {
               isMaximized: false,
               zIndex: windowZIndex,
               automation,
+              position: nextWindowPosition,
             },
           ]);
+          setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
           setWindowZIndex(prev => prev + 1);
-        }
       };
 
       switch (name) {
         case "automateTask":
-          openAppWithAutomation('automation-shortcut', { type: 'automateTask', task: args.task });
+          window.dispatchEvent(new CustomEvent('gemini-tool-call', { detail: args.tool_call }));
           break;
         case "createStore":
           openAppWithAutomation('store-shortcut', {
@@ -269,12 +265,12 @@ export default function Desktop() {
           position_x: 227,
           position_y: 250,
         };
-        const automationShortcut = {
-          id: 'automation-shortcut', name: 'Automate', icon: '🤖', url: 'https://commandr.co',
-          position_x: podcastShortcut.position_x - 10,
+        const stripeShortcut = {
+          id: 'stripe-analytics', name: 'Stripe', icon: 'https://vraplbexttpgnpnvdutg.supabase.co/storage/v1/object/public/content/IMG_7057.png',
+          position_x: podcastShortcut.position_x + 2,
           position_y: podcastShortcut.position_y + 101,
         };
-        const shortcuts = [appShortcut, videoShortcut, nftShortcut, podcastShortcut, automationShortcut];
+        const shortcuts = [appShortcut, videoShortcut, nftShortcut, podcastShortcut, stripeShortcut];
 
         shortcuts.forEach(shortcut => {
           if (!newFiles.some(f => f.id === shortcut.id)) {
@@ -315,79 +311,93 @@ export default function Desktop() {
       setIsAgentModalOpen(true);
       return;
     }
+    if (file.id === 'stripe-analytics') {
+      const windowId = `app-stripe-analytics-${Date.now()}`;
+      setOpenWindows(prev => [
+        ...prev,
+        {
+          id: windowId,
+          type: 'app',
+          app: { id: 'stripe-analytics', name: 'Stripe Analytics' },
+          isMaximized: false,
+          zIndex: windowZIndex,
+          position: nextWindowPosition,
+        },
+      ]);
+      setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
+      setWindowZIndex(prev => prev + 1);
+      return;
+    }
     if (file.content) {
       setNotepadWindow({ isOpen: true, content: file.content });
       return;
     }
     if (file.url) {
-        const windowId = `app-${file.id || file.name}`;
-        if (!openWindows.find(w => w.id === windowId)) {
-          setOpenWindows(prev => [
-            ...prev,
-            {
-              id: windowId,
-              type: 'app',
-              app: file,
-              isMaximized: false,
-              zIndex: windowZIndex,
-            },
-          ]);
-          setWindowZIndex(prev => prev + 1);
-        }
-    } else if (file.type === 'folder') {
-      const windowId = `finder-${file.id}`;
-      const existingWindow = openWindows.find(w => w.id === windowId);
-      if (existingWindow) {
-        bringToFront(windowId);
-      } else {
-        setOpenWindows(prev => [
-          ...prev,
-          {
-            id: windowId,
-            type: 'finder',
-            title: file.name,
-            folder: file,
-            isMaximized: false,
-            zIndex: windowZIndex,
-          },
-        ]);
-        setWindowZIndex(prev => prev + 1);
-      }
-    }
-  };
-
-  const handleAppClick = (app) => {
-    if (app.url) {
-      const windowId = `app-${app.id}`;
-      if (!openWindows.find(w => w.id === windowId)) {
+        const windowId = `app-${file.id || file.name}-${Date.now()}`;
         setOpenWindows(prev => [
           ...prev,
           {
             id: windowId,
             type: 'app',
-            app: app,
+            app: file,
             isMaximized: false,
             zIndex: windowZIndex,
+            position: nextWindowPosition,
           },
         ]);
+        setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
         setWindowZIndex(prev => prev + 1);
-      }
+    } else if (file.type === 'folder') {
+      const windowId = `finder-${file.id}-${Date.now()}`;
+      setOpenWindows(prev => [
+        ...prev,
+        {
+          id: windowId,
+          type: 'finder',
+          title: file.name,
+          folder: file,
+          isMaximized: false,
+          zIndex: windowZIndex,
+          position: nextWindowPosition,
+        },
+      ]);
+      setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
+      setWindowZIndex(prev => prev + 1);
+    }
+  };
+
+  const handleAppClick = (app) => {
+    if (app.url) {
+      const windowId = `app-${app.id}-${Date.now()}`;
+      setOpenWindows(prev => [
+        ...prev,
+        {
+          id: windowId,
+          type: 'app',
+          app: app,
+          isMaximized: false,
+          zIndex: windowZIndex,
+          position: nextWindowPosition,
+        },
+      ]);
+      setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
+      setWindowZIndex(prev => prev + 1);
     } else if (app.name === 'Finder') {
-      const windowId = 'finder-main';
-      if (!openWindows.find(w => w.id === windowId)) {
-        setOpenWindows(prev => [
-          ...prev,
-          {
-            id: windowId,
-            type: 'finder',
-            title: 'Finder',
-            folder: null,
-            isMaximized: false,
-            zIndex: windowZIndex,
-          },
-        ]);
-        setWindowZIndex(prev => prev + 1);
-      }
+      const windowId = `finder-main-${Date.now()}`;
+      setOpenWindows(prev => [
+        ...prev,
+        {
+          id: windowId,
+          type: 'finder',
+          title: 'Finder',
+          folder: null,
+          isMaximized: false,
+          zIndex: windowZIndex,
+          position: nextWindowPosition,
+        },
+      ]);
+      setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
+      setWindowZIndex(prev => prev + 1);
     }
   };
 
@@ -544,7 +554,7 @@ export default function Desktop() {
 
         {/* Desktop Icons */}
         <div className="absolute inset-0 pt-7 pb-20">
-          {desktopFiles.filter(f => f.id !== 'stripe-analytics').map((file) => (
+          {desktopFiles.map((file) => (
             <DesktopIcon
               key={file.id}
               file={file}
@@ -574,6 +584,7 @@ export default function Desktop() {
                 isMaximized={window.isMaximized}
                 initialFolder={window.folder}
                 zIndex={window.zIndex}
+                position={window.position}
                 onClick={() => bringToFront(window.id)}
                 onPin={handlePin}
                 onFileDoubleClick={handleDesktopIconDoubleClick}
@@ -592,6 +603,7 @@ export default function Desktop() {
                 isMaximized={window.isMaximized}
                 app={window.app}
                 zIndex={window.zIndex}
+                position={window.position}
                 onClick={() => bringToFront(window.id)}
                 automation={window.automation}
               />
@@ -623,6 +635,7 @@ export default function Desktop() {
           title="Research Results"
           content={explorerWindow.content}
           zIndex={windowZIndex}
+          position={nextWindowPosition}
           onClick={() => bringToFront('explorer-window')}
         />
 
@@ -632,6 +645,7 @@ export default function Desktop() {
           title="Generated Image"
           imageData={imageViewerWindow.imageData}
           zIndex={windowZIndex}
+          position={nextWindowPosition}
           onClick={() => bringToFront('image-viewer-window')}
         />
 
@@ -641,6 +655,7 @@ export default function Desktop() {
           title="Notepad"
           content={notepadWindow.content}
           zIndex={windowZIndex}
+          position={nextWindowPosition}
           onClick={() => bringToFront('notepad-window')}
         />
 
@@ -650,13 +665,9 @@ export default function Desktop() {
           title="Table"
           data={tableWindow.data}
           zIndex={windowZIndex}
+          position={nextWindowPosition}
           onClick={() => bringToFront('table-window')}
         />
-
-        {/* Persistent Stripe Analytics widget on desktop */}
-        <div className="absolute right-4 bottom-24 w-[420px] max-h-[60vh] overflow-auto rounded-xl shadow-lg border border-gray-200 bg-white/90 dark:bg-zinc-900/90 backdrop-blur p-3 z-[9]">
-          <StripeAnalyticsWidget />
-        </div>
 
         <Dock onClick={handleAppClick} onDrop={handleDropFromDock} ref={dockRef} />
       </div>

@@ -6,7 +6,7 @@ const TrafficLightButton = ({ color, onClick }) => (
   <button onClick={onClick} className={`w-3 h-3 rounded-full ${color}`}></button>
 );
 
-export default function ImageViewerWindow({ isOpen, onClose, onMinimize, onMaximize, isMaximized, title, imageData, zIndex, onClick }) {
+export default function ImageViewerWindow({ isOpen, onClose, onMinimize, onMaximize, isMaximized, title, imageData, zIndex, onClick, position }) {
   const [editPrompt, setEditPrompt] = useState('');
   const [currentImageData, setCurrentImageData] = useState(imageData);
 
@@ -27,8 +27,12 @@ export default function ImageViewerWindow({ isOpen, onClose, onMinimize, onMaxim
       drag
       dragMomentum={false}
       dragHandle=".drag-handle"
-      className={`fixed top-1/4 left-1/4 w-1/2 h-1/2 bg-gray-100/50 backdrop-blur-xl rounded-lg shadow-2xl flex flex-col overflow-hidden border border-gray-300/20 ${isMaximized ? 'w-full h-full top-0 left-0 rounded-none' : ''}`}
-      style={{ zIndex }}
+      className={`absolute w-1/2 h-1/2 bg-gray-100/50 backdrop-blur-xl rounded-lg shadow-2xl flex flex-col overflow-hidden border border-gray-300/20 ${isMaximized ? 'w-full h-full top-0 left-0 rounded-none' : ''}`}
+      style={{
+        zIndex,
+        top: isMaximized ? 0 : position?.top,
+        left: isMaximized ? 0 : position?.left,
+      }}
       onClick={onClick}
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}

@@ -20,10 +20,6 @@ export const tools = [
               description: "The type of store to create. One of: print_on_demand, dropship, fund.",
               enum: ["print_on_demand", "dropship", "fund"],
             },
-            storeType: {
-              type: "string",
-              description: "The type of store to create. Options: print on demand, inventory, dropship, crowdfund.",
-            },
           },
           required: ["name", "description", "storeType"],
         },
@@ -150,16 +146,27 @@ export const tools = [
       },
       {
         name: "automateTask",
-        description: "Automate a task by leveraging an AI agent.",
+        description: "Automate a task by dispatching a tool call to the desktop interface.",
         parameters: {
           type: "object",
           properties: {
-            task: {
-              type: "string",
-              description: "The task to automate.",
+            tool_call: {
+              type: "object",
+              description: "The tool call to dispatch. Should be an object with 'name' and 'args' properties.",
+              properties: {
+                name: {
+                  type: "string",
+                  description: "The name of the tool to call.",
+                },
+                args: {
+                  type: "object",
+                  description: "The arguments to pass to the tool.",
+                },
+              },
+              required: ["name", "args"],
             },
           },
-          required: ["task"],
+          required: ["tool_call"],
         },
       },
     ],

@@ -7,7 +7,7 @@ const TrafficLightButton = ({ color, onClick }) => (
   <button onClick={onClick} className={`w-3 h-3 rounded-full ${color}`}></button>
 );
 
-export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isMaximized, app, zIndex, onClick, automation }) {
+export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isMaximized, app, zIndex, onClick, automation, position }) {
   const [width, setWidth] = useState(800);
   const [height, setHeight] = useState(400);
   const iframeRef = useRef(null);
@@ -357,8 +357,14 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
       drag
       dragMomentum={false}
       dragHandle=".drag-handle"
-      className={`fixed top-12 left-1/2 transform -translate-x-1/2 w-11/12 md:w-3/4 h-3/4 md:h-1/2 bg-gray-100/50 backdrop-blur-xl rounded-lg shadow-2xl flex flex-col overflow-hidden border border-gray-300/20 ${isMaximized ? 'w-full h-full top-0 left-0 rounded-none' : ''}`}
-      style={{ zIndex }}
+      className={`absolute bg-gray-100/50 backdrop-blur-xl rounded-lg shadow-2xl flex flex-col overflow-hidden border border-gray-300/20 ${isMaximized ? 'w-full h-full top-0 left-0 rounded-none' : ''}`}
+      style={{
+        zIndex,
+        width: isMaximized ? '100%' : width,
+        height: isMaximized ? '100%' : height,
+        top: isMaximized ? 0 : position?.top,
+        left: isMaximized ? 0 : position?.left,
+      }}
       onClick={onClick}
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
@@ -428,8 +434,10 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
             setWidth(w => Math.max(300, w + info.delta.x));
             setHeight(h => Math.max(200, h + info.delta.y));
           }}
-          className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize"
-        />
+          className="absolute bottom-2 right-2 w-4 h-4 cursor-nwse-resize"
+        >
+          <div className="w-full h-full bg-gray-500/40 rounded-full" />
+        </motion.div>
       )}
     </motion.div>
   );
