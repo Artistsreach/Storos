@@ -12,6 +12,8 @@ export default function ImageViewerWindow({ isOpen, onClose, onMinimize, onMaxim
   const [currentImageData, setCurrentImageData] = useState(imageData);
   const [mimeType, setMimeType] = useState('image/png');
   const [isEditing, setIsEditing] = useState(false);
+  const [width, setWidth] = useState(600);
+  const [height, setHeight] = useState(450);
 
   useEffect(() => {
     setCurrentImageData(imageData);
@@ -50,8 +52,10 @@ export default function ImageViewerWindow({ isOpen, onClose, onMinimize, onMaxim
       drag
       dragMomentum={false}
       dragHandle=".drag-handle"
-      className={`absolute w-1/2 h-1/2 bg-gray-100/50 backdrop-blur-xl rounded-lg shadow-2xl flex flex-col overflow-hidden border border-gray-300/20 ${isMaximized ? 'w-full h-full top-0 left-0 rounded-none' : ''}`}
+      className={`absolute bg-gray-100/50 backdrop-blur-xl rounded-lg shadow-2xl flex flex-col overflow-visible border border-gray-300/20 ${isMaximized ? 'w-full h-full top-0 left-0 rounded-none' : ''}`}
       style={{
+        width: isMaximized ? '100%' : width,
+        height: isMaximized ? '100%' : height,
         zIndex,
         top: isMaximized ? 0 : position?.top,
         left: isMaximized ? 0 : position?.left,
@@ -98,6 +102,21 @@ export default function ImageViewerWindow({ isOpen, onClose, onMinimize, onMaxim
           >{isEditing ? 'Editing…' : 'Edit'}</button>
         </div>
       </div>
+      {!isMaximized && (
+        <motion.div
+          drag
+          dragMomentum={false}
+          dragConstraints={{ left: 0, top: 0, right: 0, bottom: 0 }}
+          dragElastic={0}
+          onDrag={(event, info) => {
+            setWidth((w) => Math.max(360, w + info.delta.x));
+            setHeight((h) => Math.max(260, h + info.delta.y));
+          }}
+          className="absolute bottom-2 right-2 w-4 h-4 cursor-nwse-resize"
+        >
+          <div className="w-full h-full bg-gray-500/40 rounded-full" />
+        </motion.div>
+      )}
     </motion.div>
   );
 }

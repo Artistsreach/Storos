@@ -23,9 +23,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { deepResearch } from '../../lib/firecrawl';
 import { generateImage } from '../../lib/geminiImageGeneration';
 import { GoogleGenAI } from '@google/genai';
-import { takeScreenshot } from '../../lib/screenshotOne';
 import { analyzeImageDataUrl } from '../../lib/analyzeImageWithGemini';
 import { generateVideoWithVeoFromImage } from '../../lib/geminiVideoGeneration';
+import { captureScreenPngDataUrl } from '../../lib/captureScreenshotClient';
 
 export default function Desktop() {
   const { theme, toggleTheme } = useTheme();
@@ -546,20 +546,15 @@ export default function Desktop() {
           setWindowZIndex(prev => prev + 1);
           (async () => {
             try {
-              const targetUrl = args?.url || window.location.href;
-              const { dataUrl } = await takeScreenshot({
-                url: targetUrl,
-                full_page: true,
-                format: 'png',
-              });
-              if (!dataUrl) {
-                throw new Error('ScreenshotOne returned a non-image response.');
-              }
+              // Capture the actual current screen/window/tab via Screen Capture API
+              const captureDataUrl = await captureScreenPngDataUrl();
               const prompt = args?.prompt || 'Analyze this screenshot and summarize key UI elements, active files, and obvious issues or next actions.';
-              const insights = await analyzeImageDataUrl(dataUrl, prompt);
+              const insights = await analyzeImageDataUrl(captureDataUrl, prompt);
               setOpenWindows(prev => prev.map(w => w.id === windowId ? { ...w, content: insights } : w));
             } catch (err) {
-              setOpenWindows(prev => prev.map(w => w.id === windowId ? { ...w, content: `Error analyzing screenshot: ${err?.message || err}` } : w));
+              const msg = (err?.message || String(err));
+              const guidance = '\nHint: Screen capture requires a user gesture and permission. Click the screen-capture prompt and select a screen/window/tab.';
+              setOpenWindows(prev => prev.map(w => w.id === windowId ? { ...w, content: `Error capturing/analyzing screenshot: ${msg}${guidance}` } : w));
             }
           })();
           break;

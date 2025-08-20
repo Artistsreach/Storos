@@ -14,17 +14,18 @@ export async function takeScreenshot(options = {}) {
     viewport_width,
     viewport_height,
     response_type, // optional: 'by_format' | 'empty' | 'json'
+    access_key, // optional explicit override
   } = options;
 
-  let accessKey;
+  let accessKey = access_key;
   try {
     // Vite/ESM environment
-    accessKey = import.meta?.env?.VITE_SCREENSHOTONE_ACCESS_KEY;
+    accessKey = accessKey || import.meta?.env?.VITE_SCREENSHOTONE_ACCESS_KEY;
   } catch (_) {
     // ignore if import.meta is not available
   }
   if (!accessKey && typeof window !== 'undefined') {
-    accessKey = window.SCREENSHOTONE_ACCESS_KEY;
+    accessKey = window.SCREENSHOTONE_ACCESS_KEY || (window.localStorage ? window.localStorage.getItem('SCREENSHOTONE_ACCESS_KEY') : null);
   }
 
   if (!accessKey) {
@@ -49,9 +50,36 @@ export async function takeScreenshot(options = {}) {
   if (response_type) params.set('response_type', response_type);
   params.set('access_key', accessKey);
 
-  const apiUrl = `https://api.screenshotone.com/take?${params.toString()}`;
+  const apiBase = 'https://api.screenshotone.com/take';
+  const usePost = Boolean(html || markdown);
+  const apiUrl = usePost ? apiBase : `${apiBase}?${params.toString()}`;
 
-  const res = await fetch(apiUrl, { method: 'GET' });
+  let res;
+  if (usePost) {
+    // Send JSON body to avoid URL length limits
+    const body = {
+      access_key: accessKey,
+      format,
+      full_page,
+      image_width,
+      image_height,
+      selector,
+      viewport_width,
+      viewport_height,
+      response_type,
+    };
+    if (url) body.url = url;
+    if (html) body.html = html;
+    if (markdown) body.markdown = markdown;
+
+    res = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } else {
+    res = await fetch(apiUrl, { method: 'GET' });
+  }
   if (!res.ok) {
     let message = `ScreenshotOne error: HTTP ${res.status}`;
     try {

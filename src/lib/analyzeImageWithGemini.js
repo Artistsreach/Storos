@@ -9,7 +9,7 @@ export async function analyzeImageDataUrl(dataUrl, prompt = 'Analyze this screen
 
   const contents = [
     { inlineData: { data: base64, mimeType } },
-    prompt,
+    { text: prompt },
   ];
 
   const res = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents });
