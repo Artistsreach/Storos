@@ -23,7 +23,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { deepResearch } from '../../lib/firecrawl';
 import { generateImage } from '../../lib/geminiImageGeneration';
 import { GoogleGenAI } from '@google/genai';
-import { captureScreenFrame } from '../../lib/captureScreen';
+import { takeScreenshot } from '../../lib/screenshotOne';
 import { analyzeImageDataUrl } from '../../lib/analyzeImageWithGemini';
 
 export default function Desktop() {
@@ -333,7 +333,8 @@ export default function Desktop() {
     const handleToolCall = (event) => {
       const { name, args } = event.detail;
       const findAndOpenFile = (fileId) => {
-        const file = desktopFiles.find(f => f.id === fileId);
+        const all = [...staticShortcuts, ...desktopFiles];
+        const file = all.find(f => f.id === fileId);
         if (file) {
           handleDesktopIconDoubleClick(file);
         } else {
@@ -342,7 +343,8 @@ export default function Desktop() {
       };
 
       const openAppWithAutomation = (fileId, automation) => {
-        const file = desktopFiles.find(f => f.id === fileId);
+        const all = [...staticShortcuts, ...desktopFiles];
+        const file = all.find(f => f.id === fileId);
         if (!file) {
           console.warn(`File with id ${fileId} not found.`);
           return;
@@ -497,7 +499,15 @@ export default function Desktop() {
           setWindowZIndex(prev => prev + 1);
           (async () => {
             try {
-              const { dataUrl } = await captureScreenFrame();
+              const targetUrl = args?.url || window.location.href;
+              const { dataUrl } = await takeScreenshot({
+                url: targetUrl,
+                full_page: true,
+                format: 'png',
+              });
+              if (!dataUrl) {
+                throw new Error('ScreenshotOne returned a non-image response.');
+              }
               const prompt = args?.prompt || 'Analyze this screenshot and summarize key UI elements, active files, and obvious issues or next actions.';
               const insights = await analyzeImageDataUrl(dataUrl, prompt);
               setOpenWindows(prev => prev.map(w => w.id === windowId ? { ...w, content: insights } : w));
@@ -517,7 +527,7 @@ export default function Desktop() {
     return () => {
       window.removeEventListener('gemini-tool-call', handleToolCall);
     };
-  }, []);
+  }, [desktopFiles, staticShortcuts, windowZIndex, nextWindowPosition]);
 
   // Connector/connection logic removed
 
