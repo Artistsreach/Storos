@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { File as FileIcon, Video, ImageIcon, Package, Music, Mic, Store, AppWindow as AppWindowIcon, Globe, Gamepad2, Search, Building, Pin, ExternalLink } from 'lucide-react';
 import { File } from '../../entities/File';
@@ -63,6 +63,20 @@ export default function FinderWindow({ isOpen, onClose, onMinimize, onMaximize, 
   const [selectedFile, setSelectedFile] = useState(null);
   const [width, setWidth] = useState(800);
   const [height, setHeight] = useState(400);
+  const [isRenamingTitle, setIsRenamingTitle] = useState(false);
+  const [titleValue, setTitleValue] = useState(initialFolder ? initialFolder.name : '');
+  const titleInputRef = useRef(null);
+
+  useEffect(() => {
+    setTitleValue(initialFolder ? initialFolder.name : '');
+  }, [initialFolder]);
+
+  useEffect(() => {
+    if (isRenamingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [isRenamingTitle]);
 
   const handleFileDoubleClick = (file) => {
     if (file.workflow) {
@@ -100,12 +114,46 @@ export default function FinderWindow({ isOpen, onClose, onMinimize, onMaximize, 
     }
   }, [initialFolder]);
 
+  // Reload folder contents when desktop files change (e.g., after a drop)
+  useEffect(() => {
+    const onRefresh = () => {
+      if (initialFolder && initialFolder.id !== 'tools-folder') {
+        loadFolderFiles(initialFolder.id);
+      }
+    };
+    window.addEventListener('refresh-desktop-files', onRefresh);
+    return () => window.removeEventListener('refresh-desktop-files', onRefresh);
+  }, [initialFolder]);
+
   const loadFolderFiles = async (folderId) => {
     try {
       const files = await File.filter({ parent_id: folderId });
       setFolderFiles(files);
     } catch (error) {
       console.error('Error loading folder files:', error);
+    }
+  };
+
+  const commitTitleRename = async (commit) => {
+    if (!initialFolder) { setIsRenamingTitle(false); return; }
+    try {
+      if (commit) {
+        const newName = (titleValue || '').trim();
+        if (newName && newName !== initialFolder.name) {
+          await File.update(initialFolder.id, { name: newName });
+          // reflect locally immediately
+          setTitleValue(newName);
+          // notify others
+          window.dispatchEvent(new CustomEvent('refresh-desktop-files'));
+        }
+      } else {
+        // revert to original name on cancel
+        setTitleValue(initialFolder.name || '');
+      }
+    } catch (e) {
+      console.error('Error renaming folder:', e);
+    } finally {
+      setIsRenamingTitle(false);
     }
   };
 
@@ -126,6 +174,7 @@ export default function FinderWindow({ isOpen, onClose, onMinimize, onMaximize, 
         left: isMaximized ? 0 : position?.left,
       }}
       data-window-id={windowId}
+      data-folder-id={initialFolder ? initialFolder.id : undefined}
       onClick={onClick}
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
@@ -137,7 +186,29 @@ export default function FinderWindow({ isOpen, onClose, onMinimize, onMaximize, 
           <TrafficLightButton color="bg-yellow-500" onClick={onMinimize} />
           <TrafficLightButton color="bg-green-500" onClick={onMaximize} />
         </div>
-        <div className="drag-handle font-semibold text-sm text-black select-none">{initialFolder ? initialFolder.name : 'Finder'}</div>
+        {isRenamingTitle ? (
+          <input
+            ref={titleInputRef}
+            className="font-semibold text-sm text-black px-1 py-0.5 rounded border border-gray-300 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+            value={titleValue}
+            onChange={(e) => setTitleValue(e.target.value)}
+            onBlur={() => commitTitleRename(true)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commitTitleRename(true);
+              if (e.key === 'Escape') commitTitleRename(false);
+            }}
+          />
+        ) : (
+          <div
+            className="drag-handle font-semibold text-sm text-black select-none"
+            onDoubleClick={() => {
+              if (initialFolder) setIsRenamingTitle(true);
+            }}
+            title={initialFolder ? 'Double-click to rename folder' : ''}
+          >
+            {initialFolder ? titleValue : 'Finder'}
+          </div>
+        )}
         <div>
           {iframeUrl && (
             <button
@@ -156,7 +227,10 @@ export default function FinderWindow({ isOpen, onClose, onMinimize, onMaximize, 
         ) : iframeUrl ? (
           <iframe src={iframeUrl} className="w-full h-full flex-grow" />
         ) : (
-          <div className="p-4 flex-grow overflow-y-auto">
+          <div
+            className="p-4 flex-grow overflow-y-auto"
+            id={initialFolder ? `finder-dropzone-${initialFolder.id}` : undefined}
+          >
             <div className="grid grid-cols-3 gap-2">
               {folderFiles.map(file => (
                 <FinderItem key={file.id} icon={getIcon(file)} name={file.name} isComingSoon={file.name.includes('soon')} onPin={handlePin} file={file} onFileDoubleClick={handleFileDoubleClick} />

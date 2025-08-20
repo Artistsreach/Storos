@@ -397,7 +397,8 @@ let nextId = 130;
 export class File {
   static async filter({ parent_id }) {
     if (parent_id === null) {
-      return Promise.resolve(files.filter(file => file.parent_id === null || file.is_shortcut));
+      // Only return items explicitly on the desktop
+      return Promise.resolve(files.filter(file => file.parent_id === null));
     }
     return Promise.resolve(files.filter(file => file.parent_id === parent_id));
   }

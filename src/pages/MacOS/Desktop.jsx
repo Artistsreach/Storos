@@ -297,6 +297,8 @@ export default function Desktop() {
     loadDesktopFiles();
 
     window.addEventListener('toggle-theme', toggleTheme);
+    const onRefresh = () => loadDesktopFiles();
+    window.addEventListener('refresh-desktop-files', onRefresh);
 
     const handleSaveNotepad = async (event) => {
       const { title, content } = event.detail;
@@ -321,6 +323,7 @@ export default function Desktop() {
 
     return () => {
       window.removeEventListener('toggle-theme', toggleTheme);
+      window.removeEventListener('refresh-desktop-files', onRefresh);
       window.removeEventListener('save-notepad', handleSaveNotepad);
     };
   }, [toggleTheme]);
@@ -906,8 +909,60 @@ export default function Desktop() {
 
   const handleDropOnFolder = async (file, folder) => {
     try {
-      await File.update(file.id, { parent_id: folder.id });
-      setDesktopFiles(prev => prev.filter(f => f.id !== file.id));
+      // If it's a persisted file (has a DB id), move it into the folder
+      if (
+      file &&
+      file.id !== undefined &&
+      typeof file.id === 'number'
+    ) {
+        // Move ANY persisted record (file or shortcut) by updating its parent_id.
+        // This ensures the source item is not left on the desktop.
+        await File.update(file.id, { parent_id: folder.id, position_x: null, position_y: null });
+        // Remove from desktop in-memory list (desktop renders items with parent_id === null)
+        setDesktopFiles(prev => prev.filter(f => f.id !== file.id));
+      } else {
+        // Static shortcut or non-persisted item: create a new shortcut inside the folder
+        // Prevent duplicates: if a shortcut with the same original_id (or same url/name fallback)
+        // already exists in the target folder, do nothing.
+        const targetFolderId = folder.id;
+        try {
+          const existingInFolder = await File.filter({ parent_id: targetFolderId });
+          const candidateOriginalId = file.original_id || file.id;
+          const duplicateExists = existingInFolder.some((f) => {
+            // Only consider shortcuts or items that represent the same app/link
+            if (f.is_shortcut) {
+              if (candidateOriginalId && f.original_id && String(f.original_id) === String(candidateOriginalId)) return true;
+              if (file.url && f.url && String(f.url) === String(file.url)) return true;
+              if (!file.url && !f.url && f.name && file.name && String(f.name).trim() === String(file.name).trim()) return true;
+            }
+            return false;
+          });
+          if (duplicateExists) {
+            // Optionally, we could toast/notify here; for now, silently ignore.
+            return;
+          }
+        } catch (e) {
+          // If the duplicate check fails, proceed to create to avoid blocking UX.
+        }
+        let icon = file.icon;
+        if (React.isValidElement(icon)) {
+          icon = icon.props.src;
+        }
+        const newFile = {
+          name: file.name,
+          icon: icon,
+          url: file.url,
+          type: 'file',
+          parent_id: folder.id,
+          is_shortcut: true,
+          original_id: file.original_id || file.id,
+        };
+        await File.create(newFile);
+        // Remove the static shortcut instance from the desktop UI
+        setStaticShortcuts(prev => prev.filter(f => f.id !== file.id));
+      }
+      // Notify open windows to refresh their contents
+      window.dispatchEvent(new CustomEvent('refresh-desktop-files'));
     } catch (error) {
       console.error('Error dropping file on folder:', error);
     }
@@ -967,7 +1022,12 @@ export default function Desktop() {
       onTouchEnd={() => {
         setIsPannable(false);
       }}
-      onClick={() => setIsWiggleMode(false)}
+      onClick={(e) => {
+        // Exit wiggle mode only when clicking the bare desktop background
+        if (e.target === e.currentTarget) {
+          setIsWiggleMode(false);
+        }
+      }}
     >
       <div
         className="absolute inset-0 flex items-center justify-center pointer-events-none"
@@ -1010,6 +1070,7 @@ export default function Desktop() {
             onMouseLeave={finishDrawing}
             onTouchStart={startDrawing}
             onTouchEnd={finishDrawing}
+            onClick={() => setIsWiggleMode(false)}
           />
           {/* Overlay canvas for selection drag preview */}
           <canvas
@@ -1089,7 +1150,16 @@ export default function Desktop() {
           {/* Test button removed */}
 
         {/* Desktop Icons */}
-        <div className="absolute inset-0 pt-7 pb-20" style={{ paddingRight: '80px', paddingBottom: '80px' }}>
+        <div
+          className="absolute inset-0 pt-7 pb-20"
+          style={{ paddingRight: '80px', paddingBottom: '80px' }}
+          onClick={(e) => {
+            // If user clicks blank area in the icons layer (not an icon), exit wiggle mode
+            if (e.target === e.currentTarget) {
+              setIsWiggleMode(false);
+            }
+          }}
+        >
           {[...staticShortcuts, ...desktopFiles].filter(file => !file.isHidden).map((file) => (
             <DesktopIcon
               key={file.id}

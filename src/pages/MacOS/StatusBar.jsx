@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Wifi, Battery, Search, Sun, Moon, Pencil, Eraser, Check, Type, Square } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { GeminiDesktopLive } from '../../lib/geminiDesktopLive.js';
+import { File } from '../../entities/File';
 
 export default function StatusBar({
   onSearchClick,
@@ -17,6 +18,8 @@ export default function StatusBar({
   const [geminiLive, setGeminiLive] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [showDrawingOptions, setShowDrawingOptions] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
 
   const handleMarkerClick = () => {
     onMarkerClick();
@@ -29,6 +32,16 @@ export default function StatusBar({
     }, 1000);
 
     return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const onDocClick = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('click', onDocClick);
+    return () => document.removeEventListener('click', onDocClick);
   }, []);
 
   const formatTime = (date) => {
@@ -75,8 +88,8 @@ export default function StatusBar({
   return (
     <div className={statusBarClasses}>
       {/* Left side - Apple Menu and app name */}
-      <div className="flex items-center space-x-4">
-        <Link to="/">
+      <div className="flex items-center space-x-4 relative" ref={menuRef}>
+        <button onClick={() => setMenuOpen((v) => !v)} className="focus:outline-none">
           <img
             src={
               theme === 'light'
@@ -86,8 +99,38 @@ export default function StatusBar({
             alt="logo"
             className="w-4 h-4 flex-shrink-0"
           />
-        </Link>
-        <span className="font-semibold">FreshFront</span> {/* This will likely be dynamic in a real app */}
+        </button>
+        <span className="font-semibold">FreshFront</span>
+
+        {menuOpen && (
+          <div className={`absolute top-6 left-0 mt-1 w-40 rounded-md shadow-lg border ${theme === 'light' ? 'bg-white text-gray-800 border-gray-200' : 'bg-gray-800 text-white border-gray-700'}`}>
+            <button
+              className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+              onClick={async () => {
+                try {
+                  const posY = Math.round(window.innerHeight * 0.5);
+                  const newFolder = {
+                    name: 'New Folder',
+                    type: 'folder',
+                    parent_id: null,
+                    position_x: 60,
+                    position_y: posY,
+                    is_shortcut: true,
+                    is_renaming: true,
+                  };
+                  await File.create(newFolder);
+                  window.dispatchEvent(new CustomEvent('refresh-desktop-files'));
+                } catch (e) {
+                  console.error('Failed to create folder:', e);
+                } finally {
+                  setMenuOpen(false);
+                }
+              }}
+            >
+              New Folder
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Right side - System controls w/ time and battery */}
