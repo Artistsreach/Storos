@@ -42,6 +42,8 @@ export default function DesktopTextChatbot() {
   const [loading, setLoading] = useState(false);
   const listRef = useRef(null);
   const modelFinalizeTimer = useRef(null);
+  const [streaming, setStreaming] = useState(false);
+  const modelBufferRef = useRef('');
 
   const ai = useMemo(() => new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY }), []);
 
@@ -54,44 +56,85 @@ export default function DesktopTextChatbot() {
   // Listen for audio-mode transcriptions and model text to mirror in chat
   useEffect(() => {
     const handler = (e) => {
-      const { role, text } = e.detail || {};
+      const { role, text, complete } = e.detail || {};
       if (!text) return;
       // Avoid duplicating user messages (we already add them on send)
       if (role === 'user') return;
-      // Ignore if identical to current last model text
-      const lastMsg = messages[messages.length - 1];
-      if (lastMsg && lastMsg.role.startsWith('model') && lastMsg.text === text) return;
-      // Overwrite the last model message with the latest full transcription
-      setMessages((prev) => {
-        if (!prev.length) return [{ role: 'model-temp', text }];
-        const last = prev[prev.length - 1];
-        if (last.role.startsWith('model')) {
-          const copy = prev.slice(0, -1);
-          return [...copy, { role: last.role, text }];
-        }
-        return [...prev, { role: 'model-temp', text }];
-      });
+      // Debug log of last received payload
+      try {
+        // eslint-disable-next-line no-console
+        console.debug('[DesktopTextChatbot] gemini-live-text', { length: text.length, complete: !!complete });
+      } catch {}
+      // Update streaming indicator
+      setStreaming(!complete);
+      // Buffer the growing assistant text for this turn
+      const buffered = modelBufferRef.current || '';
+      let next = buffered;
+      if (!buffered) {
+        next = text;
+      } else if (text && text.startsWith(buffered)) {
+        // Progressive cumulative transcript
+        next = text;
+      } else if (buffered && buffered.startsWith(text) && buffered.length > text.length) {
+        // Sometimes a shorter partial arrives; keep the longer buffer
+        next = buffered;
+      } else if (!buffered.endsWith(text)) {
+        // Heuristic glue for incremental tokens
+        const first = text?.[0] || '';
+        const last = buffered?.slice(-1) || '';
+        const startsWithPunct = /^[,.;:!?)}\]\-]/.test(text);
+        const startsWithSpace = first === ' ' || first === '\n' || first === '\t';
+        const bufferedEndsSpace = buffered.endsWith(' ') || buffered.endsWith('\n') || buffered.endsWith('\t');
+        const isAlphaNum = (c) => /[A-Za-z0-9]/.test(c);
 
-      // Debounce finalize: convert 'model-temp' to 'model' after idle to avoid repeats
-      if (modelFinalizeTimer.current) clearTimeout(modelFinalizeTimer.current);
-      modelFinalizeTimer.current = setTimeout(() => {
+        // Trim stray space before punctuation
+        let base = buffered;
+        if (startsWithPunct && base.endsWith(' ')) {
+          base = base.replace(/\s+$/, '');
+        }
+
+        // Decide glue: no space between alphanum sequences (word continuation)
+        let glue = ' ';
+        if (startsWithSpace || bufferedEndsSpace) {
+          glue = '';
+        } else if ((isAlphaNum(last) && isAlphaNum(first)) || startsWithPunct) {
+          glue = '';
+        }
+
+        next = base + glue + text;
+      }
+      modelBufferRef.current = next;
+
+      if (!complete) {
+        // Show a single temp message with the buffered text
         setMessages((prev) => {
-          if (!prev.length) return prev;
-          const last = prev[prev.length - 1];
-          if (last.role === 'model-temp') {
+          if (prev.length && prev[prev.length - 1].role === 'model-temp') {
             const copy = prev.slice(0, -1);
-            return [...copy, { role: 'model', text: last.text }];
+            return [...copy, { role: 'model-temp', text: next }];
           }
-          return prev;
+          return [...prev, { role: 'model-temp', text: next }];
         });
-      }, 500);
+      } else {
+        // Finalize the turn into a permanent model message
+        setMessages((prev) => {
+          if (prev.length && prev[prev.length - 1].role === 'model-temp') {
+            const copy = prev.slice(0, -1);
+            return [...copy, { role: 'model', text: modelBufferRef.current || next }];
+          }
+          return [...prev, { role: 'model', text: modelBufferRef.current || next }];
+        });
+        modelBufferRef.current = '';
+        setStreaming(false);
+      }
     };
     window.addEventListener('gemini-live-text', handler);
     return () => {
       window.removeEventListener('gemini-live-text', handler);
+      setStreaming(false);
       if (modelFinalizeTimer.current) clearTimeout(modelFinalizeTimer.current);
+      modelBufferRef.current = '';
     };
-  }, [messages]);
+  }, []);
 
   // Listen for live enable/disable toggle
   useEffect(() => {
@@ -177,6 +220,7 @@ export default function DesktopTextChatbot() {
               </div>
             ))}
             {loading && <div className="text-xs text-neutral-500">Thinking…</div>}
+            {streaming && <div className="text-xs text-neutral-500">Streaming…</div>}
           </div>
 
           <div className="p-3 border-t border-neutral-200 dark:border-neutral-800">

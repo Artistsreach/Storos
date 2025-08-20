@@ -62,14 +62,15 @@ export class GeminiDesktopLive {
             // Dispatch text events for transcriptions so UI can mirror audio-mode chat
             try {
               const sc = message.serverContent || message.server_content || {};
+              const turnComplete = !!(sc.turnComplete || sc.turn_complete);
               const outTx = sc.outputTranscription?.text || sc.output_transcription?.text;
               if (outTx) {
-                const evt = new CustomEvent('gemini-live-text', { detail: { role: 'model', text: outTx } });
+                const evt = new CustomEvent('gemini-live-text', { detail: { role: 'model', text: outTx, complete: turnComplete } });
                 window.dispatchEvent(evt);
               }
               const inTx = sc.inputTranscription?.text || sc.input_transcription?.text;
               if (inTx) {
-                const evt2 = new CustomEvent('gemini-live-text', { detail: { role: 'user', text: inTx } });
+                const evt2 = new CustomEvent('gemini-live-text', { detail: { role: 'user', text: inTx, complete: turnComplete } });
                 window.dispatchEvent(evt2);
               }
             } catch (e) {
