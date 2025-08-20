@@ -193,26 +193,49 @@ export default defineConfig(({ mode }) => {
 	// optimizeDeps: {
 	// 	exclude: ['@ffmpeg/ffmpeg'], // Removed to allow Vite to process ffmpeg
 	// },
-	server: {
-		cors: true,
-		headers: {
-			'Cross-Origin-Embedder-Policy': 'credentialless',
+		server: {
+			cors: true,
+			headers: {
+				'Cross-Origin-Embedder-Policy': 'credentialless',
+			},
+			allowedHosts: true,
+			proxy: {
+				'/gemini-live': {
+					target: 'http://localhost:5173/gemini-live',
+					changeOrigin: true,
+					rewrite: (path) => path.replace(/^\/gemini-live/, '')
+				},
+				// Legacy compatibility: point to Discover for now
+				'/api/leads': {
+					target: 'https://us-central1-fresh25.cloudfunctions.net',
+					changeOrigin: true,
+					rewrite: (p) => p.replace(/^\/api\/leads/, '/hunterDiscover')
+				},
+				// New explicit endpoints
+				'/api/hunter/discover': {
+					target: 'https://us-central1-fresh25.cloudfunctions.net',
+					changeOrigin: true,
+					rewrite: (p) => p.replace(/^\/api\/hunter\/discover/, '/hunterDiscover')
+				},
+				'/api/hunter/domain-search': {
+					target: 'https://us-central1-fresh25.cloudfunctions.net',
+					changeOrigin: true,
+					rewrite: (p) => p.replace(/^\/api\/hunter\/domain-search/, '/hunterDomainSearch')
+				},
+				'/api/hunter/email-finder': {
+					target: 'https://us-central1-fresh25.cloudfunctions.net',
+					changeOrigin: true,
+					rewrite: (p) => p.replace(/^\/api\/hunter\/email-finder/, '/hunterEmailFinder')
+				}
+			}
 		},
-		allowedHosts: true,
-        proxy: {
-            '/gemini-live': {
-                target: 'http://localhost:5173/gemini-live',
-                changeOrigin: true,
-                rewrite: (path) => path.replace(/^\/gemini-live/, '')
-            }
-        }
-	},
-	resolve: {
-		extensions: ['.jsx', '.js', '.tsx', '.ts', '.json', ],
-		alias: {
-			'@': path.resolve(__dirname, './src'),
+		resolve: {
+			extensions: ['.jsx', '.js', '.tsx', '.ts', '.json', ],
+			alias: {
+				'@': path.resolve(__dirname, './src'),
+			},
 		},
-	},
+
 		build: {
 			// rollupOptions: {
 			// 	external: ['@ffmpeg/ffmpeg'], // Removed to allow Vite to bundle ffmpeg

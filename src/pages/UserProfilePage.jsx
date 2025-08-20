@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import EditProfileModal from '../components/EditProfileModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useStore } from '../contexts/StoreContext';
+import { usePageMeta } from '../contexts/PageMetaContext';
 import { db } from '../lib/firebaseClient';
 import { collection, query, where, onSnapshot, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc, Timestamp, addDoc, orderBy } from 'firebase/firestore';
 import PostCard from '../components/PostCard';
@@ -20,6 +21,7 @@ const UserProfilePage = () => {
   const { username, slug } = useParams();
   const { user, profile: currentUserProfile } = useAuth();
   const { stores: contextStores, isLoadingStores, getStoreProducts } = useStore();
+  const { setIsProfilePage } = usePageMeta();
   const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [posts, setPosts] = useState([]);
@@ -42,6 +44,12 @@ const UserProfilePage = () => {
   const [selectedStore, setSelectedStore] = useState('');
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [isReorderModalOpen, setIsReorderModalOpen] = useState(false);
+
+  // Mark this route as a profile page for global UI logic (e.g., hide chatbot)
+  useEffect(() => {
+    setIsProfilePage(true);
+    return () => setIsProfilePage(false);
+  }, [setIsProfilePage]);
 
   useEffect(() => {
     let products = allProducts;

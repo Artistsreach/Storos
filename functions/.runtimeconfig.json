@@ -1,0 +1,9 @@
+﻿{
+  "hunter": {
+    "api_key": "31f2818f0c75950d561d705a9631ea9dd8fa84f9"
+  },
+  "plaid": {
+    "client_id": "66a1c121856fc000193d930a",
+    "secret": "c533c8d8a2039ceccaa031bd7ce56b"
+  }
+}

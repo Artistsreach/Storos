@@ -331,7 +331,16 @@ export default function Desktop() {
 
   useEffect(() => {
     const handleToolCall = (event) => {
-      const { name, args } = event.detail;
+      // Normalize payload: it may be {name,args} or {functionCalls:[{name,args}]}
+      let payload = event.detail;
+      if (payload && Array.isArray(payload.functionCalls) && payload.functionCalls.length > 0) {
+        payload = payload.functionCalls[0];
+      }
+      let name = payload?.name;
+      let args = payload?.args;
+      if (typeof args === 'string') {
+        try { args = JSON.parse(args); } catch (_) { /* leave as string */ }
+      }
       const findAndOpenFile = (fileId) => {
         const all = [...staticShortcuts, ...desktopFiles];
         const file = all.find(f => f.id === fileId);

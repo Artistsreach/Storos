@@ -82,16 +82,20 @@ export default function FinderWindow({ isOpen, onClose, onMinimize, onMaximize, 
     if (file.workflow) {
       setSelectedFile(file);
       setIframeUrl(null);
-    } else if (file.url) {
-      if (file.url.startsWith('/')) {
-        window.location.href = file.url;
-      } else {
-        setIframeUrl(file.url);
-        setSelectedFile(null);
-      }
-    } else if (onFileDoubleClick) {
-      onFileDoubleClick(file);
+      return;
     }
+    if (file.url) {
+      // Internal app routes should open in an in-app window, not navigate the tab
+      if (file.url.startsWith('/')) {
+        onFileDoubleClick?.(file);
+        return;
+      }
+      // External links continue to open in embedded iframe within Finder
+      setIframeUrl(file.url);
+      setSelectedFile(null);
+      return;
+    }
+    onFileDoubleClick?.(file);
   };
 
   const handlePin = (file) => {
@@ -107,6 +111,7 @@ export default function FinderWindow({ isOpen, onClose, onMinimize, onMaximize, 
           { id: 'calculator-shortcut', name: 'Calculator', icon: '🧮', type: 'app', is_shortcut: true },
           { id: 'contract-creator-shortcut', name: 'Contract Creator', icon: '✍️', type: 'app', is_shortcut: true },
           { id: 'notepad-shortcut', name: 'Notepad', icon: '🗒️', type: 'app', is_shortcut: true },
+          { id: 'leads-shortcut', name: 'Leads', icon: '🧲', url: '/leads', type: 'app', is_shortcut: true },
         ]);
       } else {
         loadFolderFiles(initialFolder.id);

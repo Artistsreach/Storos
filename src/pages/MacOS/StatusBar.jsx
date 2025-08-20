@@ -64,10 +64,26 @@ export default function StatusBar({
     if (isRecording) {
       geminiLive.stopRecording();
       setIsRecording(false);
+      try { delete window.__geminiLive; } catch (_) {}
+      window.dispatchEvent(new CustomEvent('gemini-live-status', { detail: { enabled: false } }));
     } else {
       const newGeminiLive = new GeminiDesktopLive(
         import.meta.env.VITE_GEMINI_API_KEY,
-        (message) => console.log('onMessage', message),
+        (message) => {
+          try {
+            // Mirror input and output transcriptions into a shared event bus
+            const outText = message?.serverContent?.outputTranscription?.text;
+            if (outText) {
+              window.dispatchEvent(new CustomEvent('gemini-live-text', { detail: { role: 'model', text: outText } }));
+            }
+            const inText = message?.serverContent?.inputTranscription?.text;
+            if (inText) {
+              window.dispatchEvent(new CustomEvent('gemini-live-text', { detail: { role: 'user', text: inText } }));
+            }
+          } catch (e) {
+            // no-op
+          }
+        },
         (error) => console.error('onError', error),
         () => console.log('onOpen'),
         () => console.log('onClose')
@@ -76,6 +92,8 @@ export default function StatusBar({
       newGeminiLive.startRecording();
       setGeminiLive(newGeminiLive);
       setIsRecording(true);
+      window.__geminiLive = newGeminiLive;
+      window.dispatchEvent(new CustomEvent('gemini-live-status', { detail: { enabled: true } }));
     }
   };
 

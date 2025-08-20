@@ -20,11 +20,13 @@ import { useAuth } from './contexts/AuthContext';
 import ScrollToTop from './components/ScrollToTop';
 import SearchPageChatbot from './components/store/SearchPageChatbot'; // Import SearchPageChatbot
 import { useLocation } from 'react-router-dom'; // Import useLocation
+import { usePageMeta } from './contexts/PageMetaContext';
 
 const App = () => {
   const { user, profile, loadingRole } = useAuth();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
+  const { isProfilePage } = usePageMeta();
 
   useEffect(() => {
     if (user && !loadingRole && profile && !profile.username) {
@@ -38,6 +40,8 @@ const App = () => {
 
   const location = useLocation();
   const isSearchPage = location.pathname === '/search';
+  const isMacOSPage = location.pathname === '/home';
+  const shouldHideChatbot = isMacOSPage || isProfilePage;
 
   return (
     <StoreProvider>
@@ -47,7 +51,9 @@ const App = () => {
       <main className="min-h-screen bg-white dark:bg-black">
         <Outlet /> {/* Child routes will render here */}
         <Toaster />
-        <RealtimeChatbot isOpen={isChatbotOpen} setIsOpen={setIsChatbotOpen} />
+        {!shouldHideChatbot && (
+          <RealtimeChatbot isOpen={isChatbotOpen} setIsOpen={setIsChatbotOpen} />
+        )}
         {isSearchPage && !isChatbotOpen && <SearchPageChatbot onOpen={() => setIsChatbotOpen(true)} />}
         <Analytics />
       </main>

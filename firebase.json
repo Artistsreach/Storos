@@ -34,10 +34,8 @@
       }
     ],
     "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
+      { "source": "/api/leads", "function": "leadsUnified" },
+      { "source": "**", "destination": "/index.html" }
     ],
     "site": "fresh25"
   }

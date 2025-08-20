@@ -25,6 +25,7 @@ import {
 } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Edit, Image, Layers, ArrowRight, TrendingUp, X } from "lucide-react";
+import HomeAssistantLive from "./home/HomeAssistantLive";
 
 const HomePage = () => {
   const [activeVideo, setActiveVideo] = useState<string | null>(null);
@@ -999,6 +1000,9 @@ const HomePage = () => {
 
       {isModalOpen && <AIContentCreationModal onClose={() => setIsModalOpen(false)} />}
 
+      {/* Home floating assistant (GeminiDesktopLive-backed) */}
+      <HomeAssistantLive />
+
       {/* Footer */}
       <footer className="bg-slate-900 dark:bg-gray-950 text-slate-300 dark:text-gray-400 py-12 px-4 md:px-8 lg:px-16">
         <div className="max-w-7xl mx-auto">
@@ -1102,7 +1106,7 @@ const HomePage = () => {
           </div>
           <div className="border-t border-slate-800 dark:border-gray-800 mt-8 pt-8 text-sm text-center">
             <p>
-              © {new Date().getFullYear()} FreshFront. All rights reserved.
+              &copy; {new Date().getFullYear()} FreshFront. All rights reserved.
             </p>
           </div>
         </div>

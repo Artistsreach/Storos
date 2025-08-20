@@ -8,6 +8,7 @@ import './index.css';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { WishlistProvider } from './contexts/WishlistContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { PageMetaProvider } from './contexts/PageMetaContext';
 
 // Page Imports
 import ContentCreationPage from './pages/ContentCreationPage';
@@ -40,6 +41,7 @@ import PlayPage from './app/play/page';
 import FrontStPage from './pages/FrontStPage';
 import HomePage from './pages/HomePage';
 import StoreOwnerDashboard from './pages/StoreOwnerDashboard';
+import LeadsPage from './pages/LeadsPage';
 
 // The index route is now the public-facing store owner dashboard.
 const IndexPageHandler = () => {
@@ -82,7 +84,9 @@ const routes = [
         <WishlistProvider>
           <ThemeProvider>
             <Elements stripe={stripePromise}>
-              <App /> {/* App provides StoreProvider and <Outlet /> for child routes */}
+              <PageMetaProvider>
+                <App /> {/* App provides StoreProvider and <Outlet /> for child routes */}
+              </PageMetaProvider>
             </Elements>
           </ThemeProvider>
         </WishlistProvider>
@@ -193,6 +197,10 @@ const routes = [
       {
         path: "/home",
         element: <HomePage />,
+      },
+      {
+        path: "/leads",
+        element: <LeadsPage />,
       },
       {
         path: "/store",

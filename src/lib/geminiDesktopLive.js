@@ -59,6 +59,23 @@ export class GeminiDesktopLive {
             }
             if (this.onMessage) this.onMessage(message);
 
+            // Dispatch text events for transcriptions so UI can mirror audio-mode chat
+            try {
+              const sc = message.serverContent || message.server_content || {};
+              const outTx = sc.outputTranscription?.text || sc.output_transcription?.text;
+              if (outTx) {
+                const evt = new CustomEvent('gemini-live-text', { detail: { role: 'model', text: outTx } });
+                window.dispatchEvent(evt);
+              }
+              const inTx = sc.inputTranscription?.text || sc.input_transcription?.text;
+              if (inTx) {
+                const evt2 = new CustomEvent('gemini-live-text', { detail: { role: 'user', text: inTx } });
+                window.dispatchEvent(evt2);
+              }
+            } catch (e) {
+              // ignore
+            }
+
             if (message.toolCall) {
               const functionResponses = [];
               for (const fc of message.toolCall.functionCalls) {
