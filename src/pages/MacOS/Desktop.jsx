@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { File } from '../../entities/File';
 import StatusBar from './StatusBar';
 import Dock from './Dock';
@@ -54,6 +54,21 @@ export default function Desktop() {
   const [drawingColor, setDrawingColor] = useState('red');
   const [drawingSize, setDrawingSize] = useState(5);
   const [drawingTool, setDrawingTool] = useState('pencil');
+
+  // Build an augmented list of windows that includes special windows rendered outside openWindows
+  const allWindows = useMemo(() => {
+    const extras = [];
+    if (explorerWindow?.isOpen) {
+      extras.push({ id: 'explorer-window', position: nextWindowPosition, width: 800, height: 400 });
+    }
+    if (imageViewerWindow?.isOpen) {
+      extras.push({ id: 'image-viewer-window', position: nextWindowPosition, width: 800, height: 600 });
+    }
+    if (tableWindow?.isOpen) {
+      extras.push({ id: 'table-window', position: nextWindowPosition, width: 800, height: 400 });
+    }
+    return [...openWindows, ...extras];
+  }, [openWindows, explorerWindow, imageViewerWindow, tableWindow, nextWindowPosition]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -397,48 +412,72 @@ export default function Desktop() {
   };
 
   const handleMouseMove = (e) => {
-    if (newConnection) {
-      const getClient = (ev) => {
-        if (ev?.touches && ev.touches[0]) return { x: ev.touches[0].clientX, y: ev.touches[0].clientY };
-        if (ev?.changedTouches && ev.changedTouches[0]) return { x: ev.changedTouches[0].clientX, y: ev.changedTouches[0].clientY };
-        return { x: ev.clientX, y: ev.clientY };
-      };
-      const { x: cx, y: cy } = getClient(e);
-      const desktopRect = desktopRef.current?.getBoundingClientRect?.();
-      setNewConnection({
-        ...newConnection,
-        to: { x: cx - (desktopRect?.left || 0), y: cy - (desktopRect?.top || 0) },
-      });
+    if (!newConnection) return;
+    const getClient = (ev) => {
+      if (ev?.touches && ev.touches[0]) return { x: ev.touches[0].clientX, y: ev.touches[0].clientY };
+      if (ev?.changedTouches && ev.changedTouches[0]) return { x: ev.changedTouches[0].clientX, y: ev.changedTouches[0].clientY };
+      return { x: ev.clientX, y: ev.clientY };
+    };
+    const { x: cx, y: cy } = getClient(e);
+    const rect = desktopRef.current?.getBoundingClientRect?.();
+    const localTo = { x: cx - (rect?.left || 0), y: cy - (rect?.top || 0) };
+    // Compute nearest left connector hotspot in desktop-local coords (without pan offset)
+    const SNAP_RADIUS = 40;
+    let nearestId = null;
+    let minDist = Infinity;
+    const cursorX = localTo.x - (panOffset?.x || 0);
+    const cursorY = localTo.y - (panOffset?.y || 0);
+    for (const w of allWindows) {
+      if (!w || !w.position || w.id === newConnection.from) continue;
+      if (minimizedWindows.includes(w.id)) continue;
+      const width = w.width || 800;
+      const height = w.height || 600;
+      const hx = (w.position.left || 0) - 6;
+      const hy = (w.position.top || 0) + height / 2;
+      const dist = Math.hypot(cursorX - hx, cursorY - hy);
+      if (dist < minDist) { minDist = dist; nearestId = w.id; }
     }
+    const hoverTargetId = minDist <= SNAP_RADIUS ? nearestId : null;
+    setNewConnection(prev => prev ? { ...prev, to: localTo, hoverTargetId } : prev);
   };
 
   const handleMouseUp = (e) => {
-    if (newConnection) {
-      const getClient = (ev) => {
-        if (ev?.touches && ev.touches[0]) return { x: ev.touches[0].clientX, y: ev.touches[0].clientY };
-        if (ev?.changedTouches && ev.changedTouches[0]) return { x: ev.changedTouches[0].clientX, y: ev.changedTouches[0].clientY };
-        return { x: ev.clientX, y: ev.clientY };
-      };
-      const { x: ex, y: ey } = getClient(e);
-      const cursorX = ex - (panOffset?.x || 0);
-      const cursorY = ey - (panOffset?.y || 0);
-      const toWindow = openWindows.find((w) => {
-        if (!w.position) return false;
-        const width = w.width || 800;
-        const height = w.height || 600;
-        return (
-          cursorX >= w.position.left &&
-          cursorX <= w.position.left + width &&
-          cursorY >= w.position.top &&
-          cursorY <= w.position.top + height
-        );
-      });
-
-      if (toWindow && toWindow.id !== newConnection.from) {
-        setConnections([...connections, { from: newConnection.from, to: toWindow.id }]);
-      }
+    if (!newConnection) return;
+    // Prefer the computed hoverTargetId from the latest mousemove
+    const targetId = newConnection.hoverTargetId;
+    if (targetId && targetId !== newConnection.from && !minimizedWindows.includes(targetId)) {
+      setConnections(prev => [...prev, { from: newConnection.from, to: targetId }]);
       setNewConnection(null);
+      return;
     }
+    // If no cached target, compute once at release
+    const getClient = (ev) => {
+      if (ev?.touches && ev.touches[0]) return { x: ev.touches[0].clientX, y: ev.touches[0].clientY };
+      if (ev?.changedTouches && ev.changedTouches[0]) return { x: ev.changedTouches[0].clientX, y: ev.changedTouches[0].clientY };
+      return { x: ev.clientX, y: ev.clientY };
+    };
+    const { x: ex, y: ey } = getClient(e);
+    const rect = desktopRef.current?.getBoundingClientRect?.();
+    const local = { x: ex - (rect?.left || 0), y: ey - (rect?.top || 0) };
+    const SNAP_RADIUS = 40;
+    let nearestId = null;
+    let minDist = Infinity;
+    const cursorX = local.x - (panOffset?.x || 0);
+    const cursorY = local.y - (panOffset?.y || 0);
+    for (const w of allWindows) {
+      if (!w || !w.position || w.id === newConnection.from) continue;
+      if (minimizedWindows.includes(w.id)) continue;
+      const width = w.width || 800;
+      const height = w.height || 600;
+      const hx = (w.position.left || 0) - 6;
+      const hy = (w.position.top || 0) + height / 2;
+      const dist = Math.hypot(cursorX - hx, cursorY - hy);
+      if (dist < minDist) { minDist = dist; nearestId = w.id; }
+    }
+    if (nearestId && minDist <= SNAP_RADIUS && nearestId !== newConnection.from) {
+      setConnections(prev => [...prev, { from: newConnection.from, to: nearestId }]);
+    }
+    setNewConnection(null);
   };
 
   useEffect(() => {
@@ -887,7 +926,7 @@ export default function Desktop() {
       }}
       onClick={() => setIsWiggleMode(false)}
     >
-      <ConnectionsLayer connections={connections} openWindows={openWindows} newConnection={newConnection} panOffset={panOffset} />
+      <ConnectionsLayer connections={connections} openWindows={allWindows} newConnection={newConnection} panOffset={panOffset} />
       <div
         className="absolute inset-0 flex items-center justify-center pointer-events-none"
         style={{ transform: `translate(${panOffset.x}px, ${panOffset.y}px)` }}

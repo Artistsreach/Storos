@@ -344,13 +344,14 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
     };
   }, [automation, app?.url]);
 
+  // Render
   return (
     <motion.div
       drag
       dragMomentum={false}
       dragHandle=".drag-handle"
       onDragEnd={onDragEnd}
-      className={`absolute bg-gray-100/50 backdrop-blur-xl rounded-lg shadow-2xl flex flex-col overflow-hidden border border-gray-300/20 ${isMaximized ? 'w-full h-full top-0 left-0 rounded-none' : ''}`}
+      className={`ff-window absolute bg-gray-100/50 backdrop-blur-xl rounded-lg shadow-2xl flex flex-col overflow-visible border border-gray-300/20 ${isMaximized ? 'w-full h-full top-0 left-0 rounded-none' : ''}`}
       style={{
         zIndex,
         width: isMaximized ? '100%' : width,
@@ -358,11 +359,12 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
         top: isMaximized ? 0 : position?.top,
         left: isMaximized ? 0 : position?.left,
       }}
+      data-window-id={windowId}
       onClick={onClick}
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
-    >
+   >
       <div className="relative flex items-center justify-between p-2 bg-gray-200/80 rounded-t-lg border-b border-gray-300/40">
         <div className="flex space-x-2">
           <TrafficLightButton color="bg-red-500" onClick={onClose} />
@@ -380,37 +382,44 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
             </button>
           )}
         </div>
-        <Connector windowId={windowId} onMouseDown={onConnectorMouseDown} />
       </div>
+
+      <Connector side="left" windowId={windowId} />
+      <Connector side="right" windowId={windowId} onMouseDown={onConnectorMouseDown} />
+
       <div className="flex-grow flex flex-col overflow-y-auto">
         {app.url ? (
-          <iframe ref={iframeRef} src={useMemo(() => {
-            try {
-              if (automation?.type === 'buildApp' && automation?.prompt) {
-                const u = new URL(app.url);
-                u.searchParams.set('prompt', automation.prompt);
-                u.searchParams.set('autobuild', '1');
-                return u.toString();
-              }
-              if (automation?.type === 'createStore') {
-                const u = new URL(app.url);
-                if (automation.name) u.searchParams.set('storeName', automation.name);
-                if (automation.description) u.searchParams.set('storePrompt', automation.description);
-                u.searchParams.set('autocreate', '1');
-                const t = automation.storeType || 'print_on_demand';
-                u.searchParams.set('pod', t === 'print_on_demand' ? '1' : '0');
-                u.searchParams.set('dropship', t === 'dropship' ? '1' : '0');
-                u.searchParams.set('fund', t === 'fund' ? '1' : '0');
-                return u.toString();
-              }
-              if (automation?.type === 'automateTask') {
-                const u = new URL(app.url);
-                u.searchParams.set('command', automation.name);
-                return u.toString();
-              }
-            } catch (_) { /* fallthrough */ }
-            return app.url;
-          }, [app.url, automation?.type, automation?.prompt, automation?.name, automation?.description, automation?.storeType, automation?.args])} className="w-full h-full flex-grow" />
+          <iframe
+            ref={iframeRef}
+            src={useMemo(() => {
+              try {
+                if (automation?.type === 'buildApp' && automation?.prompt) {
+                  const u = new URL(app.url);
+                  u.searchParams.set('prompt', automation.prompt);
+                  u.searchParams.set('autobuild', '1');
+                  return u.toString();
+                }
+                if (automation?.type === 'createStore') {
+                  const u = new URL(app.url);
+                  if (automation.name) u.searchParams.set('storeName', automation.name);
+                  if (automation.description) u.searchParams.set('storePrompt', automation.description);
+                  u.searchParams.set('autocreate', '1');
+                  const t = automation.storeType || 'print_on_demand';
+                  u.searchParams.set('pod', t === 'print_on_demand' ? '1' : '0');
+                  u.searchParams.set('dropship', t === 'dropship' ? '1' : '0');
+                  u.searchParams.set('fund', t === 'fund' ? '1' : '0');
+                  return u.toString();
+                }
+                if (automation?.type === 'automateTask') {
+                  const u = new URL(app.url);
+                  u.searchParams.set('command', automation.name);
+                  return u.toString();
+                }
+              } catch (_) { /* fallthrough */ }
+              return app.url;
+            }, [app.url, automation?.type, automation?.prompt, automation?.name, automation?.description, automation?.storeType, automation?.args])}
+            className="w-full h-full flex-grow"
+          />
         ) : (
           <div className="p-4 flex-grow overflow-auto">
             {app?.id === 'stripe-analytics' ? (

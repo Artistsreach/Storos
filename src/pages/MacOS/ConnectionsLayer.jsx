@@ -1,12 +1,16 @@
 import React from 'react';
 
 export default function ConnectionsLayer({ connections, openWindows, newConnection, panOffset }) {
-  const getConnectorPosition = (windowId) => {
+  const getConnectorPosition = (windowId, side = 'right') => {
     const win = openWindows.find((w) => w.id === windowId);
     if (!win || !win.position) return null;
     const width = win.width || 800;
-    const x = (win.position.left || 0) + width - 8 + (panOffset?.x || 0);
-    const y = (win.position.top || 0) + 20 + (panOffset?.y || 0);
+    const height = win.height || 600;
+    // Tab sits outside edges; default tabWidth=12 => center is +/-6 from edge
+    const x = side === 'left'
+      ? (win.position.left || 0) - 6 + (panOffset?.x || 0)
+      : (win.position.left || 0) + width + 6 + (panOffset?.x || 0);
+    const y = (win.position.top || 0) + height / 2 + (panOffset?.y || 0);
     return { x, y };
   };
 
@@ -41,10 +45,10 @@ export default function ConnectionsLayer({ connections, openWindows, newConnecti
   return (
     <svg className="absolute top-0 left-0 w-full h-full pointer-events-none" style={{ zIndex: 9999 }}>
       {connections.map((conn, index) => {
-        const fromPos = getConnectorPosition(conn.from);
-        const toPos = getConnectorPosition(conn.to);
+        const fromPos = getConnectorPosition(conn.from, 'right');
+        const toPos = getConnectorPosition(conn.to, 'left');
         if (!fromPos || !toPos) return null;
-        const d = pathBetween(fromPos, toPos);
+        const d = pathBetween(fromPos, toPos, 'right', 'left');
         return (
           <path
             key={index}
@@ -60,7 +64,7 @@ export default function ConnectionsLayer({ connections, openWindows, newConnecti
           const usingLocal = !!newConnection.startLocal;
           const start = usingLocal
             ? { x: newConnection.startLocal.x + (panOffset?.x || 0), y: newConnection.startLocal.y + (panOffset?.y || 0) }
-            : getConnectorPosition(newConnection.from);
+            : getConnectorPosition(newConnection.from, newConnection.side || 'right');
           if (!start) return null;
           const end = usingLocal
             ? { x: newConnection.to.x + (panOffset?.x || 0), y: newConnection.to.y + (panOffset?.y || 0) }

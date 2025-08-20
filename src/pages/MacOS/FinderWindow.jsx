@@ -117,7 +117,7 @@ export default function FinderWindow({ isOpen, onClose, onMinimize, onMaximize, 
       dragMomentum={false}
       dragHandle=".drag-handle"
       onDragEnd={onDragEnd}
-      className={`absolute bg-gray-100/50 backdrop-blur-xl rounded-lg shadow-2xl flex flex-col overflow-hidden border border-gray-300/20 ${isMaximized ? 'w-full h-full top-0 left-0 rounded-none' : ''}`}
+      className={`ff-window absolute bg-gray-100/50 backdrop-blur-xl rounded-lg shadow-2xl flex flex-col overflow-visible border border-gray-300/20 ${isMaximized ? 'w-full h-full top-0 left-0 rounded-none' : ''}`}
       style={{
         zIndex,
         width: isMaximized ? '100%' : width,
@@ -125,6 +125,7 @@ export default function FinderWindow({ isOpen, onClose, onMinimize, onMaximize, 
         top: isMaximized ? 0 : position?.top,
         left: isMaximized ? 0 : position?.left,
       }}
+      data-window-id={windowId}
       onClick={onClick}
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
@@ -147,8 +148,9 @@ export default function FinderWindow({ isOpen, onClose, onMinimize, onMaximize, 
             </button>
           )}
         </div>
-        <Connector windowId={windowId} onMouseDown={onConnectorMouseDown} />
       </div>
+      <Connector side="left" windowId={windowId} />
+      <Connector side="right" windowId={windowId} onMouseDown={onConnectorMouseDown} />
       <div className="flex-grow flex flex-col overflow-y-auto">
         {selectedFile ? (
           <AutomationWorkflowPage file={selectedFile} />
