@@ -25,6 +25,7 @@ import { generateImage } from '../../lib/geminiImageGeneration';
 import { GoogleGenAI } from '@google/genai';
 import { takeScreenshot } from '../../lib/screenshotOne';
 import { analyzeImageDataUrl } from '../../lib/analyzeImageWithGemini';
+import { generateVideoWithVeoFromImage } from '../../lib/geminiVideoGeneration';
 
 export default function Desktop() {
   const { theme, toggleTheme } = useTheme();
@@ -416,6 +417,43 @@ export default function Desktop() {
             setImageViewerWindow({ isOpen: true, imageData: `data:image/png;base64,${imageData}` });
           });
           break;
+        case "generateVideo": {
+          // Open a Notepad window to show progress
+          const windowId = `notepad-${Date.now()}`;
+          setOpenWindows(prev => [
+            ...prev,
+            {
+              id: windowId,
+              type: 'notepad',
+              isMaximized: false,
+              zIndex: windowZIndex,
+              position: nextWindowPosition,
+              content: 'Generating image...\n',
+              defaultEditing: false,
+              width: 700,
+              height: 520,
+            },
+          ]);
+          setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
+          setWindowZIndex(prev => prev + 1);
+
+          (async () => {
+            try {
+              const prompt = args?.prompt || '';
+              if (!prompt) throw new Error('Missing prompt for generateVideo.');
+              // 1) Generate image
+              const { imageData } = await generateImage(prompt);
+              setOpenWindows(prev => prev.map(w => w.id === windowId ? { ...w, content: (w.content || '') + 'Image generated. Starting image-to-video...\n' } : w));
+              // 2) Animate image to video (assume PNG output)
+              const mimeType = 'image/png';
+              const videoUrl = await generateVideoWithVeoFromImage(prompt, imageData, mimeType);
+              setOpenWindows(prev => prev.map(w => w.id === windowId ? { ...w, content: (w.content || '') + `Done! Video URL:\n${videoUrl}\n` } : w));
+            } catch (err) {
+              setOpenWindows(prev => prev.map(w => w.id === windowId ? { ...w, content: (w.content || '') + `Error: ${err?.message || err}` } : w));
+            }
+          })();
+          break;
+        }
         case "openNotepad":
           const windowId = `notepad-${Date.now()}`;
           setOpenWindows(prev => [
@@ -695,6 +733,11 @@ export default function Desktop() {
       ]);
       setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
       setWindowZIndex(prev => prev + 1);
+      return;
+    }
+    if (id === 'image-editor-shortcut') {
+      // Open the Image Viewer/Editor with no image loaded initially
+      setImageViewerWindow({ isOpen: true, imageData: '' });
       return;
     }
     if (id === 'stripe-analytics') {

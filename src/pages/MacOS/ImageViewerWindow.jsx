@@ -10,15 +10,37 @@ const TrafficLightButton = ({ color, onClick }) => (
 export default function ImageViewerWindow({ isOpen, onClose, onMinimize, onMaximize, isMaximized, title, imageData, zIndex, onClick, position, windowId }) {
   const [editPrompt, setEditPrompt] = useState('');
   const [currentImageData, setCurrentImageData] = useState(imageData);
+  const [mimeType, setMimeType] = useState('image/png');
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     setCurrentImageData(imageData);
   }, [imageData]);
 
   const handleEdit = async () => {
-    if (!editPrompt) return;
-    const { imageData: newImageData } = await editImage(editPrompt, currentImageData.split(',')[1], 'image/png');
-    setCurrentImageData(`data:image/png;base64,${newImageData}`);
+    if (!editPrompt || !currentImageData) return;
+    try {
+      setIsEditing(true);
+      const base64 = currentImageData.split(',')[1];
+      const { imageData: newImageData } = await editImage(editPrompt, base64, mimeType || 'image/png');
+      setCurrentImageData(`data:${mimeType || 'image/png'};base64,${newImageData}`);
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      if (typeof dataUrl === 'string') {
+        setCurrentImageData(dataUrl);
+        setMimeType(file.type || 'image/png');
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   if (!isOpen) return null;
@@ -49,17 +71,32 @@ export default function ImageViewerWindow({ isOpen, onClose, onMinimize, onMaxim
         <div></div>
       </div>
       <div className="flex-grow p-4 overflow-y-auto">
-        <img src={currentImageData} alt={title} className="w-full h-full object-contain" />
+        {currentImageData ? (
+          <img src={currentImageData} alt={title || 'Image'} className="w-full h-full object-contain" />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center text-black space-y-3">
+            <div className="text-sm opacity-80">Upload an image to start editing</div>
+            <input type="file" accept="image/*" onChange={handleFileChange} className="text-sm" />
+          </div>
+        )}
       </div>
-      <div className="p-2 bg-gray-200/80 rounded-b-lg border-t border-gray-300/40 flex">
-        <input
-          type="text"
-          value={editPrompt}
-          onChange={(e) => setEditPrompt(e.target.value)}
-          placeholder="Enter a prompt to edit the image..."
-          className="w-full p-2 border rounded"
-        />
-        <button onClick={handleEdit} className="p-2 bg-blue-500 text-white rounded ml-2">Edit</button>
+      <div className="p-2 bg-gray-200/80 rounded-b-lg border-t border-gray-300/40 flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <input type="file" accept="image/*" onChange={handleFileChange} className="text-sm" />
+          <span className="text-xs text-black/70">{mimeType}</span>
+        </div>
+        <div className="flex">
+          <input
+            type="text"
+            value={editPrompt}
+            onChange={(e) => setEditPrompt(e.target.value)}
+            placeholder="Describe the edit (e.g., add a llama next to the person)"
+            className="w-full p-2 border rounded"
+          />
+          <button onClick={handleEdit} disabled={isEditing || !currentImageData}
+            className={`p-2 rounded ml-2 ${isEditing ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 text-white'}`}
+          >{isEditing ? 'Editing…' : 'Edit'}</button>
+        </div>
       </div>
     </motion.div>
   );

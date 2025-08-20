@@ -123,6 +123,7 @@ export default function FinderWindow({ isOpen, onClose, onMinimize, onMaximize, 
           { id: 'calculator-shortcut', name: 'Calculator', icon: '🧮', type: 'app', is_shortcut: true },
           { id: 'contract-creator-shortcut', name: 'Contract Creator', icon: '✍️', type: 'app', is_shortcut: true },
           { id: 'notepad-shortcut', name: 'Notepad', icon: '🗒️', type: 'app', is_shortcut: true },
+          { id: 'image-editor-shortcut', name: 'Image Editor', icon: '🖌️', type: 'app', is_shortcut: true },
           { id: 'leads-shortcut', name: 'Leads', icon: '🧲', url: '/leads', type: 'app', is_shortcut: true },
         ]);
       } else {

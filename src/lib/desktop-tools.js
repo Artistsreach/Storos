@@ -117,6 +117,20 @@ export const tools = [
         },
       },
       {
+        name: "generateVideo",
+        description: "Generate a short video by first creating an image from a prompt and then animating it (image-to-video).",
+        parameters: {
+          type: "object",
+          properties: {
+            prompt: {
+              type: "string",
+              description: "The prompt to generate the image and derived video from.",
+            },
+          },
+          required: ["prompt"],
+        },
+      },
+      {
         name: "openNotepad",
         description: "Open a notepad window and generate content for it.",
         parameters: {
