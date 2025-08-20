@@ -1,5 +1,13 @@
 export async function captureScreenFrame() {
   // Prompt user to select a screen/window/tab
+  const supported = !!(navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === 'function');
+  const secure = typeof window !== 'undefined' && (window.isSecureContext || window.location.hostname === 'localhost');
+  if (!supported) {
+    throw new Error('Screen capture is not supported here. Use a Chromium-based desktop browser and serve over https or http://localhost. Alternatively, capture an image and use analyzeScreenshot methods.');
+  }
+  if (!secure) {
+    throw new Error('Screen capture requires a secure context. Serve your app over https or http://localhost.');
+  }
   const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
   try {
     const [track] = stream.getVideoTracks();
