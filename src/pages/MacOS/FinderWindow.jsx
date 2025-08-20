@@ -67,6 +67,18 @@ export default function FinderWindow({ isOpen, onClose, onMinimize, onMaximize, 
   const [titleValue, setTitleValue] = useState(initialFolder ? initialFolder.name : '');
   const titleInputRef = useRef(null);
 
+  // Clamp width on mount and when viewport changes for mobile
+  useEffect(() => {
+    const clampForViewport = () => {
+      if (window.innerWidth < 640) {
+        setWidth((w) => Math.min(380, w));
+      }
+    };
+    clampForViewport();
+    window.addEventListener('resize', clampForViewport);
+    return () => window.removeEventListener('resize', clampForViewport);
+  }, []);
+
   useEffect(() => {
     setTitleValue(initialFolder ? initialFolder.name : '');
   }, [initialFolder]);
@@ -170,7 +182,7 @@ export default function FinderWindow({ isOpen, onClose, onMinimize, onMaximize, 
       dragMomentum={false}
       dragHandle=".drag-handle"
       onDragEnd={onDragEnd}
-      className={`ff-window absolute bg-gray-100/50 backdrop-blur-xl rounded-lg shadow-2xl flex flex-col overflow-visible border border-gray-300/20 ${isMaximized ? 'w-full h-full top-0 left-0 rounded-none' : ''}`}
+      className={`ff-window absolute bg-gray-100/50 backdrop-blur-xl rounded-lg shadow-2xl flex flex-col overflow-visible border border-gray-300/20 max-w-[380px] sm:max-w-none ${isMaximized ? 'w-full h-full top-0 left-0 rounded-none' : ''}`}
       style={{
         zIndex,
         width: isMaximized ? '100%' : width,
@@ -250,7 +262,10 @@ export default function FinderWindow({ isOpen, onClose, onMinimize, onMaximize, 
             dragConstraints={{ left: 0, top: 0, right: 0, bottom: 0 }}
             dragElastic={0}
           onDrag={(event, info) => {
-            setWidth(w => Math.max(300, w + info.delta.x));
+            setWidth((w) => {
+              const next = Math.max(300, w + info.delta.x);
+              return window.innerWidth < 640 ? Math.min(380, next) : next;
+            });
             setHeight(h => Math.max(200, h + info.delta.y));
           }}
           className="absolute bottom-2 right-2 w-4 h-4 cursor-nwse-resize"
