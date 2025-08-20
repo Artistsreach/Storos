@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { File as FileIcon, Video, ImageIcon, Package, Music, Mic, Store, AppWindow as AppWindowIcon, Globe, Gamepad2, Search, Building, Pin, ExternalLink } from 'lucide-react';
 import { File } from '../../entities/File';
 import AutomationWorkflowPage from './AutomationWorkflowPage';
-import Connector from './Connector';
+ 
 
 const TrafficLightButton = ({ color, onClick }) => (
   <button onClick={onClick} className={`w-3 h-3 rounded-full ${color}`}></button>
@@ -57,7 +57,7 @@ const getIcon = (file) => {
   return <FileIcon size={32} />;
 };
 
-export default function FinderWindow({ isOpen, onClose, onMinimize, onMaximize, isMaximized, initialFolder, zIndex, onClick, onPin, onFileDoubleClick, initialUrl, position, onDragEnd, windowId, onConnectorMouseDown }) {
+export default function FinderWindow({ isOpen, onClose, onMinimize, onMaximize, isMaximized, initialFolder, zIndex, onClick, onPin, onFileDoubleClick, initialUrl, position, onDragEnd, windowId }) {
   const [folderFiles, setFolderFiles] = useState([]);
   const [iframeUrl, setIframeUrl] = useState(initialUrl);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -149,8 +149,7 @@ export default function FinderWindow({ isOpen, onClose, onMinimize, onMaximize, 
           )}
         </div>
       </div>
-      <Connector side="left" windowId={windowId} />
-      <Connector side="right" windowId={windowId} onMouseDown={onConnectorMouseDown} />
+      
       <div className="flex-grow flex flex-col overflow-y-auto">
         {selectedFile ? (
           <AutomationWorkflowPage file={selectedFile} />

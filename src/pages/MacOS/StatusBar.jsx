@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Wifi, Battery, Search, Sun, Moon, Pencil, Eraser, Check } from 'lucide-react';
+import { Wifi, Battery, Search, Sun, Moon, Pencil, Eraser, Check, Type, Square } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { GeminiDesktopLive } from '../../lib/geminiDesktopLive.js';
 
@@ -106,11 +106,17 @@ export default function StatusBar({
         </button>
         {showDrawingOptions && isDrawingMode && (
           <div className="flex items-center space-x-2">
+            <button onClick={() => onToolChange('select')} className="focus:outline-none" title="Select">
+              <Square className="w-4 h-4" />
+            </button>
             <button onClick={() => onToolChange('pencil')} className="focus:outline-none">
               <Pencil className="w-4 h-4" />
             </button>
             <button onClick={() => onToolChange('eraser')} className="focus:outline-none">
               <Eraser className="w-4 h-4" />
+            </button>
+            <button onClick={() => onToolChange('text')} className="focus:outline-none">
+              <Type className="w-4 h-4" />
             </button>
             <input
               type="color"

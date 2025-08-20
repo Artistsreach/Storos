@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
-import Connector from './Connector';
+ 
 
 const TrafficLightButton = ({ color, onClick }) => (
   <button onClick={onClick} className={`w-3 h-3 rounded-full ${color}`}></button>
 );
 
-export default function ExplorerWindow({ isOpen, onClose, onMinimize, onMaximize, isMaximized, title, content, zIndex, onClick, position, windowId, onConnectorMouseDown }) {
+export default function ExplorerWindow({ isOpen, onClose, onMinimize, onMaximize, isMaximized, title, content, zIndex, onClick, position, windowId }) {
   const [width, setWidth] = useState(800);
   const [height, setHeight] = useState(400);
   if (!isOpen) return null;
@@ -40,8 +40,7 @@ export default function ExplorerWindow({ isOpen, onClose, onMinimize, onMaximize
         <div className="drag-handle font-semibold text-sm text-black select-none">{title}</div>
         <div></div>
       </div>
-      <Connector side="left" windowId={windowId} />
-      <Connector side="right" windowId={windowId} onMouseDown={onConnectorMouseDown} />
+      
       <div className="flex-grow p-4 overflow-y-auto">
         <ReactMarkdown>{content}</ReactMarkdown>
       </div>

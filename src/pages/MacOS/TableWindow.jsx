@@ -1,12 +1,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import Connector from './Connector';
 
 const TrafficLightButton = ({ color, onClick }) => (
   <button onClick={onClick} className={`w-3 h-3 rounded-full ${color}`}></button>
 );
 
-export default function TableWindow({ isOpen, onClose, onMinimize, onMaximize, isMaximized, title, data, zIndex, onClick, position, windowId, onConnectorMouseDown }) {
+export default function TableWindow({ isOpen, onClose, onMinimize, onMaximize, isMaximized, title, data, zIndex, onClick, position, windowId }) {
   if (!isOpen) return null;
 
   return (
@@ -33,7 +32,6 @@ export default function TableWindow({ isOpen, onClose, onMinimize, onMaximize, i
         </div>
         <div className="font-semibold text-sm text-black">{title}</div>
         <div></div>
-        <Connector windowId={windowId} onMouseDown={onConnectorMouseDown} />
       </div>
       <div className="flex-grow p-4 overflow-y-auto">
         <table className="w-full">

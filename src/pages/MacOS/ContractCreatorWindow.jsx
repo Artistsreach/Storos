@@ -8,9 +8,9 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { db } from '../../lib/firebaseClient';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
-import Connector from './Connector';
+ 
 
-const ContractCreatorWindow = ({ isOpen, onClose, zIndex, position, onClick, companyName, clientName, services: initialServices, cost, details, windowId, onConnectorMouseDown }) => {
+const ContractCreatorWindow = ({ isOpen, onClose, zIndex, position, onClick, companyName, clientName, services: initialServices, cost, details, windowId }) => {
   const { theme } = useTheme();
   const { currentUser } = useAuth();
   const contractRef = useRef();
@@ -175,7 +175,6 @@ const ContractCreatorWindow = ({ isOpen, onClose, zIndex, position, onClick, com
         </div>
         <span className={`font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>Contract Creator</span>
         <div></div>
-        <Connector windowId={windowId} onMouseDown={onConnectorMouseDown} />
       </div>
       <div className="p-4 overflow-y-auto flex-grow">
         <div className="space-y-4">

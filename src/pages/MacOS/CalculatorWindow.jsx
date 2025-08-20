@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import Connector from './Connector';
+ 
 
 const TrafficLightButton = ({ color, onClick }) => (
   <button onClick={onClick} className={`w-3 h-3 rounded-full ${color}`}></button>
 );
 
-export default function CalculatorWindow({ isOpen, onClose, zIndex, onClick, position, windowId, onConnectorMouseDown }) {
+export default function CalculatorWindow({ isOpen, onClose, zIndex, onClick, position, windowId }) {
   const [input, setInput] = useState('');
   const [result, setResult] = useState('');
 
@@ -55,7 +55,6 @@ export default function CalculatorWindow({ isOpen, onClose, zIndex, onClick, pos
         </div>
         <div className="font-semibold text-sm text-black">Calculator</div>
         <div></div>
-        <Connector windowId={windowId} onMouseDown={onConnectorMouseDown} />
       </div>
       <div className="flex-grow p-4 flex flex-col">
         <div className="bg-white rounded-md p-4 mb-4 text-right text-2xl font-mono">{result || input || '0'}</div>

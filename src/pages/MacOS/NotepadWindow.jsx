@@ -1,20 +1,25 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
-import Connector from './Connector';
 
 const TrafficLightButton = ({ color, onClick }) => (
   <button onClick={onClick} className={`w-3 h-3 rounded-full ${color}`}></button>
 );
 
-export default function NotepadWindow({ isOpen, onClose, onMinimize, onMaximize, isMaximized, title, content, zIndex, onClick, position, windowId, onConnectorMouseDown }) {
+export default function NotepadWindow({ isOpen, onClose, onMinimize, onMaximize, isMaximized, title, content, zIndex, onClick, position, windowId, defaultEditing }) {
   const [currentContent, setCurrentContent] = useState(content);
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(!!defaultEditing);
   const contentRef = useRef(null);
+  const [width, setWidth] = useState(400);
+  const [height, setHeight] = useState(300);
 
   useEffect(() => {
     setCurrentContent(content);
   }, [content]);
+
+  useEffect(() => {
+    setIsEditing(!!defaultEditing);
+  }, [defaultEditing, windowId]);
 
   useEffect(() => {
     if (contentRef.current) {
@@ -29,10 +34,10 @@ export default function NotepadWindow({ isOpen, onClose, onMinimize, onMaximize,
       drag
       dragMomentum={false}
       dragHandle=".drag-handle"
-      className={`absolute bg-gray-100/50 backdrop-blur-xl rounded-lg shadow-2xl flex flex-col overflow-hidden border border-gray-300/20 ${isMaximized ? 'w-full h-full top-0 left-0 rounded-none' : ''}`}
+      className={`absolute bg-gray-100/50 backdrop-blur-xl rounded-lg shadow-2xl flex flex-col overflow-visible border border-gray-300/20 ${isMaximized ? 'w-full h-full top-0 left-0 rounded-none' : ''}`}
       style={{
-        width: 400,
-        height: 300,
+        width: isMaximized ? '100%' : width,
+        height: isMaximized ? '100%' : height,
         zIndex,
         top: isMaximized ? 0 : position?.top,
         left: isMaximized ? 0 : position?.left,
@@ -60,7 +65,6 @@ export default function NotepadWindow({ isOpen, onClose, onMinimize, onMaximize,
             Save
           </button>
         </div>
-        <Connector windowId={windowId} onMouseDown={onConnectorMouseDown} />
       </div>
       <div ref={contentRef} className="flex-grow p-4 overflow-y-auto" onMouseDown={(e) => e.stopPropagation()}>
         {isEditing ? (
@@ -73,6 +77,21 @@ export default function NotepadWindow({ isOpen, onClose, onMinimize, onMaximize,
           <ReactMarkdown>{currentContent}</ReactMarkdown>
         )}
       </div>
+      {!isMaximized && (
+        <motion.div
+          drag
+          dragMomentum={false}
+          dragConstraints={{ left: 0, top: 0, right: 0, bottom: 0 }}
+          dragElastic={0}
+          onDrag={(event, info) => {
+            setWidth((w) => Math.max(300, w + info.delta.x));
+            setHeight((h) => Math.max(200, h + info.delta.y));
+          }}
+          className="absolute bottom-2 right-2 w-4 h-4 cursor-nwse-resize"
+        >
+          <div className="w-full h-full bg-gray-500/40 rounded-full" />
+        </motion.div>
+      )}
     </motion.div>
   );
 }

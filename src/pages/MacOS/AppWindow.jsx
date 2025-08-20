@@ -2,13 +2,13 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { ExternalLink } from 'lucide-react';
 import StripeAnalyticsWidget from './StripeAnalyticsWidget';
-import Connector from './Connector';
 
 const TrafficLightButton = ({ color, onClick }) => (
   <button onClick={onClick} className={`w-3 h-3 rounded-full ${color}`}></button>
 );
 
-export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isMaximized, app, zIndex, onClick, automation, position, onDragEnd, windowId, onConnectorMouseDown }) {
+export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isMaximized, app, zIndex, onClick, automation, position, onDragEnd, windowId }) {
+
   const [width, setWidth] = useState(800);
   const [height, setHeight] = useState(400);
   const iframeRef = useRef(null);
@@ -384,8 +384,7 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
         </div>
       </div>
 
-      <Connector side="left" windowId={windowId} />
-      <Connector side="right" windowId={windowId} onMouseDown={onConnectorMouseDown} />
+      {/* Connectors removed */}
 
       <div className="flex-grow flex flex-col overflow-y-auto">
         {app.url ? (

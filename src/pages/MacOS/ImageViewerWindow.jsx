@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { editImage } from '../../lib/geminiImageGeneration';
-import Connector from './Connector';
+ 
 
 const TrafficLightButton = ({ color, onClick }) => (
   <button onClick={onClick} className={`w-3 h-3 rounded-full ${color}`}></button>
 );
 
-export default function ImageViewerWindow({ isOpen, onClose, onMinimize, onMaximize, isMaximized, title, imageData, zIndex, onClick, position, windowId, onConnectorMouseDown }) {
+export default function ImageViewerWindow({ isOpen, onClose, onMinimize, onMaximize, isMaximized, title, imageData, zIndex, onClick, position, windowId }) {
   const [editPrompt, setEditPrompt] = useState('');
   const [currentImageData, setCurrentImageData] = useState(imageData);
 
@@ -47,7 +47,6 @@ export default function ImageViewerWindow({ isOpen, onClose, onMinimize, onMaxim
         </div>
         <div className="font-semibold text-sm text-black">{title}</div>
         <div></div>
-        <Connector windowId={windowId} onMouseDown={onConnectorMouseDown} />
       </div>
       <div className="flex-grow p-4 overflow-y-auto">
         <img src={currentImageData} alt={title} className="w-full h-full object-contain" />

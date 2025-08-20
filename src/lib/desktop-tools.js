@@ -207,6 +207,19 @@ export const tools = [
           required: ["companyName", "clientName", "services", "cost", "details"],
         },
       },
+      {
+        name: "analyzeImage",
+        description: "Capture a screenshot of the current screen and analyze it with Gemini for insights.",
+        parameters: {
+          type: "object",
+          properties: {
+            prompt: {
+              type: "string",
+              description: "Optional instruction for how to analyze the screenshot.",
+            },
+          },
+        },
+      },
     ],
   },
 ];

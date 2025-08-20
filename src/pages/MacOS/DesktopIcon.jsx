@@ -15,11 +15,24 @@ export default function DesktopIcon({ file, onDoubleClick, onDrag, onUnpin, isWi
     if (typeof iconUrl === 'string' && iconUrl.startsWith('http')) {
       return (
         <div className="w-12 h-12 flex items-center justify-center">
-          <img src={iconUrl} alt={name} className="max-w-full max-h-full object-contain" />
+          <img
+            src={iconUrl}
+            alt={name}
+            className="max-w-full max-h-full object-contain"
+            draggable={false}
+            onDragStart={(e) => e.preventDefault()}
+          />
         </div>
       );
     }
     if (React.isValidElement(iconUrl)) {
+      // If consumer passed an <img />, disable native drag to allow framer-motion drag
+      if (iconUrl.type === 'img') {
+        return React.cloneElement(iconUrl, {
+          draggable: false,
+          onDragStart: (e) => e.preventDefault(),
+        });
+      }
       return iconUrl;
     }
     if (file.icon) return file.icon; // Use custom icon from entity

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+
 import { File } from '../../entities/File';
 import StatusBar from './StatusBar';
 import Dock from './Dock';
@@ -21,7 +22,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { deepResearch } from '../../lib/firecrawl';
 import { generateImage } from '../../lib/geminiImageGeneration';
 import { GoogleGenAI } from '@google/genai';
-import ConnectionsLayer from './ConnectionsLayer';
+import { captureScreenFrame } from '../../lib/captureScreen';
+import { analyzeImageDataUrl } from '../../lib/analyzeImageWithGemini';
 
 export default function Desktop() {
   const { theme, toggleTheme } = useTheme();
@@ -35,7 +37,6 @@ export default function Desktop() {
   const [nextWindowPosition, setNextWindowPosition] = useState({ top: 50, left: 50 });
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [youtubePlayerId, setYoutubePlayerId] = useState(null);
-  const [isAgentModalOpen, setIsAgentModalOpen] = useState(false);
   const [isWiggleMode, setIsWiggleMode] = useState(false);
   const [explorerWindow, setExplorerWindow] = useState({ isOpen: false, content: '' });
   const [imageViewerWindow, setImageViewerWindow] = useState({ isOpen: false, imageData: '' });
@@ -44,16 +45,30 @@ export default function Desktop() {
   const [isPannable, setIsPannable] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [canvasSize, setCanvasSize] = useState({ width: window.innerWidth * 2, height: window.innerHeight * 2 });
-  const [connections, setConnections] = useState([]);
-  const [newConnection, setNewConnection] = useState(null);
   const [isDrawingMode, setIsDrawingMode] = useState(false);
   const canvasRef = useRef(null);
+  const selectionCanvasRef = useRef(null);
   const desktopRef = useRef(null);
   const contextRef = useRef(null);
+  const selectionCtxRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawingColor, setDrawingColor] = useState('red');
   const [drawingSize, setDrawingSize] = useState(5);
   const [drawingTool, setDrawingTool] = useState('pencil');
+  // Text tool state
+  const [showTextInput, setShowTextInput] = useState(false);
+  const [textPosition, setTextPosition] = useState({ x: 0, y: 0 });
+  const [textValue, setTextValue] = useState('');
+  const textInputRef = useRef(null);
+  // Selection tool state
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [selectionStart, setSelectionStart] = useState(null); // {x,y}
+  const [selectionRect, setSelectionRect] = useState(null);   // {x,y,w,h}
+  const [isDraggingSelection, setIsDraggingSelection] = useState(false);
+  const [dragStartPt, setDragStartPt] = useState(null); // {x,y}
+  const [selectionOrigin, setSelectionOrigin] = useState(null); // {x,y}
+  const [selectionImage, setSelectionImage] = useState(null); // ImageData
+  const [sourceCleared, setSourceCleared] = useState(false);
 
   // Build an augmented list of windows that includes special windows rendered outside openWindows
   const allWindows = useMemo(() => {
@@ -77,6 +92,12 @@ export default function Desktop() {
       canvas.height = canvasSize.height;
       const context = canvas.getContext('2d');
       contextRef.current = context;
+    }
+    const selCanvas = selectionCanvasRef.current;
+    if (selCanvas) {
+      selCanvas.width = canvasSize.width;
+      selCanvas.height = canvasSize.height;
+      selectionCtxRef.current = selCanvas.getContext('2d');
     }
   }, [canvasSize]);
 
@@ -105,11 +126,54 @@ export default function Desktop() {
     if (!isDrawingMode) return;
     e.stopPropagation();
     const { offsetX, offsetY } = getEventPosition(e);
+    // If select tool and clicking inside existing selection, start moving it
+    if (drawingTool === 'select' && selectionRect) {
+      const inside =
+        offsetX >= selectionRect.x &&
+        offsetX <= selectionRect.x + selectionRect.w &&
+        offsetY >= selectionRect.y &&
+        offsetY <= selectionRect.y + selectionRect.h;
+      if (inside) {
+        setIsDraggingSelection(true);
+        setDragStartPt({ x: offsetX, y: offsetY });
+        setSelectionOrigin({ x: selectionRect.x, y: selectionRect.y });
+        // Cache image if not yet
+        if (!selectionImage) {
+          try {
+            const img = contextRef.current.getImageData(selectionRect.x, selectionRect.y, selectionRect.w, selectionRect.h);
+            setSelectionImage(img);
+          } catch (err) { /* ignore */ }
+        }
+        // Clear the source area on main canvas for clean drag preview if not already
+        if (!sourceCleared && selectionRect.w > 0 && selectionRect.h > 0) {
+          contextRef.current.clearRect(selectionRect.x, selectionRect.y, selectionRect.w, selectionRect.h);
+          setSourceCleared(true);
+        }
+        return;
+      }
+    }
     if (drawingTool === 'pencil' || drawingTool === 'eraser') {
       contextRef.current.beginPath();
       contextRef.current.moveTo(offsetX, offsetY);
+      setIsDrawing(true);
+      return;
     }
-    setIsDrawing(true);
+    if (drawingTool === 'text') {
+      setTextPosition({ x: offsetX, y: offsetY });
+      setTextValue('');
+      setShowTextInput(true);
+      // Focus the input after it's rendered
+      setTimeout(() => {
+        textInputRef.current?.focus();
+      }, 0);
+      return;
+    }
+    if (drawingTool === 'select') {
+      setIsSelecting(true);
+      setSelectionStart({ x: offsetX, y: offsetY });
+      setSelectionRect({ x: offsetX, y: offsetY, w: 0, h: 0 });
+      return;
+    }
   };
 
   const finishDrawing = (e) => {
@@ -119,22 +183,97 @@ export default function Desktop() {
       contextRef.current.closePath();
     }
     setIsDrawing(false);
+    if (drawingTool === 'select') {
+      if (isDraggingSelection) {
+        // Commit the moved selection to the main canvas
+        if (selectionImage && selectionRect) {
+          contextRef.current.putImageData(selectionImage, selectionRect.x, selectionRect.y);
+        }
+        // Clear the overlay
+        selectionCtxRef.current?.clearRect(0, 0, canvasSize.width, canvasSize.height);
+        setIsDraggingSelection(false);
+        setDragStartPt(null);
+        setSelectionOrigin(null);
+        setSelectionImage(null);
+        setSourceCleared(false);
+      }
+      setIsSelecting(false);
+    }
   };
 
   const draw = useCallback((e) => {
-    if (!isDrawing || !isDrawingMode) return;
+    if (!isDrawingMode) return;
     e.stopPropagation();
     const { offsetX, offsetY } = getEventPosition(e);
-    if (drawingTool === 'pencil') {
+    if (drawingTool === 'pencil' && isDrawing) {
       contextRef.current.globalCompositeOperation = 'source-over';
       contextRef.current.lineTo(offsetX, offsetY);
       contextRef.current.stroke();
-    } else if (drawingTool === 'eraser') {
+    } else if (drawingTool === 'eraser' && isDrawing) {
       contextRef.current.globalCompositeOperation = 'destination-out';
       contextRef.current.lineTo(offsetX, offsetY);
       contextRef.current.stroke();
+    } else if (drawingTool === 'select' && isSelecting && selectionStart) {
+      const x = Math.min(selectionStart.x, offsetX);
+      const y = Math.min(selectionStart.y, offsetY);
+      const w = Math.abs(offsetX - selectionStart.x);
+      const h = Math.abs(offsetY - selectionStart.y);
+      setSelectionRect({ x, y, w, h });
+    } else if (drawingTool === 'select' && isDraggingSelection && selectionRect) {
+      // Dragging existing selection
+      const dx = offsetX - dragStartPt.x;
+      const dy = offsetY - dragStartPt.y;
+      const newX = (selectionOrigin?.x || 0) + dx;
+      const newY = (selectionOrigin?.y || 0) + dy;
+      setSelectionRect(prev => prev ? { ...prev, x: newX, y: newY } : prev);
+      // Draw preview on overlay canvas
+      const octx = selectionCtxRef.current;
+      if (octx && selectionImage) {
+        octx.clearRect(0, 0, canvasSize.width, canvasSize.height);
+        octx.putImageData(selectionImage, newX, newY);
+      }
     }
-  }, [isDrawing, isDrawingMode, drawingTool]);
+  }, [isDrawing, isDrawingMode, drawingTool, isSelecting, selectionStart, isDraggingSelection, dragStartPt, selectionOrigin, selectionRect, selectionImage, canvasSize.width, canvasSize.height]);
+
+  // Key handling for selection: Delete/Backspace clears area, Escape cancels
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (!isDrawingMode) return;
+      if (!selectionRect) return;
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const ctx = contextRef.current;
+        if (ctx) {
+          ctx.save();
+          ctx.clearRect(selectionRect.x, selectionRect.y, selectionRect.w, selectionRect.h);
+          ctx.restore();
+        }
+        setSelectionRect(null);
+        setSelectionStart(null);
+        selectionCtxRef.current?.clearRect(0, 0, canvasSize.width, canvasSize.height);
+        setIsDraggingSelection(false);
+        setDragStartPt(null);
+        setSelectionOrigin(null);
+        setSelectionImage(null);
+        setSourceCleared(false);
+      } else if (e.key === 'Escape') {
+        // If we had cleared the source for dragging, restore it to original place
+        if (sourceCleared && selectionImage && selectionOrigin) {
+          contextRef.current.putImageData(selectionImage, selectionOrigin.x, selectionOrigin.y);
+        }
+        selectionCtxRef.current?.clearRect(0, 0, canvasSize.width, canvasSize.height);
+        setSelectionRect(null);
+        setSelectionStart(null);
+        setIsSelecting(false);
+        setIsDraggingSelection(false);
+        setDragStartPt(null);
+        setSelectionOrigin(null);
+        setSelectionImage(null);
+        setSourceCleared(false);
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [isDrawingMode, selectionRect, sourceCleared, selectionImage, selectionOrigin, canvasSize.width, canvasSize.height]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -273,6 +412,7 @@ export default function Desktop() {
               zIndex: windowZIndex,
               position: nextWindowPosition,
               content: '',
+              defaultEditing: false,
             },
           ]);
           setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
@@ -332,6 +472,37 @@ export default function Desktop() {
           setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
           setWindowZIndex(prev => prev + 1);
           break;
+        case "analyzeImage": {
+          const windowId = `notepad-${Date.now()}`;
+          // Open a Notepad window to stream results
+          setOpenWindows(prev => [
+            ...prev,
+            {
+              id: windowId,
+              type: 'notepad',
+              isMaximized: false,
+              zIndex: windowZIndex,
+              position: nextWindowPosition,
+              content: 'Analyzing screenshot...\n\nPlease select a screen/window/tab when prompted.',
+              defaultEditing: false,
+              width: 600,
+              height: 500,
+            },
+          ]);
+          setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
+          setWindowZIndex(prev => prev + 1);
+          (async () => {
+            try {
+              const { dataUrl } = await captureScreenFrame();
+              const prompt = args?.prompt || 'Analyze this screenshot and summarize key UI elements, active files, and obvious issues or next actions.';
+              const insights = await analyzeImageDataUrl(dataUrl, prompt);
+              setOpenWindows(prev => prev.map(w => w.id === windowId ? { ...w, content: insights } : w));
+            } catch (err) {
+              setOpenWindows(prev => prev.map(w => w.id === windowId ? { ...w, content: `Error analyzing screenshot: ${err?.message || err}` } : w));
+            }
+          })();
+          break;
+        }
         default:
           console.warn("Unknown tool call:", name);
       }
@@ -344,151 +515,7 @@ export default function Desktop() {
     };
   }, []);
 
-  const handleConnectorMouseDown = (e, fromWindowId) => {
-    e.stopPropagation();
-    // Helper to extract clientX/Y from mouse or touch events
-    const getClient = (ev) => {
-      if (ev?.touches && ev.touches[0]) return { x: ev.touches[0].clientX, y: ev.touches[0].clientY };
-      if (ev?.changedTouches && ev.changedTouches[0]) return { x: ev.changedTouches[0].clientX, y: ev.changedTouches[0].clientY };
-      return { x: ev.clientX, y: ev.clientY };
-    };
-
-    const { x: clientX, y: clientY } = getClient(e);
-    const connectorRect = e.currentTarget?.getBoundingClientRect?.();
-    const desktopRect = desktopRef.current?.getBoundingClientRect?.();
-    const side = e.currentTarget?.dataset?.side || 'right';
-    const cx = connectorRect ? connectorRect.left + connectorRect.width / 2 : clientX;
-    const cy = connectorRect ? connectorRect.top + connectorRect.height / 2 : clientY;
-    const localStart = {
-      x: cx - (desktopRect?.left || 0),
-      y: cy - (desktopRect?.top || 0),
-    };
-    const localTo = {
-      x: clientX - (desktopRect?.left || 0),
-      y: clientY - (desktopRect?.top || 0),
-    };
-    setNewConnection({ from: fromWindowId, startLocal: localStart, to: localTo, side });
-
-    // Track drag globally so the endpoint follows the cursor outside the desktop
-    const onMoveMouse = (ev) => {
-      const rect = desktopRef.current?.getBoundingClientRect?.();
-      setNewConnection((prev) =>
-        prev
-          ? {
-              ...prev,
-              to: { x: ev.clientX - (rect?.left || 0), y: ev.clientY - (rect?.top || 0) },
-            }
-          : prev
-      );
-    };
-    const onMoveTouch = (ev) => {
-      if (!ev.touches || !ev.touches[0]) return;
-      const rect = desktopRef.current?.getBoundingClientRect?.();
-      const tx = ev.touches[0].clientX;
-      const ty = ev.touches[0].clientY;
-      setNewConnection((prev) =>
-        prev
-          ? {
-              ...prev,
-              to: { x: tx - (rect?.left || 0), y: ty - (rect?.top || 0) },
-            }
-          : prev
-      );
-      // prevent page scroll while dragging
-      ev.preventDefault?.();
-    };
-    const onUp = (ev) => {
-      window.removeEventListener('mousemove', onMoveMouse);
-      window.removeEventListener('mouseup', onUp);
-      window.removeEventListener('touchmove', onMoveTouch);
-      window.removeEventListener('touchend', onUp);
-      // Reuse existing mouseup logic (does hit-testing with panOffset)
-      handleMouseUp(ev);
-    };
-    window.addEventListener('mousemove', onMoveMouse);
-    window.addEventListener('mouseup', onUp);
-    window.addEventListener('touchmove', onMoveTouch, { passive: false });
-    window.addEventListener('touchend', onUp);
-  };
-
-  const handleMouseMove = (e) => {
-    if (!newConnection) return;
-    const getClient = (ev) => {
-      if (ev?.touches && ev.touches[0]) return { x: ev.touches[0].clientX, y: ev.touches[0].clientY };
-      if (ev?.changedTouches && ev.changedTouches[0]) return { x: ev.changedTouches[0].clientX, y: ev.changedTouches[0].clientY };
-      return { x: ev.clientX, y: ev.clientY };
-    };
-    const { x: cx, y: cy } = getClient(e);
-    const rect = desktopRef.current?.getBoundingClientRect?.();
-    const localTo = { x: cx - (rect?.left || 0), y: cy - (rect?.top || 0) };
-    // Compute nearest left connector hotspot in desktop-local coords (without pan offset)
-    const SNAP_RADIUS = 40;
-    let nearestId = null;
-    let minDist = Infinity;
-    const cursorX = localTo.x - (panOffset?.x || 0);
-    const cursorY = localTo.y - (panOffset?.y || 0);
-    for (const w of allWindows) {
-      if (!w || !w.position || w.id === newConnection.from) continue;
-      if (minimizedWindows.includes(w.id)) continue;
-      const width = w.width || 800;
-      const height = w.height || 600;
-      const hx = (w.position.left || 0) - 6;
-      const hy = (w.position.top || 0) + height / 2;
-      const dist = Math.hypot(cursorX - hx, cursorY - hy);
-      if (dist < minDist) { minDist = dist; nearestId = w.id; }
-    }
-    const hoverTargetId = minDist <= SNAP_RADIUS ? nearestId : null;
-    setNewConnection(prev => prev ? { ...prev, to: localTo, hoverTargetId } : prev);
-  };
-
-  const handleMouseUp = (e) => {
-    if (!newConnection) return;
-    // Prefer the computed hoverTargetId from the latest mousemove
-    const targetId = newConnection.hoverTargetId;
-    if (targetId && targetId !== newConnection.from && !minimizedWindows.includes(targetId)) {
-      setConnections(prev => [...prev, { from: newConnection.from, to: targetId }]);
-      setNewConnection(null);
-      return;
-    }
-    // If no cached target, compute once at release
-    const getClient = (ev) => {
-      if (ev?.touches && ev.touches[0]) return { x: ev.touches[0].clientX, y: ev.touches[0].clientY };
-      if (ev?.changedTouches && ev.changedTouches[0]) return { x: ev.changedTouches[0].clientX, y: ev.changedTouches[0].clientY };
-      return { x: ev.clientX, y: ev.clientY };
-    };
-    const { x: ex, y: ey } = getClient(e);
-    const rect = desktopRef.current?.getBoundingClientRect?.();
-    const local = { x: ex - (rect?.left || 0), y: ey - (rect?.top || 0) };
-    const SNAP_RADIUS = 40;
-    let nearestId = null;
-    let minDist = Infinity;
-    const cursorX = local.x - (panOffset?.x || 0);
-    const cursorY = local.y - (panOffset?.y || 0);
-    for (const w of allWindows) {
-      if (!w || !w.position || w.id === newConnection.from) continue;
-      if (minimizedWindows.includes(w.id)) continue;
-      const width = w.width || 800;
-      const height = w.height || 600;
-      const hx = (w.position.left || 0) - 6;
-      const hy = (w.position.top || 0) + height / 2;
-      const dist = Math.hypot(cursorX - hx, cursorY - hy);
-      if (dist < minDist) { minDist = dist; nearestId = w.id; }
-    }
-    if (nearestId && minDist <= SNAP_RADIUS && nearestId !== newConnection.from) {
-      setConnections(prev => [...prev, { from: newConnection.from, to: nearestId }]);
-    }
-    setNewConnection(null);
-  };
-
-  useEffect(() => {
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [newConnection]);
+  // Connector/connection logic removed
 
   useEffect(() => {
     const shortcuts = [
@@ -537,7 +564,21 @@ export default function Desktop() {
   const handleDesktopIconDoubleClick = (file) => {
     const id = file.is_shortcut ? file.original_id || file.id : file.id;
     if (id === 'agent-icon') {
-      setIsAgentModalOpen(true);
+      const windowId = `agent-${Date.now()}`;
+      setOpenWindows(prev => [
+        ...prev,
+        {
+          id: windowId,
+          type: 'agent',
+          isMaximized: false,
+          zIndex: windowZIndex,
+          position: nextWindowPosition,
+          width: 520,
+          height: 520,
+        },
+      ]);
+      setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
+      setWindowZIndex(prev => prev + 1);
       return;
     }
     if (id === 'tasks-shortcut') {
@@ -607,6 +648,7 @@ export default function Desktop() {
           content: '',
           width: 500,
           height: 400,
+          defaultEditing: true,
         },
       ]);
       setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
@@ -645,6 +687,7 @@ export default function Desktop() {
           content: file.content,
           width: 500,
           height: 400,
+          defaultEditing: true,
         },
       ]);
       setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
@@ -926,7 +969,6 @@ export default function Desktop() {
       }}
       onClick={() => setIsWiggleMode(false)}
     >
-      <ConnectionsLayer connections={connections} openWindows={allWindows} newConnection={newConnection} panOffset={panOffset} />
       <div
         className="absolute inset-0 flex items-center justify-center pointer-events-none"
         style={{ transform: `translate(${panOffset.x}px, ${panOffset.y}px)` }}
@@ -969,6 +1011,81 @@ export default function Desktop() {
             onTouchStart={startDrawing}
             onTouchEnd={finishDrawing}
           />
+          {/* Overlay canvas for selection drag preview */}
+          <canvas
+            ref={selectionCanvasRef}
+            className="absolute top-0 left-0"
+            style={{
+              zIndex: windowZIndex + 2,
+              pointerEvents: 'none',
+            }}
+          />
+          {selectionRect && isDrawingMode && drawingTool === 'select' && (
+            <div
+              className="absolute border border-blue-400/80 bg-blue-500/10"
+              style={{
+                left: selectionRect.x,
+                top: selectionRect.y,
+                width: selectionRect.w,
+                height: selectionRect.h,
+                zIndex: windowZIndex + 3,
+                pointerEvents: 'none',
+              }}
+            />
+          )}
+          {showTextInput && isDrawingMode && drawingTool === 'text' && (
+            <input
+              ref={textInputRef}
+              value={textValue}
+              onChange={(e) => setTextValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  const ctx = contextRef.current;
+                  if (ctx && textValue.trim()) {
+                    ctx.save();
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.fillStyle = drawingColor;
+                    const fontSize = Math.max(10, Number(drawingSize) * 4);
+                    ctx.font = `${fontSize}px sans-serif`;
+                    ctx.textBaseline = 'top';
+                    ctx.fillText(textValue, textPosition.x, textPosition.y);
+                    ctx.restore();
+                  }
+                  setShowTextInput(false);
+                  setTextValue('');
+                } else if (e.key === 'Escape') {
+                  setShowTextInput(false);
+                  setTextValue('');
+                }
+              }}
+              onBlur={() => {
+                const ctx = contextRef.current;
+                if (ctx && textValue.trim()) {
+                  ctx.save();
+                  ctx.globalCompositeOperation = 'source-over';
+                  ctx.fillStyle = drawingColor;
+                  const fontSize = Math.max(10, Number(drawingSize) * 4);
+                  ctx.font = `${fontSize}px sans-serif`;
+                  ctx.textBaseline = 'top';
+                  ctx.fillText(textValue, textPosition.x, textPosition.y);
+                  ctx.restore();
+                }
+                setShowTextInput(false);
+                setTextValue('');
+              }}
+              className="absolute bg-transparent outline-none border-b border-dashed"
+              style={{
+                top: textPosition.y,
+                left: textPosition.x,
+                color: drawingColor,
+                fontSize: Math.max(10, Number(drawingSize) * 4),
+                zIndex: windowZIndex + 2,
+                minWidth: '8ch',
+              }}
+              placeholder="Type..."
+            />
+          )}
           {/* Test button removed */}
 
         {/* Desktop Icons */}
@@ -1010,94 +1127,97 @@ export default function Desktop() {
                 initialUrl={window.url}
                 onDragEnd={(e, info) => handleWindowDrag(window.id, e, info)}
                 windowId={window.id}
-                onConnectorMouseDown={handleConnectorMouseDown}
               />
             );
           }
           if (window.type === 'app') {
             return (
-              <AppWindow
-                key={window.id}
-                isOpen={!minimizedWindows.includes(window.id)}
-                onClose={() => closeWindow(window.id)}
-                onMinimize={() => minimizeWindow(window.id)}
-                onMaximize={() => maximizeWindow(window.id)}
-                isMaximized={window.isMaximized}
-                app={window.app}
-                zIndex={window.zIndex}
-                position={window.position}
-                onClick={() => bringToFront(window.id)}
-                automation={window.automation}
-                onDragEnd={(e, info) => handleWindowDrag(window.id, e, info)}
-                windowId={window.id}
-                onConnectorMouseDown={handleConnectorMouseDown}
-              />
-            );
-          }
-          if (window.type === 'calculator') {
-            return (
-              <CalculatorWindow
-                key={window.id}
-                isOpen={!minimizedWindows.includes(window.id)}
-                onClose={() => closeWindow(window.id)}
-                zIndex={window.zIndex}
-                position={window.position}
-                onClick={() => bringToFront(window.id)}
-                windowId={window.id}
-                onConnectorMouseDown={handleConnectorMouseDown}
-              />
-            );
-          }
-          if (window.type === 'contract-creator') {
-            return (
-              <ContractCreatorWindow
-                key={window.id}
-                isOpen={!minimizedWindows.includes(window.id)}
-                onClose={() => closeWindow(window.id)}
-                zIndex={window.zIndex}
-                position={window.position}
-                onClick={() => bringToFront(window.id)}
-                windowId={window.id}
-                onConnectorMouseDown={handleConnectorMouseDown}
-              />
-            );
-          }
-          if (window.type === 'notepad') {
-            return (
-              <NotepadWindow
-                key={window.id}
-                isOpen={!minimizedWindows.includes(window.id)}
-                onClose={() => closeWindow(window.id)}
-                zIndex={window.zIndex}
-                position={window.position}
-                content={window.content}
-                title="Notepad"
-                onClick={() => bringToFront(window.id)}
-                windowId={window.id}
-                onConnectorMouseDown={handleConnectorMouseDown}
-              />
-            );
-          }
-          if (window.type === 'tasks') {
-            return (
-              <TasksWindow
-                key={window.id}
-                isOpen={!minimizedWindows.includes(window.id)}
-                onClose={() => closeWindow(window.id)}
-                zIndex={window.zIndex}
-                position={window.position}
-                onClick={() => bringToFront(window.id)}
-                windowId={window.id}
-                onConnectorMouseDown={handleConnectorMouseDown}
-              />
-            );
-          }
-          return null;
-        })}
-
-
-
-        <AgentModal isOpen={isAgentModalOpen} onClose={() => setIsAgentModalOpen(false)} />
+                <AppWindow
+                  key={window.id}
+                  isOpen={!minimizedWindows.includes(window.id)}
+                  onClose={() => closeWindow(window.id)}
+                  onMinimize={() => minimizeWindow(window.id)}
+                  onMaximize={() => maximizeWindow(window.id)}
+                  isMaximized={window.isMaximized}
+                  app={window.app}
+                  zIndex={window.zIndex}
+                  position={window.position}
+                  onClick={() => bringToFront(window.id)}
+                  automation={window.automation}
+                  onDragEnd={(e, info) => handleWindowDrag(window.id, e, info)}
+                  windowId={window.id}
+                />
+              );
+            }
+            if (window.type === 'agent') {
+              return (
+                  <AgentModal
+                    key={window.id}
+                    isOpen={!minimizedWindows.includes(window.id)}
+                    onClose={() => closeWindow(window.id)}
+                    zIndex={window.zIndex}
+                    position={window.position}
+                    onClick={() => bringToFront(window.id)}
+                  />
+                );
+              }
+            if (window.type === 'calculator') {
+              return (
+                  <CalculatorWindow
+                    key={window.id}
+                    isOpen={!minimizedWindows.includes(window.id)}
+                    onClose={() => closeWindow(window.id)}
+                    zIndex={window.zIndex}
+                    position={window.position}
+                    onClick={() => bringToFront(window.id)}
+                    windowId={window.id}
+                  />
+                );
+              }
+              if (window.type === 'contract-creator') {
+                return (
+                    <ContractCreatorWindow
+                      key={window.id}
+                      isOpen={!minimizedWindows.includes(window.id)}
+                      onClose={() => closeWindow(window.id)}
+                      zIndex={window.zIndex}
+                      position={window.position}
+                      onClick={() => bringToFront(window.id)}
+                      windowId={window.id}
+                    />
+                  );
+                }
+                if (window.type === 'notepad') {
+                  return (
+                      <NotepadWindow
+                        key={window.id}
+                        isOpen={!minimizedWindows.includes(window.id)}
+                        onClose={() => closeWindow(window.id)}
+                        zIndex={window.zIndex}
+                        position={window.position}
+                        content={window.content}
+                        title="Notepad"
+                        onClick={() => bringToFront(window.id)}
+                        windowId={window.id}
+                        defaultEditing={window.defaultEditing}
+                      />
+                    );
+                  }
+                  if (window.type === 'tasks') {
+                    return (
+                        <TasksWindow
+                          key={window.id}
+                          isOpen={!minimizedWindows.includes(window.id)}
+                          onClose={() => closeWindow(window.id)}
+                          zIndex={window.zIndex}
+                          position={window.position}
+                          onClick={() => bringToFront(window.id)}
+                          windowId={window.id}
+                        />
+                      );
+                    }
+                    return null;
+                  })}
 
         <ExplorerWindow
           isOpen={explorerWindow.isOpen}
@@ -1108,7 +1228,6 @@ export default function Desktop() {
           position={nextWindowPosition}
           onClick={() => bringToFront('explorer-window')}
           windowId={'explorer-window'}
-          onConnectorMouseDown={handleConnectorMouseDown}
         />
 
         <ImageViewerWindow
@@ -1120,7 +1239,6 @@ export default function Desktop() {
           position={nextWindowPosition}
           onClick={() => bringToFront('image-viewer-window')}
           windowId={'image-viewer-window'}
-          onConnectorMouseDown={handleConnectorMouseDown}
         />
 
         <TableWindow
@@ -1132,7 +1250,6 @@ export default function Desktop() {
           position={nextWindowPosition}
           onClick={() => bringToFront('table-window')}
           windowId={'table-window'}
-          onConnectorMouseDown={handleConnectorMouseDown}
         />
 
         </div>

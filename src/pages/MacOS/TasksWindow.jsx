@@ -10,7 +10,6 @@ import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from 'lucide-react';
 import ConfirmationModal from '../../components/ConfirmationModal';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import Connector from './Connector';
 
 const TrafficLightButton = ({ color, onClick }) => (
   <button onClick={onClick} className={`w-3 h-3 rounded-full ${color}`}></button>
@@ -83,7 +82,7 @@ const SortableTask = ({ task, onRun, onDelete }) => {
   );
 };
 
-export default function TasksWindow({ isOpen, onClose, zIndex, onClick, position, windowId, onConnectorMouseDown }) {
+export default function TasksWindow({ isOpen, onClose, zIndex, onClick, position, windowId }) {
   const [tasks, setTasks] = useState([]);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const [newTask, setNewTask] = useState({
@@ -215,7 +214,6 @@ export default function TasksWindow({ isOpen, onClose, zIndex, onClick, position
         </div>
         <div className="font-semibold text-sm text-black">Tasks</div>
         <div></div>
-        <Connector windowId={windowId} onMouseDown={onConnectorMouseDown} />
       </div>
       <div
         className="flex-grow p-4 overflow-y-auto"
