@@ -12,7 +12,20 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
   const [width, setWidth] = useState(800);
   const [height, setHeight] = useState(400);
   const iframeRef = useRef(null);
+  const [isMobile, setIsMobile] = useState(false);
   if (!isOpen) return null;
+
+  // Detect mobile breakpoint and cap width
+  useEffect(() => {
+    const update = () => {
+      const mobile = window.matchMedia('(max-width: 640px)').matches;
+      setIsMobile(mobile);
+      if (mobile) setWidth(w => Math.min(350, w));
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
 
   useEffect(() => {
     if (!automation) return;
@@ -354,7 +367,8 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
       className={`ff-window absolute bg-gray-100/50 backdrop-blur-xl rounded-lg shadow-2xl flex flex-col overflow-visible border border-gray-300/20 ${isMaximized ? 'w-full h-full top-0 left-0 rounded-none' : ''}`}
       style={{
         zIndex,
-        width: isMaximized ? '100%' : width,
+        width: isMaximized ? '100%' : (isMobile ? Math.min(width, 350) : width),
+        maxWidth: isMaximized ? undefined : (isMobile ? 350 : undefined),
         height: isMaximized ? '100%' : height,
         top: isMaximized ? 0 : position?.top,
         left: isMaximized ? 0 : position?.left,
@@ -438,7 +452,10 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
           dragConstraints={{ left: 0, top: 0, right: 0, bottom: 0 }}
           dragElastic={0}
           onDrag={(event, info) => {
-            setWidth(w => Math.max(300, w + info.delta.x));
+            setWidth(w => {
+              const next = Math.max(300, w + info.delta.x);
+              return isMobile ? Math.min(next, 350) : next;
+            });
             setHeight(h => Math.max(200, h + info.delta.y));
           }}
           className="absolute bottom-2 right-2 w-4 h-4 cursor-nwse-resize"

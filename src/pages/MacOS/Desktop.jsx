@@ -26,6 +26,7 @@ import { GoogleGenAI } from '@google/genai';
 import { analyzeImageDataUrl } from '../../lib/analyzeImageWithGemini';
 import { generateVideoWithVeoFromImage } from '../../lib/geminiVideoGeneration';
 import { captureScreenPngDataUrl } from '../../lib/captureScreenshotClient';
+import { captureElementPngDataUrl } from '../../lib/captureElement';
 
 export default function Desktop() {
   const { theme, toggleTheme } = useTheme();
@@ -546,14 +547,34 @@ export default function Desktop() {
           setWindowZIndex(prev => prev + 1);
           (async () => {
             try {
-              // Capture the actual current screen/window/tab via Screen Capture API
-              const captureDataUrl = await captureScreenPngDataUrl();
+              // 1) Try capturing the app's parent element (no permission prompt)
+              const selector = args?.selector || '#root';
+              let captureDataUrl;
+              try {
+                captureDataUrl = await captureElementPngDataUrl(selector, { backgroundColor: null });
+              } catch (_) {
+                // 2) Fallback: capture current screen/window/tab via Screen Capture API
+                captureDataUrl = await captureScreenPngDataUrl();
+              }
+              // Show the captured image immediately in the mini image viewer window
+              setImageViewerWindow({ isOpen: true, imageData: captureDataUrl });
               const prompt = args?.prompt || 'Analyze this screenshot and summarize key UI elements, active files, and obvious issues or next actions.';
               const insights = await analyzeImageDataUrl(captureDataUrl, prompt);
               setOpenWindows(prev => prev.map(w => w.id === windowId ? { ...w, content: insights } : w));
+              // Also send the insights to the live agent for context (non-blocking)
+              try {
+                if (window.__geminiLive && window.__geminiLive.session) {
+                  window.__geminiLive.session.sendClientContent({
+                    turns: { role: 'user', parts: [{ text: `[Context] Screenshot analysis:\n${insights}` }] },
+                    turnComplete: false,
+                  });
+                }
+              } catch (_) {
+                // Ignore errors sending context to live agent
+              }
             } catch (err) {
               const msg = (err?.message || String(err));
-              const guidance = '\nHint: Screen capture requires a user gesture and permission. Click the screen-capture prompt and select a screen/window/tab.';
+              const guidance = '\nHint: If element capture fails (due to cross-origin assets), allow the screen-capture prompt and select this tab/window.';
               setOpenWindows(prev => prev.map(w => w.id === windowId ? { ...w, content: `Error capturing/analyzing screenshot: ${msg}${guidance}` } : w));
             }
           })();

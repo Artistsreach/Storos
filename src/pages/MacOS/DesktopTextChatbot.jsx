@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { GoogleGenAI } from '@google/genai';
 import { MessageCircle, X } from 'lucide-react';
 import { tools } from '../../lib/desktop-tools.js';
@@ -46,6 +46,24 @@ export default function DesktopTextChatbot() {
   const modelBufferRef = useRef('');
 
   const ai = useMemo(() => new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY }), []);
+
+  // Heuristic to detect when the user is referring to what's on their screen
+  const refersToOnScreen = useCallback((text) => {
+    if (!text) return false;
+    const patterns = [
+      /on (my|the) screen/i,
+      /this screen/i,
+      /as (shown|seen)/i,
+      /what you see/i,
+      /what (you|u) (can )?see/i,
+      /here on (my|the) screen/i,
+      /this tab/i,
+      /current (page|view|screen)/i,
+      /look at (this|the)/i,
+      /see (above|below)/i,
+    ];
+    return patterns.some((p) => p.test(text));
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -172,6 +190,23 @@ export default function DesktopTextChatbot() {
     setLoading(true);
 
     try {
+      // If the user references on-screen content, trigger a screenshot capture+analysis to gather context
+      if (refersToOnScreen(trimmed)) {
+        try {
+          window.dispatchEvent(new CustomEvent('gemini-tool-call', {
+            detail: {
+              name: 'analyzeImage',
+              args: {
+                selector: '#root',
+                prompt: `Analyze the current app view to provide context for the user's request: "${trimmed}". Summarize key UI elements and any relevant state.`,
+              },
+            },
+          }));
+        } catch (_) {
+          // Non-fatal: continue sending the message regardless
+        }
+      }
+
       // Send text into the Live session; responses and tool calls are handled by GeminiDesktopLive onmessage
       await window.__geminiLive.session.sendClientContent({
         turns: { role: 'user', parts: [{ text: trimmed }] },
