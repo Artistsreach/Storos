@@ -183,6 +183,72 @@ export class GeminiDesktopLive {
     }
   }
 
+  /**
+   * Analyze a screenshot provided as a data URL (e.g., from canvas.toDataURL()).
+   * Uses inlineData with Base64 bytes as recommended for <20MB requests.
+   * Returns the model's text response.
+   */
+  async analyzeScreenshotDataUrl(dataUrl, prompt = 'Analyze this screenshot and summarize key UI elements, active files, and next actions.') {
+    if (!this.client) {
+      this.client = new GoogleGenAI({ apiKey: this.apiKey });
+    }
+    try {
+      const [header, base64] = dataUrl.split(',');
+      const mimeMatch = header?.match(/data:(.*);base64/);
+      const mimeType = mimeMatch ? mimeMatch[1] : 'image/png';
+
+      const contents = [
+        { inlineData: { data: base64, mimeType } },
+        // Per tip: when using a single image with text, place the text AFTER the image
+        prompt,
+      ];
+
+      const res = await this.client.models.generateContent({ model: 'gemini-2.5-flash', contents });
+      return res.text?.trim() || '';
+    } catch (e) {
+      console.error('GeminiLive: analyzeScreenshotDataUrl failed', e);
+      if (this.onError) this.onError(e);
+      throw e;
+    }
+  }
+
+  /**
+   * Analyze a screenshot by fetching from a URL (smaller images recommended or use Files API for larger/repeated use).
+   */
+  async analyzeScreenshotFromUrl(imageUrl, prompt = 'Analyze this screenshot and summarize key UI elements, active files, and next actions.') {
+    if (!this.client) {
+      this.client = new GoogleGenAI({ apiKey: this.apiKey });
+    }
+    try {
+      const resp = await fetch(imageUrl);
+      if (!resp.ok) throw new Error(`Failed to fetch image: ${resp.status}`);
+      const mimeType = resp.headers.get('content-type') || 'image/jpeg';
+      const buf = await resp.arrayBuffer();
+      // Convert to base64
+      let base64 = '';
+      {
+        const bytes = new Uint8Array(buf);
+        let binary = '';
+        const chunkSize = 0x8000;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+        }
+        base64 = btoa(binary);
+      }
+
+      const contents = [
+        { inlineData: { data: base64, mimeType } },
+        prompt,
+      ];
+      const res = await this.client.models.generateContent({ model: 'gemini-2.5-flash', contents });
+      return res.text?.trim() || '';
+    } catch (e) {
+      console.error('GeminiLive: analyzeScreenshotFromUrl failed', e);
+      if (this.onError) this.onError(e);
+      throw e;
+    }
+  }
+
   reset() {
     if (this.session) {
       this.session.close();
