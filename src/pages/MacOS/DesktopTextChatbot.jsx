@@ -55,7 +55,19 @@ export default function DesktopTextChatbot() {
     const handler = (e) => {
       const { role, text } = e.detail || {};
       if (!text) return;
-      setMessages((prev) => [...prev, { role: role === 'user' ? 'user' : 'model', text }]);
+      // Avoid duplicating user messages (we already add them on send)
+      if (role === 'user') return;
+      // Coalesce model streaming chunks into a single growing message
+      setMessages((prev) => {
+        if (!prev.length) return [{ role: 'model-temp', text }];
+        const last = prev[prev.length - 1];
+        if (last.role.startsWith('model')) {
+          const copy = prev.slice(0, -1);
+          const merged = (last.text ? last.text + (last.text.endsWith('\n') ? '' : ' ') : '') + text;
+          return [...copy, { role: last.role, text: merged }];
+        }
+        return [...prev, { role: 'model-temp', text }];
+      });
     };
     window.addEventListener('gemini-live-text', handler);
     return () => window.removeEventListener('gemini-live-text', handler);
@@ -126,7 +138,10 @@ export default function DesktopTextChatbot() {
 
           <div ref={listRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
             {messages.map((m, i) => (
-              <div key={i} className={m.role.startsWith('model') ? 'text-sm text-neutral-900 dark:text-neutral-100' : 'text-sm text-blue-700 dark:text-blue-300'}>
+              <div
+                key={i}
+                className={m.role.startsWith('model') ? 'text-sm text-neutral-900 dark:text-neutral-100 whitespace-pre-wrap leading-relaxed' : 'text-sm text-blue-700 dark:text-blue-300 whitespace-pre-wrap leading-relaxed'}
+              >
                 {m.text}
               </div>
             ))}
