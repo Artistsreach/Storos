@@ -16,8 +16,16 @@ export async function takeScreenshot(options = {}) {
     response_type, // optional: 'by_format' | 'empty' | 'json'
   } = options;
 
-  const accessKey = (typeof import !== 'undefined' && typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SCREENSHOTONE_ACCESS_KEY)
-    || (typeof window !== 'undefined' && window.SCREENSHOTONE_ACCESS_KEY);
+  let accessKey;
+  try {
+    // Vite/ESM environment
+    accessKey = import.meta?.env?.VITE_SCREENSHOTONE_ACCESS_KEY;
+  } catch (_) {
+    // ignore if import.meta is not available
+  }
+  if (!accessKey && typeof window !== 'undefined') {
+    accessKey = window.SCREENSHOTONE_ACCESS_KEY;
+  }
 
   if (!accessKey) {
     throw new Error('Missing ScreenshotOne access key. Set VITE_SCREENSHOTONE_ACCESS_KEY in your environment.');
