@@ -1,3 +1,50 @@
 # Environment variables
 .env
 .env.local
+
+# Dependencies
+node_modules/
+.pnp/
+
+# Build outputs
+dist/
+build/
+.next/
+.nuxt/
+.svelte-kit/
+.vite/
+.cache/
+out/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Coverage
+coverage/
+
+# Firebase/Supabase
+.firebase/
+supabase/.temp/
+
+# Tooling caches
+.eslintcache
+stylelintcache
+
+# OS/Editor
+.DS_Store
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Env files (keep example)
+.env*
+!.env.example
+node_modules
+node_modules
+node_modules

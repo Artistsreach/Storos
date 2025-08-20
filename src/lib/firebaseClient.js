@@ -2,7 +2,7 @@ import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore, enableIndexedDbPersistence, CACHE_SIZE_UNLIMITED, collection, query, where, getDocs, limit, addDoc, serverTimestamp, doc, setDoc, writeBatch } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
-import { getFunctions } from "firebase/functions"; // Import getFunctions
+import { getFunctions, connectFunctionsEmulator } from "firebase/functions"; // Import getFunctions
 import { generateStoreUrl } from "./utils.js";
 
 // Your web app's Firebase configuration
@@ -24,7 +24,45 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 const firestoreDb = getFirestore(app);
 export const storage = getStorage(app);
-export const functions = getFunctions(app); // Initialize and export functions
+// Use explicit region for Functions
+export const functions = getFunctions(app, 'us-central1');
+
+// Optionally connect to the Functions emulator if explicitly enabled
+try {
+  let useEmulator = false;
+  let host = 'localhost';
+  let port = 5001;
+
+  if (typeof window !== 'undefined') {
+    // Prefer Vite env flag when present
+    try {
+      if (import.meta && import.meta.env) {
+        if (import.meta.env.VITE_USE_FUNCTIONS_EMULATOR === 'true') {
+          useEmulator = true;
+        }
+        if (import.meta.env.VITE_FUNCTIONS_EMULATOR_HOST) {
+          host = import.meta.env.VITE_FUNCTIONS_EMULATOR_HOST;
+        }
+        if (import.meta.env.VITE_FUNCTIONS_EMULATOR_PORT) {
+          const p = Number(import.meta.env.VITE_FUNCTIONS_EMULATOR_PORT);
+          if (!Number.isNaN(p)) port = p;
+        }
+      }
+    } catch (_) { /* ignore if import.meta is unavailable */ }
+
+    // Allow forcing via window flag
+    if (window.__USE_FUNCTIONS_EMULATOR__ === true) {
+      useEmulator = true;
+    }
+  }
+
+  if (useEmulator) {
+    connectFunctionsEmulator(functions, host, port);
+    console.log(`Connected Functions to emulator at ${host}:${port}`);
+  }
+} catch (e) {
+  console.warn('Could not connect Functions emulator:', e);
+}
 
 // Enable offline persistence for Firestore
 try {

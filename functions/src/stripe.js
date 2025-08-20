@@ -1,5 +1,4 @@
 const functions = require('firebase-functions');
-const stripe = require('stripe')(functions.config().stripe.secret);
 const admin = require('firebase-admin');
 
 try {
@@ -8,12 +7,25 @@ try {
   // prevent re-initialization
 }
 
+// Lazily obtain Stripe client to avoid deploy-time crashes when config is not set
+const getStripe = () => {
+  const secret = functions.config()?.stripe?.secret;
+  if (!secret) {
+    throw new functions.https.HttpsError(
+      'failed-precondition',
+      'Stripe secret is not configured. Run: firebase functions:config:set stripe.secret=sk_***'
+    );
+  }
+  return require('stripe')(secret);
+};
+
 
 exports.createStripeAccount = functions.https.onCall(async (data, context) => {
   if (!context.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'The function must be called while authenticated.');
   }
 
+  const stripe = getStripe();
   const account = await stripe.accounts.create({
     type: 'express',
   });
@@ -42,6 +54,7 @@ exports.createLoginLink = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError('invalid-argument', 'The function must be called with a "stripeAccountId" argument.');
   }
 
+  const stripe = getStripe();
   const loginLink = await stripe.accounts.createLoginLink(stripeAccountId);
 
   return { loginLinkUrl: loginLink.url };
@@ -50,11 +63,15 @@ exports.createLoginLink = functions.https.onCall(async (data, context) => {
 
 exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
   const sig = req.headers['stripe-signature'];
-  const endpointSecret = functions.config().stripe.webhook_secret;
+  const endpointSecret = functions.config()?.stripe?.webhook_secret;
 
   let event;
 
   try {
+    const stripe = getStripe();
+    if (!endpointSecret) {
+      console.warn('Stripe webhook secret is not configured. Set functions config stripe.webhook_secret');
+    }
     event = stripe.webhooks.constructEvent(req.rawBody, sig, endpointSecret);
   } catch (err) {
     console.log(`Webhook signature verification failed.`, err.message);

@@ -62,7 +62,7 @@
     "date-fns": "^4.1.0",
     "elevenlabs": "^1.59.0",
     "embla-carousel-react": "^8.6.0",
-    "firebase": "^11.8.1",
+    "firebase": "^11.10.0",
     "firebase-admin": "^13.4.0",
     "firebase-functions": "^6.3.2",
     "framer-motion": "^10.18.0",
