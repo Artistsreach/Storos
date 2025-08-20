@@ -210,15 +210,22 @@ export default function DesktopTextChatbot() {
             </button>
           </div>
 
-          <div ref={listRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
-            {messages.map((m, i) => (
-              <div
-                key={i}
-                className={m.role.startsWith('model') ? 'text-sm text-neutral-900 dark:text-neutral-100 whitespace-pre-wrap leading-relaxed' : 'text-sm text-blue-700 dark:text-blue-300 whitespace-pre-wrap leading-relaxed'}
-              >
-                {m.text}
-              </div>
-            ))}
+          <div ref={listRef} className="flex-1 overflow-y-auto px-3 py-3 flex flex-wrap content-start gap-2">
+            {messages.map((m, i) => {
+              const isModel = m.role.startsWith('model');
+              return (
+                <div
+                  key={i}
+                  className={`max-w-[75%] inline-block break-words whitespace-pre-wrap leading-relaxed px-3 py-2 rounded-lg shadow-sm ${
+                    isModel
+                      ? 'self-start bg-neutral-100 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100'
+                      : 'self-end ml-auto bg-blue-600 text-white'
+                  }`}
+                >
+                  {m.text}
+                </div>
+              );
+            })}
             {loading && <div className="text-xs text-neutral-500">Thinking…</div>}
             {streaming && <div className="text-xs text-neutral-500">Streaming…</div>}
           </div>
