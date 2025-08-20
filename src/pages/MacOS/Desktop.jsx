@@ -48,6 +48,7 @@ export default function Desktop() {
   const [newConnection, setNewConnection] = useState(null);
   const [isDrawingMode, setIsDrawingMode] = useState(false);
   const canvasRef = useRef(null);
+  const desktopRef = useRef(null);
   const contextRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawingColor, setDrawingColor] = useState('red');
@@ -330,26 +331,106 @@ export default function Desktop() {
 
   const handleConnectorMouseDown = (e, fromWindowId) => {
     e.stopPropagation();
-    setNewConnection({ from: fromWindowId, to: { x: e.clientX, y: e.clientY } });
+    // Helper to extract clientX/Y from mouse or touch events
+    const getClient = (ev) => {
+      if (ev?.touches && ev.touches[0]) return { x: ev.touches[0].clientX, y: ev.touches[0].clientY };
+      if (ev?.changedTouches && ev.changedTouches[0]) return { x: ev.changedTouches[0].clientX, y: ev.changedTouches[0].clientY };
+      return { x: ev.clientX, y: ev.clientY };
+    };
+
+    const { x: clientX, y: clientY } = getClient(e);
+    const connectorRect = e.currentTarget?.getBoundingClientRect?.();
+    const desktopRect = desktopRef.current?.getBoundingClientRect?.();
+    const side = e.currentTarget?.dataset?.side || 'right';
+    const cx = connectorRect ? connectorRect.left + connectorRect.width / 2 : clientX;
+    const cy = connectorRect ? connectorRect.top + connectorRect.height / 2 : clientY;
+    const localStart = {
+      x: cx - (desktopRect?.left || 0),
+      y: cy - (desktopRect?.top || 0),
+    };
+    const localTo = {
+      x: clientX - (desktopRect?.left || 0),
+      y: clientY - (desktopRect?.top || 0),
+    };
+    setNewConnection({ from: fromWindowId, startLocal: localStart, to: localTo, side });
+
+    // Track drag globally so the endpoint follows the cursor outside the desktop
+    const onMoveMouse = (ev) => {
+      const rect = desktopRef.current?.getBoundingClientRect?.();
+      setNewConnection((prev) =>
+        prev
+          ? {
+              ...prev,
+              to: { x: ev.clientX - (rect?.left || 0), y: ev.clientY - (rect?.top || 0) },
+            }
+          : prev
+      );
+    };
+    const onMoveTouch = (ev) => {
+      if (!ev.touches || !ev.touches[0]) return;
+      const rect = desktopRef.current?.getBoundingClientRect?.();
+      const tx = ev.touches[0].clientX;
+      const ty = ev.touches[0].clientY;
+      setNewConnection((prev) =>
+        prev
+          ? {
+              ...prev,
+              to: { x: tx - (rect?.left || 0), y: ty - (rect?.top || 0) },
+            }
+          : prev
+      );
+      // prevent page scroll while dragging
+      ev.preventDefault?.();
+    };
+    const onUp = (ev) => {
+      window.removeEventListener('mousemove', onMoveMouse);
+      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('touchmove', onMoveTouch);
+      window.removeEventListener('touchend', onUp);
+      // Reuse existing mouseup logic (does hit-testing with panOffset)
+      handleMouseUp(ev);
+    };
+    window.addEventListener('mousemove', onMoveMouse);
+    window.addEventListener('mouseup', onUp);
+    window.addEventListener('touchmove', onMoveTouch, { passive: false });
+    window.addEventListener('touchend', onUp);
   };
 
   const handleMouseMove = (e) => {
     if (newConnection) {
-      setNewConnection({ ...newConnection, to: { x: e.clientX, y: e.clientY } });
+      const getClient = (ev) => {
+        if (ev?.touches && ev.touches[0]) return { x: ev.touches[0].clientX, y: ev.touches[0].clientY };
+        if (ev?.changedTouches && ev.changedTouches[0]) return { x: ev.changedTouches[0].clientX, y: ev.changedTouches[0].clientY };
+        return { x: ev.clientX, y: ev.clientY };
+      };
+      const { x: cx, y: cy } = getClient(e);
+      const desktopRect = desktopRef.current?.getBoundingClientRect?.();
+      setNewConnection({
+        ...newConnection,
+        to: { x: cx - (desktopRect?.left || 0), y: cy - (desktopRect?.top || 0) },
+      });
     }
   };
 
   const handleMouseUp = (e) => {
     if (newConnection) {
+      const getClient = (ev) => {
+        if (ev?.touches && ev.touches[0]) return { x: ev.touches[0].clientX, y: ev.touches[0].clientY };
+        if (ev?.changedTouches && ev.changedTouches[0]) return { x: ev.changedTouches[0].clientX, y: ev.changedTouches[0].clientY };
+        return { x: ev.clientX, y: ev.clientY };
+      };
+      const { x: ex, y: ey } = getClient(e);
+      const cursorX = ex - (panOffset?.x || 0);
+      const cursorY = ey - (panOffset?.y || 0);
       const toWindow = openWindows.find((w) => {
         if (!w.position) return false;
         const width = w.width || 800;
         const height = w.height || 600;
         return (
-          e.clientX >= w.position.left &&
-          e.clientX <= w.position.left + width &&
-          e.clientY >= w.position.top &&
-          e.clientY <= w.position.top + height
+          cursorX >= w.position.left &&
+          cursorX <= w.position.left + width &&
+          cursorY >= w.position.top &&
+          cursorY <= w.position.top + height
         );
       });
 
@@ -764,6 +845,7 @@ export default function Desktop() {
       className={`relative dot-grid ${
         theme === 'light' ? 'bg-[#ededed]' : 'bg-[#0a0a0a]'
       }`}
+      ref={desktopRef}
       style={{ width: canvasSize.width, height: canvasSize.height }}
       onMouseDown={(e) => {
         if (isDrawingMode) return;
@@ -805,7 +887,7 @@ export default function Desktop() {
       }}
       onClick={() => setIsWiggleMode(false)}
     >
-      <ConnectionsLayer connections={connections} openWindows={openWindows} newConnection={newConnection} />
+      <ConnectionsLayer connections={connections} openWindows={openWindows} newConnection={newConnection} panOffset={panOffset} />
       <div
         className="absolute inset-0 flex items-center justify-center pointer-events-none"
         style={{ transform: `translate(${panOffset.x}px, ${panOffset.y}px)` }}
