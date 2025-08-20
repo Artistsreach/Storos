@@ -41,6 +41,7 @@ export default function DesktopTextChatbot() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const listRef = useRef(null);
+  const modelFinalizeTimer = useRef(null);
 
   const ai = useMemo(() => new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY }), []);
 
@@ -57,21 +58,40 @@ export default function DesktopTextChatbot() {
       if (!text) return;
       // Avoid duplicating user messages (we already add them on send)
       if (role === 'user') return;
-      // Coalesce model streaming chunks into a single growing message
+      // Ignore if identical to current last model text
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg && lastMsg.role.startsWith('model') && lastMsg.text === text) return;
+      // Overwrite the last model message with the latest full transcription
       setMessages((prev) => {
         if (!prev.length) return [{ role: 'model-temp', text }];
         const last = prev[prev.length - 1];
         if (last.role.startsWith('model')) {
           const copy = prev.slice(0, -1);
-          const merged = (last.text ? last.text + (last.text.endsWith('\n') ? '' : ' ') : '') + text;
-          return [...copy, { role: last.role, text: merged }];
+          return [...copy, { role: last.role, text }];
         }
         return [...prev, { role: 'model-temp', text }];
       });
+
+      // Debounce finalize: convert 'model-temp' to 'model' after idle to avoid repeats
+      if (modelFinalizeTimer.current) clearTimeout(modelFinalizeTimer.current);
+      modelFinalizeTimer.current = setTimeout(() => {
+        setMessages((prev) => {
+          if (!prev.length) return prev;
+          const last = prev[prev.length - 1];
+          if (last.role === 'model-temp') {
+            const copy = prev.slice(0, -1);
+            return [...copy, { role: 'model', text: last.text }];
+          }
+          return prev;
+        });
+      }, 500);
     };
     window.addEventListener('gemini-live-text', handler);
-    return () => window.removeEventListener('gemini-live-text', handler);
-  }, []);
+    return () => {
+      window.removeEventListener('gemini-live-text', handler);
+      if (modelFinalizeTimer.current) clearTimeout(modelFinalizeTimer.current);
+    };
+  }, [messages]);
 
   // Listen for live enable/disable toggle
   useEffect(() => {
@@ -93,6 +113,17 @@ export default function DesktopTextChatbot() {
       setMessages(prev => [...prev, { role: 'model', text: 'Live mode is not active. Click the red button in the status bar to enable it.' }]);
       return;
     }
+    // Finalize any pending model-temp before adding a new user message
+    if (modelFinalizeTimer.current) clearTimeout(modelFinalizeTimer.current);
+    setMessages(prev => {
+      if (!prev.length) return prev;
+      const last = prev[prev.length - 1];
+      if (last.role === 'model-temp') {
+        const copy = prev.slice(0, -1);
+        return [...copy, { role: 'model', text: last.text }];
+      }
+      return prev;
+    });
     setMessages(prev => [...prev, { role: 'user', text: trimmed }]);
     setInput('');
     setLoading(true);

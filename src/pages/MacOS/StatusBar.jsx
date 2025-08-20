@@ -70,19 +70,8 @@ export default function StatusBar({
       const newGeminiLive = new GeminiDesktopLive(
         import.meta.env.VITE_GEMINI_API_KEY,
         (message) => {
-          try {
-            // Mirror input and output transcriptions into a shared event bus
-            const outText = message?.serverContent?.outputTranscription?.text;
-            if (outText) {
-              window.dispatchEvent(new CustomEvent('gemini-live-text', { detail: { role: 'model', text: outText } }));
-            }
-            const inText = message?.serverContent?.inputTranscription?.text;
-            if (inText) {
-              window.dispatchEvent(new CustomEvent('gemini-live-text', { detail: { role: 'user', text: inText } }));
-            }
-          } catch (e) {
-            // no-op
-          }
+          // GeminiDesktopLive already dispatches 'gemini-live-text' and tool-call events.
+          // Keep this hook for future UI side-effects if needed.
         },
         (error) => console.error('onError', error),
         () => console.log('onOpen'),
