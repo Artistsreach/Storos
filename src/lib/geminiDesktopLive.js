@@ -27,6 +27,38 @@ export class GeminiDesktopLive {
     this.contextSummary = '';
   }
 
+  async refreshDesktopContext() {
+    try {
+      // Lazy import File to avoid circular deps
+      if (!FileEntity) {
+        const mod = await import('../entities/File.js');
+        FileEntity = mod.File || mod.default || null;
+      }
+      if (!FileEntity || typeof FileEntity.getAll !== 'function') return;
+
+      const all = await FileEntity.getAll();
+      // Include top-level desktop items and those in the Context folder
+      const contextItems = all.filter(
+        (f) => f.parent_id === null || f.parent_id === CONTEXT_FOLDER_ID
+      );
+
+      const summarize = (f) => {
+        const parts = [];
+        if (f.icon) parts.push(String(f.icon));
+        parts.push(f.name);
+        parts.push(`type:${f.type}`);
+        if (f.url) parts.push(`url:${f.url}`);
+        if (f.category) parts.push(`category:${f.category}`);
+        return parts.join(' ');
+      };
+
+      // Cap to a reasonable number to keep prompt small
+      this.contextSummary = contextItems.slice(0, 100).map(summarize).join('\n');
+    } catch (e) {
+      console.error('GeminiLive: refreshDesktopContext failed', e);
+    }
+  }
+
   async init() {
     console.log("GeminiLive: init");
     this.client = new GoogleGenAI({ apiKey: this.apiKey });
