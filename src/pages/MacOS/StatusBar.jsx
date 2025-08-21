@@ -12,6 +12,8 @@ export default function StatusBar({
   onColorChange,
   onSizeChange,
   onToolChange,
+  trashEnabled,
+  onToggleTrash,
 }) {
   const { theme, toggleTheme } = useTheme();
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -135,6 +137,15 @@ export default function StatusBar({
               }}
             >
               New Folder
+            </button>
+            <button
+              className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+              onClick={() => {
+                onToggleTrash && onToggleTrash();
+                setMenuOpen(false);
+              }}
+            >
+              {trashEnabled ? 'Hide Trash Bin' : 'Show Trash Bin'}
             </button>
           </div>
         )}

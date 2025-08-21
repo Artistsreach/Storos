@@ -4,7 +4,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { PinOff } from 'lucide-react';
 import { File } from '../../entities/File';
 
-export default function DesktopIcon({ file, onDoubleClick, onDrag, onUnpin, isWiggleMode, onHold, onDropOnFolder, onDropOnDock, dockRef, folders }) {
+export default function DesktopIcon({ file, onDoubleClick, onDrag, onUnpin, isWiggleMode, onHold, onDropOnFolder, onDropOnDock, onDropOnTrash, dockRef, trashRef, folders }) {
   const { theme } = useTheme();
   const [isDragging, setIsDragging] = useState(false);
   const { name } = file;
@@ -133,6 +133,20 @@ export default function DesktopIcon({ file, onDoubleClick, onDrag, onUnpin, isWi
             hitY <= dockRect.bottom
           ) {
             onDropOnDock(file);
+            return;
+          }
+        }
+
+        // 2. Check Trash bin drop
+        if (trashRef && trashRef.current && onDropOnTrash) {
+          const tRect = trashRef.current.getBoundingClientRect();
+          if (
+            hitX >= tRect.left &&
+            hitX <= tRect.right &&
+            hitY >= tRect.top &&
+            hitY <= tRect.bottom
+          ) {
+            onDropOnTrash(file);
             return;
           }
         }

@@ -34,6 +34,7 @@ export default function Desktop() {
   const { profile } = useAuth();
   const [desktopFiles, setDesktopFiles] = useState([]);
   const [staticShortcuts, setStaticShortcuts] = useState([]);
+  const [showTrash, setShowTrash] = useState(false);
   const [dockCustomApps, setDockCustomApps] = useState([]);
   const dockRef = useRef(null);
   const [openWindows, setOpenWindows] = useState([]);
@@ -56,6 +57,7 @@ export default function Desktop() {
   const canvasRef = useRef(null);
   const selectionCanvasRef = useRef(null);
   const desktopRef = useRef(null);
+  const trashRef = useRef(null);
   const contextRef = useRef(null);
   const selectionCtxRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -1224,21 +1226,23 @@ const handleDropOnFolder = async (file, folder) => {
   }
 };
 
+// Drop a desktop file/shortcut onto the Dock to pin it there
 const handleDropOnDock = async (file) => {
   try {
-    // Add to dock custom apps if not already present
+    // Normalize icon to a primitive (string/emoji/url)
+    let icon = file.icon;
+    if (React.isValidElement(icon)) {
+      icon = icon.props?.src || icon.props?.children || icon;
+    }
+
+    // Add or update a dock entry that references this file
     setDockCustomApps(prev => {
-      const exists = prev.some(a => a.fileId === file.id);
-      if (exists) return prev;
-      // Ensure icon is a URL string if a React element was used
-      let icon = file.icon;
-      if (React.isValidElement(icon)) {
-        icon = icon.props?.src || icon.props?.children || icon;
-      }
+      const id = `dock-file-${file.id}`;
+      const next = prev.filter(p => p.id !== id);
       return [
-        ...prev,
+        ...next,
         {
-          id: `dock-file-${file.id}`,
+          id,
           name: file.name,
           icon,
           url: file.url,
@@ -1246,11 +1250,34 @@ const handleDropOnDock = async (file) => {
         },
       ];
     });
-    // Remove from desktop
-    await File.delete(file.id);
-    setDesktopFiles(prev => prev.filter(f => f.id !== file.id));
+
+    // Remove from desktop: delete DB record if persisted, or remove static shortcut
+    if (file && typeof file.id === 'number') {
+      await File.delete(file.id);
+      setDesktopFiles(prev => prev.filter(f => f.id !== file.id));
+    } else {
+      setStaticShortcuts(prev => prev.filter(s => s.id !== file.id));
+    }
   } catch (error) {
     console.error('Error dropping file on dock:', error);
+  }
+};
+
+// (trashRef is defined at top with useRef)
+
+// Hide shortcuts/files dropped on Trash bin
+const handleDropOnTrash = async (file) => {
+  try {
+    // Static shortcut (from staticShortcuts array): mark hidden in state
+    if (file.parent_id === undefined) {
+      setStaticShortcuts(prev => prev.map(s => s.id === file.id ? { ...s, isHidden: true } : s));
+      return;
+    }
+    // DB-backed desktop item: set isHidden true and update local list
+    await File.update(file.id, { isHidden: true });
+    setDesktopFiles(prev => prev.map(f => f.id === file.id ? { ...f, isHidden: true } : f));
+  } catch (e) {
+    console.error('Error hiding file via Trash:', e);
   }
 };
 
@@ -1329,6 +1356,8 @@ return (
         onColorChange={setDrawingColor}
         onSizeChange={setDrawingSize}
         onToolChange={setDrawingTool}
+        trashEnabled={showTrash}
+        onToggleTrash={() => setShowTrash(v => !v)}
       />
         <div
           className="relative z-10 h-full"
@@ -1448,7 +1477,9 @@ return (
               onHold={handleIconHold}
               onDropOnFolder={handleDropOnFolder}
               onDropOnDock={handleDropOnDock}
+              onDropOnTrash={handleDropOnTrash}
               dockRef={dockRef}
+              trashRef={trashRef}
               folders={desktopFiles.filter(f => f.type === 'folder')}
             />
           ))}
@@ -1653,6 +1684,18 @@ return (
           zIndex={windowZIndex + 1}
         />
         <Dock onClick={handleAppClick} onDrop={handleDropFromDock} ref={dockRef} customApps={dockCustomApps} />
+        {/* Trash Bin (toggle from StatusBar menu) */}
+        {showTrash && (
+          <div
+            id="desktop-trash-bin"
+            ref={trashRef}
+            className="fixed right-4 bottom-24 w-16 h-16 rounded-lg flex items-center justify-center bg-black/20 dark:bg-white/10 border border-white/20 backdrop-blur-sm select-none"
+            title="Trash"
+            style={{ zIndex: 5 }}
+          >
+            <span style={{ fontSize: 28 }} role="img" aria-label="trash">🗑️</span>
+          </div>
+        )}
       </div>
     </div>
   );
