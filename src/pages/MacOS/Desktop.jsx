@@ -92,6 +92,16 @@ export default function Desktop() {
     return () => window.removeEventListener('resize', update);
   }, []);
 
+  
+
+  const adjustedNextWindowPosition = useMemo(() => {
+    const shift = isMobile ? 250 : 0;
+    return {
+      top: nextWindowPosition.top,
+      left: Math.max(0, (nextWindowPosition.left || 0) - shift),
+    };
+  }, [nextWindowPosition, isMobile]);
+
   // Open a dedicated video player window when ImageViewer dispatches 'open-video-window'
   useEffect(() => {
     const handleOpenVideo = (e) => {
@@ -123,14 +133,6 @@ export default function Desktop() {
     window.addEventListener('open-video-window', handleOpenVideo);
     return () => window.removeEventListener('open-video-window', handleOpenVideo);
   }, [adjustedNextWindowPosition, windowZIndex]);
-
-  const adjustedNextWindowPosition = useMemo(() => {
-    const shift = isMobile ? 250 : 0;
-    return {
-      top: nextWindowPosition.top,
-      left: Math.max(0, (nextWindowPosition.left || 0) - shift),
-    };
-  }, [nextWindowPosition, isMobile]);
 
   // Build an augmented list of windows that includes special windows rendered outside openWindows
   const allWindows = useMemo(() => {
