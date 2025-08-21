@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Wifi, Battery, Search, Sun, Moon, Pencil, Eraser, Check, Type, Square } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { GeminiDesktopLive } from '../../lib/geminiDesktopLive.js';
 import { File } from '../../entities/File';
 import { Popover, PopoverTrigger, PopoverContent } from '../../components/ui/popover';
@@ -18,6 +19,7 @@ export default function StatusBar({
   onOpenWorkspaces,
 }) {
   const { theme, toggleTheme } = useTheme();
+  const { logout } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewDate, setViewDate] = useState(new Date());
@@ -238,6 +240,21 @@ export default function StatusBar({
               }}
             >
               {trashEnabled ? 'Hide Trash Bin' : 'Show Trash Bin'}
+            </button>
+            <div className="my-1 border-t border-gray-200 dark:border-gray-700" />
+            <button
+              className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-red-600 dark:text-red-400"
+              onClick={async () => {
+                try {
+                  await logout();
+                } catch (e) {
+                  console.error('Logout failed:', e);
+                } finally {
+                  setMenuOpen(false);
+                }
+              }}
+            >
+              Log out
             </button>
           </div>
         )}
