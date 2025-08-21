@@ -18,6 +18,7 @@ import TasksWindow from './TasksWindow';
 import CalculatorWindow from './CalculatorWindow';
 import ContractCreatorWindow from './ContractCreatorWindow';
 import BankWindow from './BankWindow';
+import ChartWindow from './ChartWindow';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { deepResearch } from '../../lib/firecrawl';
@@ -46,6 +47,7 @@ export default function Desktop() {
   const [explorerWindow, setExplorerWindow] = useState({ isOpen: false, content: '' });
   const [imageViewerWindow, setImageViewerWindow] = useState({ isOpen: false, imageData: '' });
   const [tableWindow, setTableWindow] = useState({ isOpen: false, data: { headers: [], rows: [] } });
+  const [tableWindowZIndex, setTableWindowZIndex] = useState(10);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isPannable, setIsPannable] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
@@ -396,6 +398,59 @@ export default function Desktop() {
       };
 
       switch (name) {
+    case "createChart": {
+      const { title, chartType = 'bar', data, options, source = 'data', prompt } = args || {};
+      const windowId = `chart-${Date.now()}`;
+      const initialConfig = {
+        type: chartType,
+        data: data || { labels: [], datasets: [] },
+        options: options || {},
+      };
+      setOpenWindows(prev => [
+        ...prev,
+        {
+          id: windowId,
+          type: 'chart',
+          isMaximized: false,
+          zIndex: windowZIndex,
+          position: adjustedNextWindowPosition,
+          width: 700,
+          height: 500,
+          bottom: 0,
+          title: title || 'Chart',
+          config: initialConfig,
+        },
+      ]);
+      setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
+      setWindowZIndex(prev => prev + 1);
+
+      if (source === 'screenshot') {
+        (async () => {
+          try {
+            const captureDataUrl = await captureScreenPngDataUrl();
+            // Optional: preview screenshot
+            // setImageViewerWindow({ isOpen: true, imageData: captureDataUrl });
+            const extractionPrompt = prompt || `Extract chart-ready JSON for Chart.js from the screenshot. Respond with ONLY a valid JSON object with keys: type, data, options. Example: {"type":"bar","data":{"labels":["A"],"datasets":[{"label":"L","data":[1]}]},"options":{"responsive":true}}. Use animations and helpful tooltips.`;
+            const jsonText = await analyzeImageDataUrl(captureDataUrl, extractionPrompt);
+            let parsed = null;
+            try {
+              // Some models may wrap JSON in markdown fences; strip them
+              const cleaned = jsonText.trim().replace(/^```json\n?|```$/g, '');
+              parsed = JSON.parse(cleaned);
+            } catch (_) { /* fall back */ }
+            if (parsed && typeof parsed === 'object') {
+              setOpenWindows(prev => prev.map(w => w.id === windowId ? { ...w, config: parsed } : w));
+            } else {
+              // Keep initial config; optionally append note to title
+              setOpenWindows(prev => prev.map(w => w.id === windowId ? { ...w, title: (w.title || 'Chart') + ' (using default config)' } : w));
+            }
+          } catch (err) {
+            setOpenWindows(prev => prev.map(w => w.id === windowId ? { ...w, title: (w.title || 'Chart') + ` (capture failed)` } : w));
+          }
+        })();
+      }
+      break;
+    }
         case "automateTask":
           openAppWithAutomation('commandr-shortcut', { type: 'automateTask', ...args.tool_call });
           break;
@@ -504,7 +559,10 @@ export default function Desktop() {
           });
           break;
         case "createTable":
+          // Open the Table window and give it a dedicated zIndex so it can be stacked like other windows
           setTableWindow({ isOpen: true, data: { headers: [], rows: [] } });
+          setTableWindowZIndex(windowZIndex);
+          setWindowZIndex(prev => prev + 1);
           const ai2 = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
           ai2.models.generateContent({
             model: "gemini-2.5-flash",
@@ -586,12 +644,17 @@ export default function Desktop() {
               const prompt = args?.prompt || 'Analyze this screenshot and summarize key UI elements, active files, and obvious issues or next actions.';
               const insights = await analyzeImageDataUrl(captureDataUrl, prompt);
               setOpenWindows(prev => prev.map(w => w.id === windowId ? { ...w, content: insights } : w));
-              // Also send the insights to the live agent for context (non-blocking)
+              // Also send the insights to the live agent and prompt it to speak to the user
               try {
                 if (window.__geminiLive && window.__geminiLive.session) {
                   window.__geminiLive.session.sendClientContent({
-                    turns: { role: 'user', parts: [{ text: `[Context] Screenshot analysis:\n${insights}` }] },
-                    turnComplete: false,
+                    turns: {
+                      role: 'user',
+                      parts: [{
+                        text: `Please briefly speak to the user about what this screenshot shows and any obvious next steps.\n\nAnalysis:\n${insights}`
+                      }]
+                    },
+                    turnComplete: true,
                   });
                 }
               } catch (_) {
@@ -622,6 +685,7 @@ export default function Desktop() {
   useEffect(() => {
     const shortcuts = [
       { id: 'agent-icon', name: 'Agent', icon: '💬', type: 'app', position_x: 220, position_y: 50 },
+      { id: 'web-browser', name: 'Browser', icon: '🌐', type: 'app', is_shortcut: true, position_x: 300, position_y: 250 },
       { id: 'store-shortcut', name: 'Store', icon: '🛍️', url: 'https://freshfront.co/gen', type: 'link', is_shortcut: true, position_x: 219, position_y: 443 },
       { id: 'app-shortcut', name: 'App', icon: '📱', url: 'https://build.freshfront.co', type: 'app', is_shortcut: true, position_x: 221, position_y: 150 },
       { id: 'bank-shortcut', name: 'Bank', icon: '🏦', type: 'app', is_shortcut: true, position_x: 300, position_y: 148 },
@@ -678,6 +742,26 @@ export default function Desktop() {
           position: adjustedNextWindowPosition,
           width: 520,
           height: 520,
+          bottom: 0,
+        },
+      ]);
+      setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
+      setWindowZIndex(prev => prev + 1);
+      return;
+    }
+    if (id === 'web-browser') {
+      const windowId = `browser-${Date.now()}`;
+      setOpenWindows(prev => [
+        ...prev,
+        {
+          id: windowId,
+          type: 'app',
+          app: { id: 'web-browser', name: 'Browser' },
+          isMaximized: false,
+          zIndex: windowZIndex,
+          position: adjustedNextWindowPosition,
+          width: 900,
+          height: 650,
           bottom: 0,
         },
       ]);
@@ -1035,19 +1119,32 @@ const handleDropFromDock = async (app, x, y) => {
     if (React.isValidElement(icon)) {
       icon = icon.props.src;
     }
-    const newFile = {
-      name: app.name,
-      icon: icon,
-      url: app.url,
-      type: 'file',
-      parent_id: null,
-      position_x: localX,
-      position_y: localY,
-      is_shortcut: true,
-      original_id: app.fileId || app.id,
-    };
-    const createdFile = await File.create(newFile);
-    setDesktopFiles(prev => [...prev, createdFile]);
+    // If a static shortcut exists with same name or URL, remove it to prevent a duplicate-looking pair
+    const staticMatch = staticShortcuts.find(s => s.parent_id === undefined && (s.name === app.name || (!!s.url && s.url === app.url)));
+    if (staticMatch) {
+      setStaticShortcuts(prev => prev.filter(s => s.id !== staticMatch.id));
+    }
+    const originalId = app.fileId || app.id;
+    // Idempotency: if a shortcut already exists for this originalId on the desktop, just move it
+    const existing = desktopFiles.find(f => f.parent_id === null && f.is_shortcut && String(f.original_id) === String(originalId));
+    if (existing) {
+      const updated = await File.update(existing.id, { position_x: localX, position_y: localY });
+      setDesktopFiles(prev => prev.map(f => f.id === existing.id ? { ...f, position_x: localX, position_y: localY } : f));
+    } else {
+      const newFile = {
+        name: app.name,
+        icon: icon,
+        url: app.url,
+        type: 'file',
+        parent_id: null,
+        position_x: localX,
+        position_y: localY,
+        is_shortcut: true,
+        original_id: originalId,
+      };
+      const createdFile = await File.create(newFile);
+      setDesktopFiles(prev => [...prev, createdFile]);
+    }
   } catch (error) {
     console.error('Error creating file from dock drop:', error);
   }
@@ -1483,6 +1580,24 @@ return (
                         />
                       );
                     }
+                    if (window.type === 'chart') {
+                      return (
+                          <ChartWindow
+                            key={window.id}
+                            isOpen={!minimizedWindows.includes(window.id)}
+                            onClose={() => closeWindow(window.id)}
+                            onMinimize={() => minimizeWindow(window.id)}
+                            onMaximize={() => maximizeWindow(window.id)}
+                            isMaximized={window.isMaximized}
+                            zIndex={window.zIndex}
+                            position={window.position}
+                            onClick={() => bringToFront(window.id)}
+                            windowId={window.id}
+                            title={window.title}
+                            config={window.config}
+                          />
+                        );
+                      }
                     return null;
                   })}
 
@@ -1513,9 +1628,13 @@ return (
           onClose={() => setTableWindow({ isOpen: false, data: { headers: [], rows: [] } })}
           title="Table"
           data={tableWindow.data}
-          zIndex={windowZIndex}
+          zIndex={tableWindowZIndex}
           position={adjustedNextWindowPosition}
-          onClick={() => bringToFront('table-window')}
+          onClick={() => {
+            // Bring the table window to front using its own zIndex state
+            setTableWindowZIndex(windowZIndex);
+            setWindowZIndex(prev => prev + 1);
+          }}
           windowId={'table-window'}
         />
 

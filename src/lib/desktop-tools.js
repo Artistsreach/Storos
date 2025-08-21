@@ -159,6 +159,41 @@ export const tools = [
         },
       },
       {
+        name: "createChart",
+        description: "Create an interactive Chart.js chart. Optionally, analyze a screenshot to extract data and generate the chart configuration.",
+        parameters: {
+          type: "object",
+          properties: {
+            title: {
+              type: "string",
+              description: "Optional title to display on the chart window.",
+            },
+            chartType: {
+              type: "string",
+              description: "Chart.js chart type.",
+              enum: ["bar", "line", "pie", "doughnut", "radar", "polarArea", "scatter", "bubble"],
+            },
+            data: {
+              type: "object",
+              description: "Chart.js data object with labels and datasets.",
+            },
+            options: {
+              type: "object",
+              description: "Chart.js options object (animations, interaction, plugins, scales, etc).",
+            },
+            source: {
+              type: "string",
+              description: "If 'screenshot', the desktop will capture a screenshot and ask Gemini to extract chart-ready config; otherwise use provided data/options.",
+              enum: ["screenshot", "data"],
+            },
+            prompt: {
+              type: "string",
+              description: "Optional instruction for how to extract data and which chart to build from the screenshot or provided data.",
+            }
+          },
+        },
+      },
+      {
         name: "automateTask",
         description: "Automate a task by dispatching a tool call to the desktop interface.",
         parameters: {

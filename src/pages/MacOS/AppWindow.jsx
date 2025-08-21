@@ -15,6 +15,9 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
   const [isMobile, setIsMobile] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [hasUserResized, setHasUserResized] = useState(false);
+  // Simple browser state when app.id === 'web-browser'
+  const [address, setAddress] = useState('https://www.google.com');
+  const [browserUrl, setBrowserUrl] = useState('https://www.google.com');
   if (!isOpen) return null;
 
   // Detect mobile breakpoint and cap width
@@ -403,7 +406,36 @@ export default function AppWindow({ isOpen, onClose, onMinimize, onMaximize, isM
       {/* Connectors removed */}
 
       <div className="flex-grow flex flex-col overflow-y-auto">
-        {app.url ? (
+        {app?.id === 'web-browser' ? (
+          <div className="flex flex-col h-full">
+            <div className="flex items-center gap-2 p-2 border-b border-gray-300/40 bg-white/70">
+              <input
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    let u = address.trim();
+                    if (u && !/^https?:\/\//i.test(u)) u = `https://${u}`;
+                    setBrowserUrl(u);
+                  }
+                }}
+                placeholder="Enter URL"
+                className="flex-1 px-3 py-2 text-sm rounded-md border border-gray-300 bg-white"
+              />
+              <button
+                onClick={() => {
+                  let u = address.trim();
+                  if (u && !/^https?:\/\//i.test(u)) u = `https://${u}`;
+                  setBrowserUrl(u);
+                }}
+                className="px-3 py-2 text-sm rounded-md bg-blue-600 text-white"
+              >
+                Go
+              </button>
+            </div>
+            <iframe ref={iframeRef} src={browserUrl} className="w-full h-full flex-grow" />
+          </div>
+        ) : app.url ? (
           <iframe
             ref={iframeRef}
             src={useMemo(() => {

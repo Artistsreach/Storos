@@ -17,6 +17,7 @@ const dockApps = [
 // Single item with its own dragControls so we can start drag after long-press
 const DockItem = ({ app, index, onDrop, onClick, hoveredApp, setHoveredApp }) => {
   const draggedRef = useRef(false);
+  const droppedOnceRef = useRef(false);
   const itemRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOrigin, setDragOrigin] = useState({ left: 0, top: 0 });
@@ -43,6 +44,7 @@ const DockItem = ({ app, index, onDrop, onClick, hoveredApp, setHoveredApp }) =>
       }}
       onDragStart={(event, info) => {
         draggedRef.current = true;
+        droppedOnceRef.current = false;
         // Measure current screen position
         try {
           const rect = itemRef.current?.getBoundingClientRect();
@@ -53,10 +55,11 @@ const DockItem = ({ app, index, onDrop, onClick, hoveredApp, setHoveredApp }) =>
         setIsDragging(true);
       }}
       onDragEnd={(event, info) => {
-        if (onDrop) {
+        if (onDrop && !droppedOnceRef.current) {
           const hitX = (event && event.clientX != null) ? event.clientX : info.point.x;
           const hitY = (event && event.clientY != null) ? event.clientY : info.point.y;
           onDrop(app, hitX, hitY);
+          droppedOnceRef.current = true;
         }
         draggedRef.current = false;
         setIsDragging(false);
@@ -68,11 +71,14 @@ const DockItem = ({ app, index, onDrop, onClick, hoveredApp, setHoveredApp }) =>
       onMouseEnter={() => setHoveredApp(index)}
       onMouseLeave={() => setHoveredApp(null)}
       onPointerUp={(e) => {
-        if (isDragging) {
+        if (isDragging && !droppedOnceRef.current) {
           // Fallback to ensure drop occurs even if dragEnd is skipped
           const hitX = (e && e.clientX != null) ? e.clientX : lastPointRef.current.x;
           const hitY = (e && e.clientY != null) ? e.clientY : lastPointRef.current.y;
-          onDrop && onDrop(app, hitX, hitY);
+          if (onDrop) {
+            onDrop(app, hitX, hitY);
+            droppedOnceRef.current = true;
+          }
           draggedRef.current = false;
           setIsDragging(false);
         }

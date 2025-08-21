@@ -1,15 +1,30 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
+import { Chart, registerables } from 'chart.js';
+
+Chart.register(...registerables);
 
 const TrafficLightButton = ({ color, onClick }) => (
   <button onClick={onClick} className={`w-3 h-3 rounded-full ${color}`}></button>
 );
 
-export default function TableWindow({ isOpen, onClose, onMinimize, onMaximize, isMaximized, title, data, zIndex, onClick, position, windowId }) {
-  if (!isOpen) return null;
-
-  const [width, setWidth] = useState(800);
-  const [height, setHeight] = useState(400);
+export default function ChartWindow({
+  isOpen,
+  onClose,
+  onMinimize,
+  onMaximize,
+  isMaximized,
+  zIndex,
+  onClick,
+  position,
+  windowId,
+  title = 'Chart',
+  config,
+}) {
+  const canvasRef = useRef(null);
+  const chartRef = useRef(null);
+  const [width, setWidth] = useState(640);
+  const [height, setHeight] = useState(420);
   const [isMobile, setIsMobile] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [hasUserResized, setHasUserResized] = useState(false);
@@ -20,6 +35,48 @@ export default function TableWindow({ isOpen, onClose, onMinimize, onMaximize, i
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
   }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx) return;
+
+    try {
+      // Destroy previous instance to avoid leaks
+      if (chartRef.current) {
+        chartRef.current.destroy();
+      }
+
+      const safeConfig = config && typeof config === 'object' ? config : {};
+
+      chartRef.current = new Chart(ctx, {
+        type: safeConfig.type || 'bar',
+        data: safeConfig.data || { labels: [], datasets: [] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: {
+            duration: 800,
+            easing: 'easeOutQuart',
+          },
+          interaction: { mode: 'nearest', intersect: false },
+          plugins: { legend: { display: true }, tooltip: { enabled: true } },
+          ...safeConfig.options,
+        },
+      });
+    } catch (e) {
+      console.error('Failed to init chart', e);
+    }
+
+    return () => {
+      if (chartRef.current) {
+        chartRef.current.destroy();
+        chartRef.current = null;
+      }
+    };
+  }, [isOpen, config]);
+
+  if (!isOpen) return null;
 
   return (
     <motion.div
@@ -46,28 +103,13 @@ export default function TableWindow({ isOpen, onClose, onMinimize, onMaximize, i
           <TrafficLightButton color="bg-yellow-500" onClick={onMinimize} />
           <TrafficLightButton color="bg-green-500" onClick={onMaximize} />
         </div>
-        <div className="font-semibold text-sm text-black">{title}</div>
-        <div></div>
+        <div className="font-semibold text-sm text-black truncate max-w-[60%]" title={title}>{title}</div>
+        <div className="text-xs text-black/70 pr-2">Chart.js</div>
       </div>
-      <div className="flex-grow p-4 overflow-auto" onMouseDown={(e) => e.stopPropagation()}>
-        <table className="w-full">
-          <thead>
-            <tr>
-              {data.headers.map((header, index) => (
-                <th key={index} className="p-2 border">{header}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {data.rows.map((row, rowIndex) => (
-              <tr key={rowIndex}>
-                {row.map((cell, cellIndex) => (
-                  <td key={cellIndex} className="p-2 border">{cell}</td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="flex-1 p-3" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="w-full h-full bg-white/60 rounded-md border border-gray-300/30 overflow-hidden">
+          <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />
+        </div>
       </div>
       {!isMaximized && (
         <motion.div
@@ -85,7 +127,6 @@ export default function TableWindow({ isOpen, onClose, onMinimize, onMaximize, i
           }}
           onDragEnd={() => { setIsResizing(false); setHasUserResized(true); }}
           className="absolute bottom-2 right-2 w-4 h-4 cursor-nwse-resize"
-          onMouseDown={(e) => e.stopPropagation()}
         >
           <div className="w-full h-full bg-gray-500/40 rounded-full" />
         </motion.div>
