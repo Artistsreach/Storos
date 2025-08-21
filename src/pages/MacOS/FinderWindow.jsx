@@ -249,6 +249,11 @@ export default function FinderWindow({ isOpen, onClose, onMinimize, onMaximize, 
             className="p-4 flex-grow overflow-y-auto"
             id={initialFolder ? `finder-dropzone-${initialFolder.id}` : undefined}
           >
+            {initialFolder && initialFolder.id === 130 && folderFiles.length === 0 && (
+              <div className="mb-3 rounded-md border border-dashed border-gray-300 bg-white/70 p-3 text-xs text-gray-700">
+                Anything you add in here will be referenced by the agent
+              </div>
+            )}
             <div className="grid grid-cols-3 gap-2">
               {folderFiles.map(file => (
                 <FinderItem key={file.id} icon={getIcon(file)} name={file.name} isComingSoon={file.name.includes('soon')} onPin={handlePin} file={file} onFileDoubleClick={handleFileDoubleClick} />

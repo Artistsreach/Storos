@@ -52,6 +52,7 @@ export default function Desktop() {
   const [imageViewerWindow, setImageViewerWindow] = useState({ isOpen: false, imageData: '' });
   const [tableWindow, setTableWindow] = useState({ isOpen: false, data: { headers: [], rows: [] } });
   const [tableWindowZIndex, setTableWindowZIndex] = useState(10);
+  const [imageViewerZIndex, setImageViewerZIndex] = useState(10);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isPannable, setIsPannable] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
@@ -102,6 +103,14 @@ export default function Desktop() {
     };
   }, [nextWindowPosition, isMobile]);
 
+  // When Image Viewer opens, assign it a dedicated zIndex and bump the global stack
+  useEffect(() => {
+    if (imageViewerWindow?.isOpen) {
+      setImageViewerZIndex(windowZIndex);
+      setWindowZIndex(prev => prev + 1);
+    }
+  }, [imageViewerWindow?.isOpen]);
+
   // Open a dedicated video player window when ImageViewer dispatches 'open-video-window'
   useEffect(() => {
     const handleOpenVideo = (e) => {
@@ -109,6 +118,11 @@ export default function Desktop() {
         const { videoUrl, title } = e.detail || {};
         if (!videoUrl) return;
         const videoWindowId = `video-${Date.now()}`;
+        const shift = isMobile ? 250 : 0;
+        const localPosition = {
+          top: nextWindowPosition.top,
+          left: Math.max(0, (nextWindowPosition.left || 0) - shift),
+        };
         setOpenWindows(prev => [
           ...prev,
           {
@@ -116,7 +130,7 @@ export default function Desktop() {
             type: 'video',
             isMaximized: false,
             zIndex: windowZIndex + 1,
-            position: adjustedNextWindowPosition,
+            position: localPosition,
             width: 960,
             height: 540,
             bottom: 0,
@@ -132,7 +146,7 @@ export default function Desktop() {
     };
     window.addEventListener('open-video-window', handleOpenVideo);
     return () => window.removeEventListener('open-video-window', handleOpenVideo);
-  }, [adjustedNextWindowPosition, windowZIndex]);
+  }, [nextWindowPosition, isMobile, windowZIndex]);
 
   // Build an augmented list of windows that includes special windows rendered outside openWindows
   const allWindows = useMemo(() => {
@@ -1732,12 +1746,15 @@ return (
         <ImageViewerWindow
           isOpen={imageViewerWindow.isOpen}
           onClose={() => setImageViewerWindow({ isOpen: false, imageData: '' })}
-          title="Generated Image"
+          title="Image Viewer"
           imageData={imageViewerWindow.imageData}
           titlePrompt={imageViewerWindow.titlePrompt}
-          zIndex={windowZIndex}
+          zIndex={imageViewerZIndex}
           position={adjustedNextWindowPosition}
-          onClick={() => bringToFront('image-viewer-window')}
+          onClick={() => {
+            setImageViewerZIndex(windowZIndex);
+            setWindowZIndex(prev => prev + 1);
+          }}
           windowId={'image-viewer-window'}
         />
 

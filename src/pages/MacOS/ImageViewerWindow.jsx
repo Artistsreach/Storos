@@ -268,7 +268,7 @@ export default function ImageViewerWindow({ isOpen, onClose, onMinimize, onMaxim
             type="text"
             value={editPrompt}
             onChange={(e) => setEditPrompt(e.target.value)}
-            placeholder="Describe the edit (e.g., add a llama next to the person)"
+            placeholder="Describe the edit or video (e.g., 'add a wizard hat on the head' or 'pan in')"
             className="w-full p-2 border rounded"
           />
           <button onClick={handleEdit} disabled={isEditing || !currentImageData}
