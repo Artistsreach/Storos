@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { editImage } from '../../lib/geminiImageGeneration';
 import { File } from '../../entities/File';
+import { GoogleGenAI } from '@google/genai';
  
 
 const TrafficLightButton = ({ color, onClick }) => (
@@ -18,6 +19,34 @@ export default function ImageViewerWindow({ isOpen, onClose, onMinimize, onMaxim
   const [isMobile, setIsMobile] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [hasUserResized, setHasUserResized] = useState(false);
+
+  const sanitizeFilename = (name) => {
+    if (!name) return '';
+    // Remove forbidden characters for most filesystems and trim
+    let n = name.replace(/[\\/:*?"<>|\n\r\t]/g, ' ').replace(/\s+/g, ' ').trim();
+    // Keep it short
+    if (n.length > 60) n = n.slice(0, 60).trim();
+    return n || '';
+  };
+
+  const generateTitleFromPrompt = async (promptText) => {
+    try {
+      if (!promptText) return '';
+      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+      const model = 'gemini-2.0-flash-lite';
+      const systemInst = 'You create concise, descriptive titles from prompts. 3-6 words max. Return ONLY the title text, no quotes, no punctuation at the end.';
+      const contents = [
+        { text: systemInst },
+        { text: `Prompt: ${promptText}\nTitle:` },
+      ];
+      const res = await ai.models.generateContent({ model, contents });
+      const raw = (res.text || '').trim();
+      return sanitizeFilename(raw.replace(/^"|"$/g, ''));
+    } catch (e) {
+      console.error('Title generation failed:', e);
+      return '';
+    }
+  };
 
   useEffect(() => {
     setCurrentImageData(imageData);
@@ -81,8 +110,15 @@ export default function ImageViewerWindow({ isOpen, onClose, onMinimize, onMaxim
   const handleSaveShortcut = async () => {
     if (!currentImageData) return;
     try {
+      // Prefer window title; otherwise generate from the edit prompt using Gemini Flash Lite
+      let generated = '';
+      if (!title && editPrompt) {
+        generated = await generateTitleFromPrompt(editPrompt);
+      }
+      const fallback = `Image ${new Date().toLocaleTimeString()}`;
+      const finalName = sanitizeFilename(title || generated) || fallback;
       const newFile = {
-        name: title || `Image ${new Date().toLocaleTimeString()}`,
+        name: finalName,
         icon: '🖼️',
         type: 'file',
         parent_id: null,
