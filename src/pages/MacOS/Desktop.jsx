@@ -92,6 +92,38 @@ export default function Desktop() {
     return () => window.removeEventListener('resize', update);
   }, []);
 
+  // Open a dedicated video player window when ImageViewer dispatches 'open-video-window'
+  useEffect(() => {
+    const handleOpenVideo = (e) => {
+      try {
+        const { videoUrl, title } = e.detail || {};
+        if (!videoUrl) return;
+        const videoWindowId = `video-${Date.now()}`;
+        setOpenWindows(prev => [
+          ...prev,
+          {
+            id: videoWindowId,
+            type: 'video',
+            isMaximized: false,
+            zIndex: windowZIndex + 1,
+            position: adjustedNextWindowPosition,
+            width: 960,
+            height: 540,
+            bottom: 0,
+            title: title || 'Video',
+            videoUrl,
+          },
+        ]);
+        setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
+        setWindowZIndex(prev => prev + 2);
+      } catch (err) {
+        console.error('Failed to open video window:', err);
+      }
+    };
+    window.addEventListener('open-video-window', handleOpenVideo);
+    return () => window.removeEventListener('open-video-window', handleOpenVideo);
+  }, [adjustedNextWindowPosition, windowZIndex]);
+
   const adjustedNextWindowPosition = useMemo(() => {
     const shift = isMobile ? 250 : 0;
     return {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { editImage } from '../../lib/geminiImageGeneration';
+import { generateVideoWithVeoFromImage } from '../../lib/geminiVideoGeneration';
 import { File } from '../../entities/File';
 import { GoogleGenAI } from '@google/genai';
  
@@ -14,6 +15,7 @@ export default function ImageViewerWindow({ isOpen, onClose, onMinimize, onMaxim
   const [currentImageData, setCurrentImageData] = useState(imageData);
   const [mimeType, setMimeType] = useState('image/png');
   const [isEditing, setIsEditing] = useState(false);
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
   const [width, setWidth] = useState(600);
   const [height, setHeight] = useState(450);
   const [isMobile, setIsMobile] = useState(false);
@@ -115,6 +117,25 @@ export default function ImageViewerWindow({ isOpen, onClose, onMinimize, onMaxim
     }
   };
 
+  const handleGenerateVideo = async () => {
+    if (!currentImageData) return;
+    try {
+      setIsGeneratingVideo(true);
+      const { base64, mimeType: mt } = parseDataUrl(currentImageData);
+      if (!base64) return;
+      const prompt = editPrompt || titlePrompt || 'Generated video from image';
+      const videoUrl = await generateVideoWithVeoFromImage(prompt, base64, mt || mimeType || 'image/png');
+      // Dispatch event to Desktop to open the video player window
+      window.dispatchEvent(new CustomEvent('open-video-window', {
+        detail: { videoUrl, title: 'Generated Video' }
+      }));
+    } catch (e) {
+      console.error('Video generation failed:', e);
+    } finally {
+      setIsGeneratingVideo(false);
+    }
+  };
+
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -208,15 +229,23 @@ export default function ImageViewerWindow({ isOpen, onClose, onMinimize, onMaxim
           <button
             onClick={handleSaveShortcut}
             disabled={!currentImageData}
-            className={`px-2 py-1 text-xs rounded border ${!currentImageData ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-white hover:bg-gray-100 text-black border-gray-300'}`}
+            className={`p-2 text-sm rounded border leading-none ${!currentImageData ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-white hover:bg-gray-100 text-black border-gray-300'}`}
             title="Save shortcut to desktop"
-          >Save</button>
+            aria-label="Save"
+          >
+            {/* Floppy disk icon */}
+            <span role="img" aria-hidden="true">💾</span>
+          </button>
           <button
             onClick={handleDownload}
             disabled={!currentImageData}
-            className={`px-2 py-1 text-xs rounded ${!currentImageData ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
+            className={`p-2 text-sm rounded leading-none ${!currentImageData ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
             title="Download image"
-          >Download</button>
+            aria-label="Download"
+          >
+            {/* Download arrow icon */}
+            <span role="img" aria-hidden="true">⬇️</span>
+          </button>
         </div>
       </div>
       <div className="flex-grow p-4 overflow-y-auto">
@@ -244,7 +273,17 @@ export default function ImageViewerWindow({ isOpen, onClose, onMinimize, onMaxim
           />
           <button onClick={handleEdit} disabled={isEditing || !currentImageData}
             className={`p-2 rounded ml-2 ${isEditing ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 text-white'}`}
+            title="Apply edit"
+            aria-label="Edit image"
           >{isEditing ? 'Editing…' : 'Edit'}</button>
+          <button onClick={handleGenerateVideo} disabled={isGeneratingVideo || !currentImageData}
+            className={`p-2 rounded ml-2 ${isGeneratingVideo ? 'bg-gray-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700 text-white'}`}
+            title="Generate video from image"
+            aria-label="Generate video"
+          >
+            {/* Clapper board / video icon */}
+            <span role="img" aria-hidden="true">🎬</span>
+          </button>
         </div>
       </div>
       {!isMaximized && (
