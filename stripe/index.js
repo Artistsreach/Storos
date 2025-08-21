@@ -43,10 +43,11 @@ exports.createConnectAccount = functions.runWith({ secrets: ["STRIPE_SECRET_KEY"
           card_payments: { requested: true },
           transfers: { requested: true },
         },
+        metadata: { user_id: userId },
       });
       accountId = account.id;
-      // 3. Save the new account ID to the user's profile in Firestore
-      await userProfileRef.set({ stripe_account_id: accountId }, { merge: true });
+      // Do NOT persist stripe_account_id yet; only after onboarding completes
+      await userProfileRef.set({ stripe_onboarding_started: true }, { merge: true });
     }
 
     // 4. Create the Account Link
@@ -59,7 +60,7 @@ exports.createConnectAccount = functions.runWith({ secrets: ["STRIPE_SECRET_KEY"
     });
 
     // 5. Return the URL to the client
-    return { accountLinkUrl: accountLink.url };
+    return { accountId, accountLinkUrl: accountLink.url };
 
   } catch (error) {
     console.error("Error creating Stripe Connect account or link:", error);
@@ -125,15 +126,24 @@ async function handleAccountUpdated(account) {
   const accountId = account.id;
   const db = admin.firestore();
   
-  // Find the user profile associated with this Stripe account ID
-  const profilesQuery = await db.collection('profiles').where('stripe_account_id', '==', accountId).limit(1).get();
+  // Prefer mapping via metadata.user_id from the Stripe account
+  let userRef = null;
+  const metaUserId = account.metadata && account.metadata.user_id;
+  if (metaUserId) {
+    userRef = db.collection('profiles').doc(metaUserId);
+  } else {
+    // Fallback to legacy mapping by stored stripe_account_id
+    const profilesQuery = await db.collection('profiles').where('stripe_account_id', '==', accountId).limit(1).get();
+    if (!profilesQuery.empty) {
+      userRef = profilesQuery.docs[0].ref;
+    }
+  }
 
-  if (profilesQuery.empty) {
+  if (!userRef) {
     console.warn(`Received account.updated webhook for an unknown account: ${accountId}`);
     return;
   }
 
-  const userDoc = profilesQuery.docs[0];
   const { details_submitted, charges_enabled, payouts_enabled } = account;
 
   // Prepare the data to update in Firestore
@@ -143,9 +153,13 @@ async function handleAccountUpdated(account) {
     stripe_payouts_enabled: !!payouts_enabled,
   };
 
-  // Update the user's profile
-  await userDoc.ref.update(profileUpdateData);
-  console.log(`Connect account status updated for user ${userDoc.id}`, profileUpdateData);
+  // Only persist the connect account id once onboarding is completed
+  if (details_submitted) {
+    profileUpdateData.stripe_account_id = accountId;
+  }
+
+  await userRef.set(profileUpdateData, { merge: true });
+  console.log(`Connect account status updated for user ${userRef.id || '(ref)'}`, profileUpdateData);
 }
 
 async function handleCheckoutSessionCompleted(session) {

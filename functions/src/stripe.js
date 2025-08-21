@@ -54,9 +54,12 @@ exports.createConnectAccount = functions.https.onCall(async (data, context) => {
         url: data?.businessUrl || undefined,
         product_description: data?.productDescription || undefined,
       },
+      // Attach user reference so webhooks can map back without storing account id prematurely
+      metadata: { user_id: uid },
     });
     accountId = account.id;
-    await userRef.set({ stripe_account_id: accountId }, { merge: true });
+    // Do NOT set stripe_account_id yet; only once onboarding is completed.
+    await userRef.set({ stripe_onboarding_started: true }, { merge: true });
   }
 
   // Create an onboarding Account Link
@@ -84,22 +87,24 @@ exports.createStripeAccount = functions.https.onCall(async (data, context) => {
   }
 
   const stripe = getStripe();
+  const uid = context.auth.uid;
   const account = await stripe.accounts.create({
     type: 'express',
+    metadata: { user_id: uid },
   });
 
-  await admin.firestore().collection('users').doc(context.auth.uid).update({
-    stripe_account_id: account.id,
-  });
+  // Do not set stripe_account_id yet; wait for details_submitted via webhook
+  await admin.firestore().collection('users').doc(uid).set({ stripe_onboarding_started: true }, { merge: true });
 
+  const baseUrl = getBaseUrl();
   const accountLink = await stripe.accountLinks.create({
     account: account.id,
-    refresh_url: 'https://freshfront.co/onboarding-return',
-    return_url: 'https://freshfront.co/onboarding-return',
+    refresh_url: `${baseUrl}/onboarding-return?refresh=1`,
+    return_url: `${baseUrl}/onboarding-return`,
     type: 'account_onboarding',
   });
 
-  return { accountLinkUrl: accountLink.url };
+  return { accountId: account.id, accountLinkUrl: accountLink.url };
 });
 
 exports.createLoginLink = functions.https.onCall(async (data, context) => {
@@ -142,17 +147,32 @@ exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
       const account = event.data.object;
       const accountId = account.id;
       try {
-        // Find user by connected account ID
-        const snap = await admin.firestore().collection('users').where('stripe_account_id', '==', accountId).limit(1).get();
-        if (!snap.empty) {
-          const docRef = snap.docs[0].ref;
-          await docRef.set({
+        // Prefer mapping via metadata set on account creation
+        let userRefToUpdate;
+        const metaUserId = account.metadata?.user_id;
+        if (metaUserId) {
+          userRefToUpdate = admin.firestore().collection('users').doc(metaUserId);
+        } else {
+          // Fallback to legacy mapping via stored stripe_account_id
+          const snap = await admin.firestore().collection('users').where('stripe_account_id', '==', accountId).limit(1).get();
+          if (!snap.empty) {
+            userRefToUpdate = snap.docs[0].ref;
+          }
+        }
+
+        if (userRefToUpdate) {
+          const updates = {
             stripe_account_details_submitted: !!account.details_submitted,
             stripe_charges_enabled: !!account.charges_enabled,
             stripe_payouts_enabled: !!account.payouts_enabled,
             stripe_requirements_currently_due: account.requirements?.currently_due || [],
             stripe_requirements_eventually_due: account.requirements?.eventually_due || [],
-          }, { merge: true });
+          };
+          // Only persist account id after onboarding completed
+          if (account.details_submitted) {
+            updates.stripe_account_id = accountId;
+          }
+          await userRefToUpdate.set(updates, { merge: true });
         }
       } catch (e) {
         console.error('Failed to update user after account.updated', e);
