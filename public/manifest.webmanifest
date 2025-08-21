@@ -10,13 +10,13 @@
   "theme_color": "#0ea5e9",
   "icons": [
     {
-      "src": "https://inrveiaulksfmzsbyzqj.supabase.co/storage/v1/object/public/images/180.png",
-      "sizes": "180x180",
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "https://inrveiaulksfmzsbyzqj.supabase.co/storage/v1/object/public/images/512.png",
+      "src": "/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
