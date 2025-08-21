@@ -39,8 +39,8 @@ export default function RootLayout({
         <meta name="application-name" content="Storos" />
 
         {/* Icons (ideally PNG 192/512; using existing asset for now) */}
-        <link rel="icon" href="/vite.svg" />
-        <link rel="apple-touch-icon" href="/vite.svg" />
+        <link rel="icon" sizes="192x192" href="/icons/icon-192.png" />
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
       </head>
       <body>
         {/* Register service worker for PWA */}
