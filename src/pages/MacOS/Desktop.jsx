@@ -19,6 +19,7 @@ import CalculatorWindow from './CalculatorWindow';
 import ContractCreatorWindow from './ContractCreatorWindow';
 import BankWindow from './BankWindow';
 import ChartWindow from './ChartWindow';
+import DriveFileBrowser from './DriveFileBrowser';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { deepResearch } from '../../lib/firecrawl';
@@ -687,7 +688,6 @@ export default function Desktop() {
   useEffect(() => {
     const shortcuts = [
       { id: 'agent-icon', name: 'Agent', icon: '💬', type: 'app', position_x: 220, position_y: 50 },
-      { id: 'web-browser', name: 'Browser', icon: '🌐', type: 'app', is_shortcut: true, position_x: 300, position_y: 250 },
       { id: 'store-shortcut', name: 'Store', icon: '🛍️', url: 'https://freshfront.co/gen', type: 'link', is_shortcut: true, position_x: 219, position_y: 443 },
       { id: 'app-shortcut', name: 'App', icon: '📱', url: 'https://build.freshfront.co', type: 'app', is_shortcut: true, position_x: 221, position_y: 150 },
       { id: 'bank-shortcut', name: 'Bank', icon: '🏦', type: 'app', is_shortcut: true, position_x: 300, position_y: 148 },
@@ -698,6 +698,7 @@ export default function Desktop() {
       { id: 'commandr-shortcut', name: 'Commandr', icon: '🤖', url: 'https://commandr.co/', type: 'app', is_shortcut: true, isHidden: true, position_x: 195, position_y: 420 },
       { id: 'tasks-shortcut', name: 'Tasks', icon: '📝', type: 'app', is_shortcut: true, position_x: 220, position_y: 250 },
       { id: 'tools-folder', name: 'Tools', icon: '📁', type: 'folder', is_shortcut: true, position_x: 300, position_y: 50 },
+      { id: 'drive-shortcut', name: 'Drive', icon: 'https://upload.wikimedia.org/wikipedia/commons/d/da/Google_Drive_logo.png', type: 'app', is_shortcut: true, position_x: 25, position_y: 250 },
     ];
 
     if (profile && profile.username) {
@@ -751,27 +752,7 @@ export default function Desktop() {
       setWindowZIndex(prev => prev + 1);
       return;
     }
-    if (id === 'web-browser') {
-      const windowId = `browser-${Date.now()}`;
-      setOpenWindows(prev => [
-        ...prev,
-        {
-          id: windowId,
-          type: 'app',
-          app: { id: 'web-browser', name: 'Browser' },
-          isMaximized: false,
-          zIndex: windowZIndex,
-          position: adjustedNextWindowPosition,
-          width: 900,
-          height: 650,
-          bottom: 0,
-        },
-      ]);
-      setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
-      setWindowZIndex(prev => prev + 1);
-      return;
-    }
-    if (id === 'bank-shortcut') {
+      if (id === 'bank-shortcut') {
       const windowId = `bank-${Date.now()}`;
       setOpenWindows(prev => [
         ...prev,
@@ -802,6 +783,25 @@ export default function Desktop() {
           position: adjustedNextWindowPosition,
           width: 800,
           height: 400,
+          bottom: 0,
+        },
+      ]);
+      setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
+      setWindowZIndex(prev => prev + 1);
+      return;
+    }
+    if (id === 'drive-shortcut') {
+      const windowId = `drive-${Date.now()}`;
+      setOpenWindows(prev => [
+        ...prev,
+        {
+          id: windowId,
+          type: 'drive',
+          isMaximized: false,
+          zIndex: windowZIndex,
+          position: adjustedNextWindowPosition,
+          width: 800,
+          height: 520,
           bottom: 0,
         },
       ]);
@@ -1522,6 +1522,23 @@ return (
                   position={window.position}
                   onClick={() => bringToFront(window.id)}
                   automation={window.automation}
+                  onDragEnd={(e, info) => handleWindowDrag(window.id, e, info)}
+                  windowId={window.id}
+                />
+              );
+            }
+            if (window.type === 'drive') {
+              return (
+                <DriveFileBrowser
+                  key={window.id}
+                  isOpen={!minimizedWindows.includes(window.id)}
+                  onClose={() => closeWindow(window.id)}
+                  onMinimize={() => minimizeWindow(window.id)}
+                  onMaximize={() => maximizeWindow(window.id)}
+                  isMaximized={window.isMaximized}
+                  zIndex={window.zIndex}
+                  position={window.position}
+                  onClick={() => bringToFront(window.id)}
                   onDragEnd={(e, info) => handleWindowDrag(window.id, e, info)}
                   windowId={window.id}
                 />

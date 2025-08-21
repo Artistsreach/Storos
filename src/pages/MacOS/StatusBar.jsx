@@ -4,6 +4,8 @@ import { Wifi, Battery, Search, Sun, Moon, Pencil, Eraser, Check, Type, Square }
 import { useTheme } from '../../contexts/ThemeContext';
 import { GeminiDesktopLive } from '../../lib/geminiDesktopLive.js';
 import { File } from '../../entities/File';
+import { Popover, PopoverTrigger, PopoverContent } from '../../components/ui/popover';
+import { Calendar } from '../../components/ui/calendar';
 
 export default function StatusBar({
   onSearchClick,
@@ -17,6 +19,7 @@ export default function StatusBar({
 }) {
   const { theme, toggleTheme } = useTheme();
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [geminiLive, setGeminiLive] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [showDrawingOptions, setShowDrawingOptions] = useState(false);
@@ -201,7 +204,21 @@ export default function StatusBar({
           <Battery className="w-4 h-4" fill="lightgreen" />
         </div>
         <span className="text-sm leading-none">{formatTime(currentTime)}</span>
-        <span className="text-sm leading-none">{formatDate(currentTime)}</span>
+        <Popover>
+          <PopoverTrigger asChild>
+            <button className="text-sm leading-none px-1 py-0.5 rounded hover:bg-white/20 focus:outline-none">
+              {formatDate(currentTime)}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="end" sideOffset={8} className="p-2 w-auto">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={(d) => d && setSelectedDate(d)}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
       </div>
     </div>
   );
