@@ -25,8 +25,8 @@ export default class MyDocument extends Document {
           <meta name="background-color" content="#0b1220" />
 
           {/* Icons (add these PNGs under public/icons/) */}
-          <link rel="icon" href="/icons/icon-192.png" />
-          <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+          <link rel="icon" sizes="512x512" href="https://inrveiaulksfmzsbyzqj.supabase.co/storage/v1/object/public/images/512.png" />
+          <link rel="apple-touch-icon" href="https://inrveiaulksfmzsbyzqj.supabase.co/storage/v1/object/public/images/180.png" />
 
           {/* Misc */}
           <meta name="format-detection" content="telephone=no" />

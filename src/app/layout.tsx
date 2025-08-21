@@ -38,9 +38,9 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="application-name" content="Storos" />
 
-        {/* Icons (ideally PNG 192/512; using existing asset for now) */}
-        <link rel="icon" sizes="192x192" href="/icons/icon-192.png" />
-        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+        {/* Icons from external storage */}
+        <link rel="icon" sizes="512x512" href="https://inrveiaulksfmzsbyzqj.supabase.co/storage/v1/object/public/images/512.png" />
+        <link rel="apple-touch-icon" href="https://inrveiaulksfmzsbyzqj.supabase.co/storage/v1/object/public/images/180.png" />
       </head>
       <body>
         {/* Register service worker for PWA */}
