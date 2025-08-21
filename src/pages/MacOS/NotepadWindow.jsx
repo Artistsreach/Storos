@@ -13,6 +13,8 @@ export default function NotepadWindow({ isOpen, onClose, onMinimize, onMaximize,
   const [width, setWidth] = useState(400);
   const [height, setHeight] = useState(300);
   const [isMobile, setIsMobile] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [hasUserResized, setHasUserResized] = useState(false);
 
   useEffect(() => {
     setCurrentContent(content);
@@ -28,17 +30,17 @@ export default function NotepadWindow({ isOpen, onClose, onMinimize, onMaximize,
     }
   }, [currentContent]);
 
-  // Detect mobile breakpoint and cap width
+  // Detect mobile breakpoint and cap width (only before user resizes)
   useEffect(() => {
     const update = () => {
       const mobile = window.matchMedia('(max-width: 640px)').matches;
       setIsMobile(mobile);
-      if (mobile) setWidth(w => Math.min(350, w));
+      if (mobile && !hasUserResized) setWidth(w => Math.min(400, w));
     };
     update();
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
-  }, []);
+  }, [hasUserResized]);
 
   if (!isOpen) return null;
 
@@ -49,8 +51,8 @@ export default function NotepadWindow({ isOpen, onClose, onMinimize, onMaximize,
       dragHandle=".drag-handle"
       className={`absolute bg-gray-100/50 backdrop-blur-xl rounded-lg shadow-2xl flex flex-col overflow-visible border border-gray-300/20 ${isMaximized ? 'w-full h-full top-0 left-0 rounded-none' : ''}`}
       style={{
-        width: isMaximized ? '100%' : (isMobile ? Math.min(width, 350) : width),
-        maxWidth: isMaximized ? undefined : (isMobile ? 350 : undefined),
+        width: isMaximized ? '100%' : (isMobile && !hasUserResized ? Math.min(width, 400) : width),
+        maxWidth: isMaximized ? undefined : (isMobile && !hasUserResized ? 400 : undefined),
         height: isMaximized ? '100%' : height,
         zIndex,
         top: isMaximized ? 0 : position?.top,
@@ -97,13 +99,15 @@ export default function NotepadWindow({ isOpen, onClose, onMinimize, onMaximize,
           dragMomentum={false}
           dragConstraints={{ left: 0, top: 0, right: 0, bottom: 0 }}
           dragElastic={0}
+          onDragStart={() => setIsResizing(true)}
           onDrag={(event, info) => {
             setWidth((w) => {
               const next = Math.max(300, w + info.delta.x);
-              return isMobile ? Math.min(next, 350) : next;
+              return (isMobile && !hasUserResized && !isResizing) ? Math.min(next, 400) : next;
             });
             setHeight((h) => Math.max(200, h + info.delta.y));
           }}
+          onDragEnd={() => { setIsResizing(false); setHasUserResized(true); }}
           className="absolute bottom-2 right-2 w-4 h-4 cursor-nwse-resize"
         >
           <div className="w-full h-full bg-gray-500/40 rounded-full" />

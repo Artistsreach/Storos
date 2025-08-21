@@ -33,11 +33,13 @@ export default function Desktop() {
   const { profile } = useAuth();
   const [desktopFiles, setDesktopFiles] = useState([]);
   const [staticShortcuts, setStaticShortcuts] = useState([]);
+  const [dockCustomApps, setDockCustomApps] = useState([]);
   const dockRef = useRef(null);
   const [openWindows, setOpenWindows] = useState([]);
   const [minimizedWindows, setMinimizedWindows] = useState([]);
   const [windowZIndex, setWindowZIndex] = useState(10);
   const [nextWindowPosition, setNextWindowPosition] = useState({ top: 50, left: 50 });
+  const [isMobile, setIsMobile] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [youtubePlayerId, setYoutubePlayerId] = useState(null);
   const [isWiggleMode, setIsWiggleMode] = useState(false);
@@ -73,20 +75,36 @@ export default function Desktop() {
   const [selectionImage, setSelectionImage] = useState(null); // ImageData
   const [sourceCleared, setSourceCleared] = useState(false);
 
+  // Detect mobile and compute adjusted position shifted left by 250px on mobile
+  useEffect(() => {
+    const update = () => setIsMobile(window.matchMedia('(max-width: 640px)').matches);
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
+  const adjustedNextWindowPosition = useMemo(() => {
+    const shift = isMobile ? 250 : 0;
+    return {
+      top: nextWindowPosition.top,
+      left: Math.max(0, (nextWindowPosition.left || 0) - shift),
+    };
+  }, [nextWindowPosition, isMobile]);
+
   // Build an augmented list of windows that includes special windows rendered outside openWindows
   const allWindows = useMemo(() => {
     const extras = [];
     if (explorerWindow?.isOpen) {
-      extras.push({ id: 'explorer-window', position: nextWindowPosition, width: 800, height: 400 });
+      extras.push({ id: 'explorer-window', position: adjustedNextWindowPosition, width: 800, height: 400 });
     }
     if (imageViewerWindow?.isOpen) {
-      extras.push({ id: 'image-viewer-window', position: nextWindowPosition, width: 800, height: 600 });
+      extras.push({ id: 'image-viewer-window', position: adjustedNextWindowPosition, width: 800, height: 600 });
     }
     if (tableWindow?.isOpen) {
-      extras.push({ id: 'table-window', position: nextWindowPosition, width: 800, height: 400 });
+      extras.push({ id: 'table-window', position: adjustedNextWindowPosition, width: 800, height: 400 });
     }
     return [...openWindows, ...extras];
-  }, [openWindows, explorerWindow, imageViewerWindow, tableWindow, nextWindowPosition]);
+  }, [openWindows, explorerWindow, imageViewerWindow, tableWindow, adjustedNextWindowPosition]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -370,7 +388,7 @@ export default function Desktop() {
               isMaximized: false,
               zIndex: windowZIndex,
               automation,
-              position: nextWindowPosition,
+              position: adjustedNextWindowPosition,
             },
           ]);
           setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
@@ -428,11 +446,12 @@ export default function Desktop() {
               type: 'notepad',
               isMaximized: false,
               zIndex: windowZIndex,
-              position: nextWindowPosition,
+              position: adjustedNextWindowPosition,
               content: 'Generating image...\n',
               defaultEditing: false,
               width: 700,
               height: 520,
+              bottom: 0,
             },
           ]);
           setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
@@ -464,9 +483,12 @@ export default function Desktop() {
               type: 'notepad',
               isMaximized: false,
               zIndex: windowZIndex,
-              position: nextWindowPosition,
+              position: adjustedNextWindowPosition,
               content: '',
               defaultEditing: false,
+              width: 500,
+              height: 400,
+              bottom: 0,
             },
           ]);
           setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
@@ -501,9 +523,10 @@ export default function Desktop() {
               type: 'calculator',
               isMaximized: false,
               zIndex: windowZIndex,
-              position: nextWindowPosition,
+              position: adjustedNextWindowPosition,
               width: 300,
               height: 400,
+              bottom: 0,
             },
           ]);
           setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
@@ -518,9 +541,10 @@ export default function Desktop() {
               type: 'contract-creator',
               isMaximized: false,
               zIndex: windowZIndex,
-              position: nextWindowPosition,
+              position: adjustedNextWindowPosition,
               width: 800,
               height: 600,
+              bottom: 0,
             },
           ]);
           setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
@@ -536,11 +560,12 @@ export default function Desktop() {
               type: 'notepad',
               isMaximized: false,
               zIndex: windowZIndex,
-              position: nextWindowPosition,
+              position: adjustedNextWindowPosition,
               content: 'Analyzing screenshot...\n\nPlease select a screen/window/tab when prompted.',
               defaultEditing: false,
               width: 600,
               height: 500,
+              bottom: 0,
             },
           ]);
           setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
@@ -650,9 +675,10 @@ export default function Desktop() {
           type: 'agent',
           isMaximized: false,
           zIndex: windowZIndex,
-          position: nextWindowPosition,
+          position: adjustedNextWindowPosition,
           width: 520,
           height: 520,
+          bottom: 0,
         },
       ]);
       setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
@@ -668,9 +694,10 @@ export default function Desktop() {
           type: 'bank',
           isMaximized: false,
           zIndex: windowZIndex,
-          position: nextWindowPosition,
+          position: adjustedNextWindowPosition,
           width: 800,
           height: 520,
+          bottom: 0,
         },
       ]);
       setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
@@ -686,9 +713,10 @@ export default function Desktop() {
           type: 'tasks',
           isMaximized: false,
           zIndex: windowZIndex,
-          position: nextWindowPosition,
+          position: adjustedNextWindowPosition,
           width: 800,
           height: 400,
+          bottom: 0,
         },
       ]);
       setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
@@ -704,9 +732,10 @@ export default function Desktop() {
           type: 'calculator',
           isMaximized: false,
           zIndex: windowZIndex,
-          position: nextWindowPosition,
+          position: adjustedNextWindowPosition,
           width: 300,
           height: 400,
+          bottom: 0,
         },
       ]);
       setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
@@ -722,9 +751,10 @@ export default function Desktop() {
           type: 'contract-creator',
           isMaximized: false,
           zIndex: windowZIndex,
-          position: nextWindowPosition,
+          position: adjustedNextWindowPosition,
           width: 800,
           height: 600,
+          bottom: 0,
         },
       ]);
       setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
@@ -740,11 +770,12 @@ export default function Desktop() {
           type: 'notepad',
           isMaximized: false,
           zIndex: windowZIndex,
-          position: nextWindowPosition,
+          position: adjustedNextWindowPosition,
           content: '',
           width: 500,
           height: 400,
           defaultEditing: true,
+          bottom: 0,
         },
       ]);
       setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
@@ -766,7 +797,7 @@ export default function Desktop() {
           app: { id: 'stripe-analytics', name: 'Stripe Analytics' },
           isMaximized: false,
           zIndex: windowZIndex,
-          position: nextWindowPosition,
+          position: adjustedNextWindowPosition,
           width: 800,
           height: 600,
         },
@@ -784,7 +815,7 @@ export default function Desktop() {
           type: 'notepad',
           isMaximized: false,
           zIndex: windowZIndex,
-          position: nextWindowPosition,
+          position: adjustedNextWindowPosition,
           content: file.content,
           width: 500,
           height: 400,
@@ -823,334 +854,385 @@ export default function Desktop() {
           folder: file,
           isMaximized: false,
           zIndex: windowZIndex,
-          position: nextWindowPosition,
+          position: adjustedNextWindowPosition,
           width: 800,
           height: 400,
         },
       ]);
       setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
       setWindowZIndex(prev => prev + 1);
+      return;
     }
-  };
+  }
 
-  const handleAppClick = (app) => {
-    if (app.url) {
-      const windowId = `app-${app.id}-${Date.now()}`;
-      setOpenWindows(prev => [
-        ...prev,
-        {
-          id: windowId,
-          type: 'app',
-          app: app,
-          isMaximized: false,
-          zIndex: windowZIndex,
-          position: nextWindowPosition,
-          width: 800,
-          height: 600,
-        },
-      ]);
-      setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
-      setWindowZIndex(prev => prev + 1);
-    } else if (app.name === 'Finder') {
-      const windowId = `finder-main-${Date.now()}`;
-      setOpenWindows(prev => [
-        ...prev,
-        {
-          id: windowId,
-          type: 'finder',
-          title: 'Finder',
-          folder: null,
-          isMaximized: false,
-          zIndex: windowZIndex,
-          position: nextWindowPosition,
-          width: 800,
-          height: 400,
-        },
-      ]);
-      setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
-      setWindowZIndex(prev => prev + 1);
+const handleAppClick = (app) => {
+  // If this dock item references a desktop file id, open it like a desktop icon
+  if (app.fileId) {
+    const all = [...staticShortcuts, ...desktopFiles];
+    const file = all.find(f => String(f.id) === String(app.fileId));
+    if (file) {
+      handleDesktopIconDoubleClick(file);
+      return;
     }
-  };
-
-  const closeWindow = (windowId) => {
-    setOpenWindows(prev => prev.filter(w => w.id !== windowId));
-    setMinimizedWindows(prev => prev.filter(w => w.id !== windowId));
-  };
-
-  const minimizeWindow = (windowId) => {
-    setMinimizedWindows(prev => [...prev, windowId]);
-  };
-
-  const maximizeWindow = (windowId) => {
-    setOpenWindows(prev =>
-      prev.map(w =>
-        w.id === windowId ? { ...w, isMaximized: !w.isMaximized } : w
-      )
-    );
-  };
-
-  const bringToFront = (windowId) => {
-    setOpenWindows(prev =>
-      prev.map(w =>
-        w.id === windowId ? { ...w, zIndex: windowZIndex } : w
-      )
-    );
+  }
+  if (app.url) {
+    const windowId = `app-${app.id}-${Date.now()}`;
+    setOpenWindows(prev => [
+      ...prev,
+      {
+        id: windowId,
+        type: 'app',
+        app: app,
+        isMaximized: false,
+        zIndex: windowZIndex,
+        position: adjustedNextWindowPosition,
+        width: 800,
+        height: 600,
+      },
+    ]);
+    setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
     setWindowZIndex(prev => prev + 1);
-  };
+  } else if (app.name === 'Finder') {
+    const windowId = `finder-main-${Date.now()}`;
+    setOpenWindows(prev => [
+      ...prev,
+      {
+        id: windowId,
+        type: 'finder',
+        title: 'Finder',
+        folder: null,
+        isMaximized: false,
+        zIndex: windowZIndex,
+        position: adjustedNextWindowPosition,
+        width: 800,
+        height: 400,
+      },
+    ]);
+    setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
+    setWindowZIndex(prev => prev + 1);
+  }
+};
 
-  const handleWindowDrag = (windowId, e, info) => {
-    setOpenWindows(prev =>
-      prev.map(w => {
-        if (w.id === windowId) {
-          const newPosition = {
-            top: w.position.top + info.delta.y,
-            left: w.position.left + info.delta.x,
-          };
+const closeWindow = (windowId) => {
+  setOpenWindows(prev => prev.filter(w => w.id !== windowId));
+  setMinimizedWindows(prev => prev.filter(w => w.id !== windowId));
+};
 
-          const buffer = 100;
-          if (newPosition.left + (w.width || 800) > canvasSize.width - buffer) {
-            setCanvasSize(prev => ({ ...prev, width: prev.width + 500 }));
-          }
-          if (newPosition.top + (w.height || 600) > canvasSize.height - buffer) {
-            setCanvasSize(prev => ({ ...prev, height: prev.height + 500 }));
-          }
+const minimizeWindow = (windowId) => {
+  setMinimizedWindows(prev => [...prev, windowId]);
+};
 
-          return { ...w, position: newPosition };
+const maximizeWindow = (windowId) => {
+  setOpenWindows(prev =>
+    prev.map(w =>
+      w.id === windowId ? { ...w, isMaximized: !w.isMaximized } : w
+    )
+  );
+};
+
+const bringToFront = (windowId) => {
+  setOpenWindows(prev =>
+    prev.map(w =>
+      w.id === windowId ? { ...w, zIndex: windowZIndex } : w
+    )
+  );
+  setWindowZIndex(prev => prev + 1);
+};
+
+const handleWindowDrag = (windowId, e, info) => {
+  setOpenWindows(prev =>
+    prev.map(w => {
+      if (w.id === windowId) {
+        const newPosition = {
+          top: w.position.top + info.delta.y,
+          left: w.position.left + info.delta.x,
+        };
+
+        const buffer = 100;
+        if (newPosition.left + (w.width || 800) > canvasSize.width - buffer) {
+          setCanvasSize(prev => ({ ...prev, width: prev.width + 500 }));
         }
-        return w;
-      })
+        if (newPosition.top + (w.height || 600) > canvasSize.height - buffer) {
+          setCanvasSize(prev => ({ ...prev, height: prev.height + 500 }));
+        }
+
+        return { ...w, position: newPosition };
+      }
+      return w;
+    })
+  );
+};
+
+const handleIconDrag = async (fileId, x, y) => {
+  if (fileId === 'profile-shortcut' || fileId === 'store-shortcut') {
+    setDesktopFiles(files =>
+      files.map(f =>
+        f.id === fileId ? { ...f, position_x: x, position_y: y } : f
+      )
     );
-  };
-
-  const handleIconDrag = async (fileId, x, y) => {
-    if (fileId === 'profile-shortcut' || fileId === 'store-shortcut') {
+  } else {
+    try {
+      await File.update(fileId, { position_x: x, position_y: y });
+      // We don't need to reload all files, just update the position of the dragged file
       setDesktopFiles(files =>
-        files.map(f =>
-          f.id === fileId ? { ...f, position_x: x, position_y: y } : f
-        )
+        files.map(f => (f.id === fileId ? { ...f, position_x: x, position_y: y } : f))
       );
-    } else {
-      try {
-        await File.update(fileId, { position_x: x, position_y: y });
-        // We don't need to reload all files, just update the position of the dragged file
-        setDesktopFiles(files =>
-          files.map(f => (f.id === fileId ? { ...f, position_x: x, position_y: y } : f))
-        );
-      } catch (error) {
-        console.error('Error updating file position:', error);
+    } catch (error) {
+      console.error('Error updating file position:', error);
+    }
+  }
+};
+
+const handlePin = async (file) => {
+  try {
+    const shortcut = {
+      ...file,
+      id: undefined, // remove id to create a new file
+      parent_id: null,
+      name: file.name,
+      is_shortcut: true,
+      original_id: file.id,
+    };
+    const newFile = await File.create(shortcut);
+    setDesktopFiles(prev => [...prev, newFile]);
+  } catch (error) {
+    console.error('Error creating shortcut:', error);
+  }
+};
+
+const handleSearchClick = () => {
+  setIsSearchOpen(!isSearchOpen);
+  bringToFront('search-window');
+};
+
+const handlePlayYoutubeVideo = (videoId) => {
+  setYoutubePlayerId(videoId);
+};
+
+const handleDropFromDock = async (app, x, y) => {
+  try {
+    // Hide this app from the dock on drop
+    setDockCustomApps(prev => {
+      const exists = prev.find(p => p.id === app.id);
+      if (exists) {
+        return prev.map(p => p.id === app.id ? { ...p, hidden: true } : p);
       }
-    }
-  };
+      return [...prev, { id: app.id, hidden: true }];
+    });
 
-  const handlePin = async (file) => {
+    // Convert viewport coords to desktop-local coords
+    let localX = x;
+    let localY = y;
     try {
-      const shortcut = {
-        ...file,
-        id: undefined, // remove id to create a new file
-        parent_id: null,
-        name: file.name,
-        is_shortcut: true,
-        original_id: file.id,
-      };
-      const newFile = await File.create(shortcut);
-      setDesktopFiles(prev => [...prev, newFile]);
-    } catch (error) {
-      console.error('Error creating shortcut:', error);
-    }
-  };
-
-  const handleSearchClick = () => {
-    setIsSearchOpen(!isSearchOpen);
-    bringToFront('search-window');
-  };
-
-  const handlePlayYoutubeVideo = (videoId) => {
-    setYoutubePlayerId(videoId);
-  };
-
-  const handleDropFromDock = async (app, x, y) => {
-    try {
-      let icon = app.icon;
-      if (React.isValidElement(icon)) {
-        icon = icon.props.src;
+      const deskRect = desktopRef.current?.getBoundingClientRect?.();
+      if (deskRect) {
+        localX = x - deskRect.left;
+        localY = y - deskRect.top;
       }
-      const newFile = {
-        name: app.name,
-        icon: icon,
-        url: app.url,
-        type: 'file',
-        parent_id: null,
-        position_x: x,
-        position_y: y,
-        is_shortcut: true,
-        original_id: app.id,
-      };
-      const createdFile = await File.create(newFile);
-      setDesktopFiles(prev => [...prev, createdFile]);
-    } catch (error) {
-      console.error('Error creating file from dock drop:', error);
+    } catch {}
+
+    let icon = app.icon;
+    if (React.isValidElement(icon)) {
+      icon = icon.props.src;
     }
-  };
+    const newFile = {
+      name: app.name,
+      icon: icon,
+      url: app.url,
+      type: 'file',
+      parent_id: null,
+      position_x: localX,
+      position_y: localY,
+      is_shortcut: true,
+      original_id: app.fileId || app.id,
+    };
+    const createdFile = await File.create(newFile);
+    setDesktopFiles(prev => [...prev, createdFile]);
+  } catch (error) {
+    console.error('Error creating file from dock drop:', error);
+  }
+};
 
-  const handleUnpin = async (file) => {
-    try {
-      await File.delete(file.id);
-      setDesktopFiles(prev => prev.filter(f => f.id !== file.id));
-    } catch (error) {
-      console.error('Error unpinning file:', error);
-    }
-  };
+const handleUnpin = async (file) => {
+  try {
+    await File.delete(file.id);
+    setDesktopFiles(prev => prev.filter(f => f.id !== file.id));
+  } catch (error) {
+    console.error('Error unpinning file:', error);
+  }
+};
 
-  const handleIconHold = () => {
-    setIsWiggleMode(true);
-  };
+const handleIconHold = () => {
+  setIsWiggleMode(true);
+};
 
-  const handleDropOnFolder = async (file, folder) => {
-    try {
-      // If it's a persisted file (has a DB id), move it into the folder
-      if (
+const handleDropOnFolder = async (file, folder) => {
+  try {
+    // If it's a persisted file (has a DB id), move it into the folder
+    if (
       file &&
       file.id !== undefined &&
       typeof file.id === 'number'
     ) {
-        // Move ANY persisted record (file or shortcut) by updating its parent_id.
-        // This ensures the source item is not left on the desktop.
-        await File.update(file.id, { parent_id: folder.id, position_x: null, position_y: null });
-        // Remove from desktop in-memory list (desktop renders items with parent_id === null)
-        setDesktopFiles(prev => prev.filter(f => f.id !== file.id));
-      } else {
-        // Static shortcut or non-persisted item: create a new shortcut inside the folder
-        // Prevent duplicates: if a shortcut with the same original_id (or same url/name fallback)
-        // already exists in the target folder, do nothing.
-        const targetFolderId = folder.id;
-        try {
-          const existingInFolder = await File.filter({ parent_id: targetFolderId });
-          const candidateOriginalId = file.original_id || file.id;
-          const duplicateExists = existingInFolder.some((f) => {
-            // Only consider shortcuts or items that represent the same app/link
-            if (f.is_shortcut) {
-              if (candidateOriginalId && f.original_id && String(f.original_id) === String(candidateOriginalId)) return true;
-              if (file.url && f.url && String(f.url) === String(file.url)) return true;
-              if (!file.url && !f.url && f.name && file.name && String(f.name).trim() === String(file.name).trim()) return true;
-            }
-            return false;
-          });
-          if (duplicateExists) {
-            // Optionally, we could toast/notify here; for now, silently ignore.
-            return;
-          }
-        } catch (e) {
-          // If the duplicate check fails, proceed to create to avoid blocking UX.
-        }
-        let icon = file.icon;
-        if (React.isValidElement(icon)) {
-          icon = icon.props.src;
-        }
-        const newFile = {
-          name: file.name,
-          icon: icon,
-          url: file.url,
-          type: 'file',
-          parent_id: folder.id,
-          is_shortcut: true,
-          original_id: file.original_id || file.id,
-        };
-        await File.create(newFile);
-        // Remove the static shortcut instance from the desktop UI
-        setStaticShortcuts(prev => prev.filter(f => f.id !== file.id));
-      }
-      // Notify open windows to refresh their contents
-      window.dispatchEvent(new CustomEvent('refresh-desktop-files'));
-    } catch (error) {
-      console.error('Error dropping file on folder:', error);
-    }
-  };
-
-  const handleDropOnDock = async (file) => {
-    try {
-      await File.delete(file.id);
+      // Move ANY persisted record (file or shortcut) by updating its parent_id.
+      // This ensures the source item is not left on the desktop.
+      await File.update(file.id, { parent_id: folder.id, position_x: null, position_y: null });
+      // Remove from desktop in-memory list (desktop renders items with parent_id === null)
       setDesktopFiles(prev => prev.filter(f => f.id !== file.id));
-    } catch (error) {
-      console.error('Error dropping file on dock:', error);
-    }
-  };
-
-  return (
-    <div
-      className={`relative dot-grid ${
-        theme === 'light' ? 'bg-[#ededed]' : 'bg-[#0a0a0a]'
-      }`}
-      ref={desktopRef}
-      style={{ width: canvasSize.width, height: canvasSize.height }}
-      onMouseDown={(e) => {
-        if (isDrawingMode) return;
-        if (e.target === e.currentTarget) {
-          setIsPannable(true);
-          setPanStart({ x: e.clientX, y: e.clientY });
-        }
-      }}
-      onMouseMove={(e) => {
-        if (isDrawingMode) return;
-        if (isPannable) {
-          const dx = e.clientX - panStart.x;
-          const dy = e.clientY - panStart.y;
-          setPanOffset({ x: panOffset.x + dx, y: panOffset.y + dy });
-          setPanStart({ x: e.clientX, y: e.clientY });
-        }
-      }}
-      onMouseUp={() => {
-        setIsPannable(false);
-      }}
-      onTouchStart={(e) => {
-        if (isDrawingMode) return;
-        if (e.target === e.currentTarget) {
-          setIsPannable(true);
-          setPanStart({ x: e.touches[0].clientX, y: e.touches[0].clientY });
-        }
-      }}
-      onTouchMove={(e) => {
-        if (isDrawingMode) return;
-        if (isPannable) {
-          const dx = e.touches[0].clientX - panStart.x;
-          const dy = e.touches[0].clientY - panStart.y;
-          setPanOffset({ x: panOffset.x + dx, y: panOffset.y + dy });
-          setPanStart({ x: e.touches[0].clientX, y: e.touches[0].clientY });
-        }
-      }}
-      onTouchEnd={() => {
-        setIsPannable(false);
-      }}
-      onClick={(e) => {
-        // Exit wiggle mode only when clicking the bare desktop background
-        if (e.target === e.currentTarget) {
-          setIsWiggleMode(false);
-        }
-      }}
-    >
-      <div
-        className="absolute inset-0 flex items-center justify-center pointer-events-none"
-        style={{ transform: `translate(${panOffset.x}px, ${panOffset.y}px)` }}
-      >
-        <img
-          src={
-            theme === 'light'
-              ? 'https://utdrojtjfwjcvuzmkooj.supabase.co/storage/v1/object/public/content//Untitled%20design.png'
-              : 'https://utdrojtjfwjcvuzmkooj.supabase.co/storage/v1/object/public/content//Untitled%20design%20(4).png'
+    } else {
+      // Static shortcut or non-persisted item: create a new shortcut inside the folder
+      // Prevent duplicates: if a shortcut with the same original_id (or same url/name fallback)
+      // already exists in the target folder, do nothing.
+      const targetFolderId = folder.id;
+      try {
+        const existingInFolder = await File.filter({ parent_id: targetFolderId });
+        const candidateOriginalId = file.original_id || file.id;
+        const duplicateExists = existingInFolder.some((f) => {
+          // Only consider shortcuts or items that represent the same app/link
+          if (f.is_shortcut) {
+            if (candidateOriginalId && f.original_id && String(f.original_id) === String(candidateOriginalId)) return true;
+            if (file.url && f.url && String(f.url) === String(file.url)) return true;
+            if (!file.url && !f.url && f.name && file.name && String(f.name).trim() === String(file.name).trim()) return true;
           }
-          alt="logo"
-          className="w-64 h-64 opacity-20"
-        />
-      </div>
+          return false;
+        });
+        if (duplicateExists) {
+          // Optionally, we could toast/notify here; for now, silently ignore.
+          return;
+        }
+      } catch (e) {
+        // If the duplicate check fails, proceed to create to avoid blocking UX.
+      }
+      let icon = file.icon;
+      if (React.isValidElement(icon)) {
+        icon = icon.props.src;
+      }
+      const newFile = {
+        name: file.name,
+        icon: icon,
+        url: file.url,
+        type: 'file',
+        parent_id: folder.id,
+        is_shortcut: true,
+        original_id: file.original_id || file.id,
+      };
+      await File.create(newFile);
+      // Remove the static shortcut instance from the desktop UI
+      setStaticShortcuts(prev => prev.filter(f => f.id !== file.id));
+    }
+    // Notify open windows to refresh their contents
+    window.dispatchEvent(new CustomEvent('refresh-desktop-files'));
+  } catch (error) {
+    console.error('Error dropping file on folder:', error);
+  }
+};
 
-      <div className="relative z-10 h-full">
-        <StatusBar
-          onSearchClick={handleSearchClick}
-          onMarkerClick={() => setIsDrawingMode(!isDrawingMode)}
-          isDrawingMode={isDrawingMode}
-          onColorChange={setDrawingColor}
-          onSizeChange={setDrawingSize}
-          onToolChange={setDrawingTool}
-        />
+const handleDropOnDock = async (file) => {
+  try {
+    // Add to dock custom apps if not already present
+    setDockCustomApps(prev => {
+      const exists = prev.some(a => a.fileId === file.id);
+      if (exists) return prev;
+      // Ensure icon is a URL string if a React element was used
+      let icon = file.icon;
+      if (React.isValidElement(icon)) {
+        icon = icon.props?.src || icon.props?.children || icon;
+      }
+      return [
+        ...prev,
+        {
+          id: `dock-file-${file.id}`,
+          name: file.name,
+          icon,
+          url: file.url,
+          fileId: file.id,
+        },
+      ];
+    });
+    // Remove from desktop
+    await File.delete(file.id);
+    setDesktopFiles(prev => prev.filter(f => f.id !== file.id));
+  } catch (error) {
+    console.error('Error dropping file on dock:', error);
+  }
+};
+
+return (
+  <div
+    className={`relative dot-grid ${
+      theme === 'light' ? 'bg-[#ededed]' : 'bg-[#0a0a0a]'
+    }`}
+    ref={desktopRef}
+    style={{ width: canvasSize.width, height: canvasSize.height }}
+    onMouseDown={(e) => {
+      if (isDrawingMode) return;
+      if (e.target === e.currentTarget) {
+        setIsPannable(true);
+        setPanStart({ x: e.clientX, y: e.clientY });
+      }
+    }}
+    onMouseMove={(e) => {
+      if (isDrawingMode) return;
+      if (isPannable) {
+        const dx = e.clientX - panStart.x;
+        const dy = e.clientY - panStart.y;
+        setPanOffset({ x: panOffset.x + dx, y: panOffset.y + dy });
+        setPanStart({ x: e.clientX, y: e.clientY });
+      }
+    }}
+    onMouseUp={() => {
+      setIsPannable(false);
+    }}
+    onTouchStart={(e) => {
+      if (isDrawingMode) return;
+      if (e.target === e.currentTarget) {
+        setIsPannable(true);
+        setPanStart({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+      }
+    }}
+    onTouchMove={(e) => {
+      if (isDrawingMode) return;
+      if (isPannable) {
+        const dx = e.touches[0].clientX - panStart.x;
+        const dy = e.touches[0].clientY - panStart.y;
+        setPanOffset({ x: panOffset.x + dx, y: panOffset.y + dy });
+        setPanStart({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+      }
+    }}
+    onTouchEnd={() => {
+      setIsPannable(false);
+    }}
+    onClick={(e) => {
+      // Exit wiggle mode only when clicking the bare desktop background
+      if (e.target === e.currentTarget) {
+        setIsWiggleMode(false);
+      }
+    }}
+  >
+    <div
+      className="absolute inset-0 flex items-center justify-center pointer-events-none"
+      style={{ transform: `translate(${panOffset.x}px, ${panOffset.y}px)` }}
+    >
+      <img
+        src={
+          theme === 'light'
+            ? 'https://utdrojtjfwjcvuzmkooj.supabase.co/storage/v1/object/public/content//Untitled%20design.png'
+            : 'https://utdrojtjfwjcvuzmkooj.supabase.co/storage/v1/object/public/content//Untitled%20design%20(4).png'
+        }
+        alt="logo"
+        className="w-64 h-64 opacity-20"
+      />
+    </div>
+
+    <div className="relative z-10 h-full">
+      <StatusBar
+        onSearchClick={handleSearchClick}
+        onMarkerClick={() => setIsDrawingMode(!isDrawingMode)}
+        isDrawingMode={isDrawingMode}
+        onColorChange={setDrawingColor}
+        onSizeChange={setDrawingSize}
+        onToolChange={setDrawingTool}
+      />
         <div
           className="relative z-10 h-full"
           style={{ transform: `translate(${panOffset.x}px, ${panOffset.y}px)` }}
@@ -1410,7 +1492,7 @@ export default function Desktop() {
           title="Research Results"
           content={explorerWindow.content}
           zIndex={windowZIndex}
-          position={nextWindowPosition}
+          position={adjustedNextWindowPosition}
           onClick={() => bringToFront('explorer-window')}
           windowId={'explorer-window'}
         />
@@ -1421,7 +1503,7 @@ export default function Desktop() {
           title="Generated Image"
           imageData={imageViewerWindow.imageData}
           zIndex={windowZIndex}
-          position={nextWindowPosition}
+          position={adjustedNextWindowPosition}
           onClick={() => bringToFront('image-viewer-window')}
           windowId={'image-viewer-window'}
         />
@@ -1432,7 +1514,7 @@ export default function Desktop() {
           title="Table"
           data={tableWindow.data}
           zIndex={windowZIndex}
-          position={nextWindowPosition}
+          position={adjustedNextWindowPosition}
           onClick={() => bringToFront('table-window')}
           windowId={'table-window'}
         />
@@ -1451,7 +1533,7 @@ export default function Desktop() {
           onClose={() => setYoutubePlayerId(null)}
           zIndex={windowZIndex + 1}
         />
-        <Dock onClick={handleAppClick} onDrop={handleDropFromDock} ref={dockRef} />
+        <Dock onClick={handleAppClick} onDrop={handleDropFromDock} ref={dockRef} customApps={dockCustomApps} />
       </div>
     </div>
   );
