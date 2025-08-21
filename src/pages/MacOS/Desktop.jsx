@@ -619,9 +619,9 @@ export default function Desktop() {
           });
           break;
         case "generateImage":
-          setImageViewerWindow({ isOpen: true, imageData: '' });
+          setImageViewerWindow({ isOpen: true, imageData: '', titlePrompt: args.prompt });
           generateImage(args.prompt).then(({ imageData }) => {
-            setImageViewerWindow({ isOpen: true, imageData: `data:image/png;base64,${imageData}` });
+            setImageViewerWindow({ isOpen: true, imageData: `data:image/png;base64,${imageData}`, titlePrompt: args.prompt });
           });
           break;
         case "generateVideo": {
@@ -652,7 +652,7 @@ export default function Desktop() {
               // 1) Generate image
               const { imageData } = await generateImage(prompt);
               // Open the image viewer with the generated image while the video generates
-              setImageViewerWindow({ isOpen: true, imageData: `data:image/png;base64,${imageData}` });
+              setImageViewerWindow({ isOpen: true, imageData: `data:image/png;base64,${imageData}`, titlePrompt: prompt });
               setOpenWindows(prev => prev.map(w => w.id === windowId ? { ...w, content: (w.content || '') + 'Image generated. Starting image-to-video...\n' } : w));
               // 2) Animate image to video (assume PNG output)
               const mimeType = 'image/png';
@@ -1837,6 +1837,7 @@ return (
           onClose={() => setImageViewerWindow({ isOpen: false, imageData: '' })}
           title="Generated Image"
           imageData={imageViewerWindow.imageData}
+          titlePrompt={imageViewerWindow.titlePrompt}
           zIndex={windowZIndex}
           position={adjustedNextWindowPosition}
           onClick={() => bringToFront('image-viewer-window')}

@@ -9,7 +9,7 @@ const TrafficLightButton = ({ color, onClick }) => (
   <button onClick={onClick} className={`w-3 h-3 rounded-full ${color}`}></button>
 );
 
-export default function ImageViewerWindow({ isOpen, onClose, onMinimize, onMaximize, isMaximized, title, imageData, zIndex, onClick, position, windowId }) {
+export default function ImageViewerWindow({ isOpen, onClose, onMinimize, onMaximize, isMaximized, title, imageData, zIndex, onClick, position, windowId, titlePrompt }) {
   const [editPrompt, setEditPrompt] = useState('');
   const [currentImageData, setCurrentImageData] = useState(imageData);
   const [mimeType, setMimeType] = useState('image/png');
@@ -27,6 +27,12 @@ export default function ImageViewerWindow({ isOpen, onClose, onMinimize, onMaxim
     // Keep it short
     if (n.length > 60) n = n.slice(0, 60).trim();
     return n || '';
+  };
+
+  const isPlaceholderTitle = (t) => {
+    if (!t) return true;
+    const s = String(t).trim().toLowerCase();
+    return s === 'generated image' || s === 'image' || s === 'untitled';
   };
 
   const generateTitleFromPrompt = async (promptText) => {
@@ -112,11 +118,13 @@ export default function ImageViewerWindow({ isOpen, onClose, onMinimize, onMaxim
     try {
       // Prefer window title; otherwise generate from the edit prompt using Gemini Flash Lite
       let generated = '';
-      if (!title && editPrompt) {
-        generated = await generateTitleFromPrompt(editPrompt);
+      const promptForTitle = editPrompt || titlePrompt || '';
+      if (( !title || isPlaceholderTitle(title) ) && promptForTitle) {
+        generated = await generateTitleFromPrompt(promptForTitle);
       }
       const fallback = `Image ${new Date().toLocaleTimeString()}`;
-      const finalName = sanitizeFilename(title || generated) || fallback;
+      const baseName = isPlaceholderTitle(title) ? generated : title;
+      const finalName = sanitizeFilename(baseName || generated) || fallback;
       const newFile = {
         name: finalName,
         icon: '🖼️',
