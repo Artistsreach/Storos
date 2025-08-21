@@ -29,6 +29,37 @@ export default function ImageViewerWindow({ isOpen, onClose, onMinimize, onMaxim
     return n || '';
   };
 
+  const parseDataUrl = (dataUrl) => {
+    try {
+      const [header, b64] = String(dataUrl).split(',');
+      const m = header.match(/data:(.*);base64/);
+      return { base64: b64 || '', mimeType: (m && m[1]) || 'image/png' };
+    } catch (_) {
+      return { base64: '', mimeType: 'image/png' };
+    }
+  };
+
+  const generateTitleFromImage = async (dataUrl) => {
+    try {
+      if (!dataUrl) return '';
+      const { base64, mimeType } = parseDataUrl(dataUrl);
+      if (!base64) return '';
+      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+      const model = 'gemini-2.0-flash-lite';
+      const instruction = 'Create a concise, descriptive 3-6 word title for this image. Return ONLY the title text, no quotes, no trailing punctuation.';
+      const contents = [
+        { inlineData: { mimeType, data: base64 } },
+        { text: instruction },
+      ];
+      const res = await ai.models.generateContent({ model, contents });
+      const raw = (res.text || '').trim();
+      return sanitizeFilename(raw.replace(/^"|"$/g, ''));
+    } catch (e) {
+      console.error('Image title generation failed:', e);
+      return '';
+    }
+  };
+
   const isPlaceholderTitle = (t) => {
     if (!t) return true;
     const s = String(t).trim().toLowerCase();
@@ -116,11 +147,16 @@ export default function ImageViewerWindow({ isOpen, onClose, onMinimize, onMaxim
   const handleSaveShortcut = async () => {
     if (!currentImageData) return;
     try {
-      // Prefer window title; otherwise generate from the edit prompt using Gemini Flash Lite
+      // Prefer analyzing the image to generate the title; fallback to prompt-based naming
       let generated = '';
-      const promptForTitle = editPrompt || titlePrompt || '';
-      if (( !title || isPlaceholderTitle(title) ) && promptForTitle) {
-        generated = await generateTitleFromPrompt(promptForTitle);
+      if (!title || isPlaceholderTitle(title)) {
+        generated = await generateTitleFromImage(currentImageData);
+        if (!generated) {
+          const promptForTitle = editPrompt || titlePrompt || '';
+          if (promptForTitle) {
+            generated = await generateTitleFromPrompt(promptForTitle);
+          }
+        }
       }
       const fallback = `Image ${new Date().toLocaleTimeString()}`;
       const baseName = isPlaceholderTitle(title) ? generated : title;
