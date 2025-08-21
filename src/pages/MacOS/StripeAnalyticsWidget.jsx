@@ -109,8 +109,8 @@ export default function StripeAnalyticsWidget() {
   const handleOnboard = async () => {
     setIsLoading(true);
     try {
-      const createStripeAccount = httpsCallable(functions, 'createStripeAccount');
-      const result = await createStripeAccount();
+      const createConnectAccount = httpsCallable(functions, 'createConnectAccount');
+      const result = await createConnectAccount();
       const data = result.data;
 
       if (data && data.accountLinkUrl) {

@@ -21,6 +21,7 @@ import ContractCreatorWindow from './ContractCreatorWindow';
 import BankWindow from './BankWindow';
 import ChartWindow from './ChartWindow';
 import DriveFileBrowser from './DriveFileBrowser';
+import WorkspaceModal from './WorkspaceModal';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { deepResearch } from '../../lib/firecrawl';
@@ -80,6 +81,8 @@ export default function Desktop() {
   const [selectionOrigin, setSelectionOrigin] = useState(null); // {x,y}
   const [selectionImage, setSelectionImage] = useState(null); // ImageData
   const [sourceCleared, setSourceCleared] = useState(false);
+  // Workspaces modal state
+  const [isWorkspaceModalOpen, setIsWorkspaceModalOpen] = useState(false);
 
   // Detect mobile and compute adjusted position shifted left by 250px on mobile
   useEffect(() => {
@@ -136,6 +139,132 @@ export default function Desktop() {
       context.lineWidth = drawingSize;
     }
   }, [drawingColor, drawingSize]);
+
+  // ---- Workspace persistence helpers ----
+  const WORKSPACES_KEY = 'ff_workspaces_v1';
+
+  const listWorkspaces = () => {
+    try {
+      const raw = localStorage.getItem(WORKSPACES_KEY);
+      if (!raw) return [];
+      const obj = JSON.parse(raw);
+      return Object.keys(obj).map((name) => ({
+        name,
+        updatedAt: obj[name]?.updatedAt || 0,
+        thumbnailDataUrl: obj[name]?.thumbnailDataUrl || '',
+      }));
+    } catch (_) { return []; }
+  };
+
+  const serializeDesktop = () => {
+    // Capture canvas snapshot (if available)
+    let canvasDataUrl = '';
+    try { canvasDataUrl = canvasRef.current?.toDataURL('image/png') || ''; } catch (_) {}
+    return {
+      version: 1,
+      updatedAt: Date.now(),
+      theme,
+      desktopFiles,
+      staticShortcuts,
+      openWindows,
+      minimizedWindows,
+      windowZIndex,
+      nextWindowPosition,
+      dockCustomApps,
+      showTrash,
+      explorerWindow,
+      imageViewerWindow,
+      tableWindow,
+      tableWindowZIndex,
+      panOffset,
+      isPannable,
+      panStart,
+      canvasSize,
+      isDrawingMode,
+      drawingColor,
+      drawingSize,
+      drawingTool,
+      selectionRect,
+      youtubePlayerId,
+      isSearchOpen,
+      canvasDataUrl,
+    };
+  };
+
+  const saveWorkspace = async (name) => {
+    if (!name || !name.trim()) throw new Error('Workspace name is required');
+    const snap = serializeDesktop();
+    // Capture a visual thumbnail of the entire desktop region
+    try {
+      const el = desktopRef.current || document.getElementById('root') || document.body;
+      const thumb = await captureElementPngDataUrl(el, { backgroundColor: null, scale: 0.6 });
+      snap.thumbnailDataUrl = thumb;
+    } catch (_) {
+      // fallback to canvas snapshot if element capture fails
+      snap.thumbnailDataUrl = snap.canvasDataUrl || '';
+    }
+    const raw = localStorage.getItem(WORKSPACES_KEY);
+    const all = raw ? JSON.parse(raw) : {};
+    all[name] = snap;
+    localStorage.setItem(WORKSPACES_KEY, JSON.stringify(all));
+  };
+
+  const deleteWorkspace = (name) => {
+    const raw = localStorage.getItem(WORKSPACES_KEY);
+    if (!raw) return;
+    const all = JSON.parse(raw);
+    delete all[name];
+    localStorage.setItem(WORKSPACES_KEY, JSON.stringify(all));
+  };
+
+  const loadWorkspace = (name) => {
+    const raw = localStorage.getItem(WORKSPACES_KEY);
+    if (!raw) throw new Error('No saved workspaces');
+    const all = JSON.parse(raw);
+    const snap = all[name];
+    if (!snap) throw new Error('Workspace not found');
+
+    setDesktopFiles(snap.desktopFiles || []);
+    setStaticShortcuts(snap.staticShortcuts || []);
+    setOpenWindows(snap.openWindows || []);
+    setMinimizedWindows(snap.minimizedWindows || []);
+    setWindowZIndex(snap.windowZIndex || 10);
+    setNextWindowPosition(snap.nextWindowPosition || { top: 50, left: 50 });
+    setDockCustomApps(snap.dockCustomApps || []);
+    setShowTrash(!!snap.showTrash);
+    setExplorerWindow(snap.explorerWindow || { isOpen: false, content: '' });
+    setImageViewerWindow(snap.imageViewerWindow || { isOpen: false, imageData: '' });
+    setTableWindow(snap.tableWindow || { isOpen: false, data: { headers: [], rows: [] } });
+    setTableWindowZIndex(snap.tableWindowZIndex || 10);
+    setPanOffset(snap.panOffset || { x: 0, y: 0 });
+    setIsPannable(!!snap.isPannable);
+    setPanStart(snap.panStart || { x: 0, y: 0 });
+    setCanvasSize(snap.canvasSize || { width: window.innerWidth * 2, height: window.innerHeight * 2 });
+    setIsDrawingMode(!!snap.isDrawingMode);
+    setDrawingColor(snap.drawingColor || 'red');
+    setDrawingSize(snap.drawingSize || 5);
+    setDrawingTool(snap.drawingTool || 'pencil');
+    setSelectionRect(snap.selectionRect || null);
+    setYoutubePlayerId(snap.youtubePlayerId || null);
+    setIsSearchOpen(!!snap.isSearchOpen);
+
+    // Restore canvas pixels after canvas is sized
+    if (snap.canvasDataUrl) {
+      setTimeout(() => {
+        try {
+          const img = new Image();
+          img.onload = () => {
+            const ctx = contextRef.current;
+            if (ctx) {
+              ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+              ctx.drawImage(img, 0, 0);
+            }
+          };
+          img.src = snap.canvasDataUrl;
+        } catch (_) {}
+      }, 0);
+    }
+  };
 
   const getEventPosition = (e) => {
     const canvas = canvasRef.current;
@@ -1381,6 +1510,7 @@ return (
         onToolChange={setDrawingTool}
         trashEnabled={showTrash}
         onToggleTrash={() => setShowTrash(v => !v)}
+        onOpenWorkspaces={() => setIsWorkspaceModalOpen(true)}
       />
         <div
           className="relative z-10 h-full"
@@ -1755,6 +1885,15 @@ return (
             <span style={{ fontSize: 28 }} role="img" aria-label="trash">🗑️</span>
           </div>
         )}
+        <WorkspaceModal
+          isOpen={isWorkspaceModalOpen}
+          onClose={() => setIsWorkspaceModalOpen(false)}
+          onSaveAs={(name) => saveWorkspace(name)}
+          onOverwrite={(name) => saveWorkspace(name)}
+          onLoad={(name) => loadWorkspace(name)}
+          onDelete={(name) => deleteWorkspace(name)}
+          listWorkspaces={listWorkspaces}
+        />
       </div>
     </div>
   );

@@ -15,6 +15,7 @@ export default function StatusBar({
   onToolChange,
   trashEnabled,
   onToggleTrash,
+  onOpenWorkspaces,
 }) {
   const { theme, toggleTheme } = useTheme();
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -195,6 +196,15 @@ export default function StatusBar({
 
         {menuOpen && (
           <div className={`absolute top-6 left-0 mt-1 w-40 rounded-md shadow-lg border ${theme === 'light' ? 'bg-white text-gray-800 border-gray-200' : 'bg-gray-800 text-white border-gray-700'}`}>
+            <button
+              className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+              onClick={() => {
+                onOpenWorkspaces && onOpenWorkspaces();
+                setMenuOpen(false);
+              }}
+            >
+              Workspaces...
+            </button>
             <button
               className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
               onClick={async () => {
