@@ -1,6 +1,9 @@
 import { GoogleGenAI, Modality } from '@google/genai';
 import { createBlob, decode, decodeAudioData } from './utils.js'; // Assuming utils are moved or available
 import { tools } from './desktop-tools.js';
+// Lazy import File to avoid circular deps at module init in some bundlers
+let FileEntity = null;
+const CONTEXT_FOLDER_ID = 130; // 'Context' desktop folder
 
 export class GeminiDesktopLive {
   constructor(apiKey, onMessage, onError, onOpen, onClose, config = {}) {
@@ -21,12 +24,15 @@ export class GeminiDesktopLive {
     this.sourceNode = null;
     this.scriptProcessorNode = null;
     this.sources = new Set();
+    this.contextSummary = '';
   }
 
   async init() {
     console.log("GeminiLive: init");
     this.client = new GoogleGenAI({ apiKey: this.apiKey });
     this.outputNode.connect(this.outputAudioContext.destination);
+    // Preload desktop context (non-blocking for session)
+    this.refreshDesktopContext().catch(() => {});
     await this.initSession();
   }
 
@@ -215,10 +221,11 @@ export class GeminiDesktopLive {
       const mimeMatch = header?.match(/data:(.*);base64/);
       const mimeType = mimeMatch ? mimeMatch[1] : 'image/png';
 
+      const extra = this.contextSummary ? `\n\nUse this desk Context to ground your answer:\n${this.contextSummary}` : '';
       const contents = [
         { inlineData: { data: base64, mimeType } },
         // Per tip: when using a single image with text, place the text AFTER the image
-        prompt,
+        `${prompt}${extra}`,
       ];
 
       const res = await this.client.models.generateContent({ model: 'gemini-2.5-flash', contents });
@@ -254,9 +261,10 @@ export class GeminiDesktopLive {
         base64 = btoa(binary);
       }
 
+      const extra = this.contextSummary ? `\n\nUse this desk Context to ground your answer:\n${this.contextSummary}` : '';
       const contents = [
         { inlineData: { data: base64, mimeType } },
-        prompt,
+        `${prompt}${extra}`,
       ];
       const res = await this.client.models.generateContent({ model: 'gemini-2.5-flash', contents });
       return res.text?.trim() || '';

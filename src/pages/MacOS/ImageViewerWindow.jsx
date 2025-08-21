@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { editImage } from '../../lib/geminiImageGeneration';
+import { File } from '../../entities/File';
  
 
 const TrafficLightButton = ({ color, onClick }) => (
@@ -62,6 +63,39 @@ export default function ImageViewerWindow({ isOpen, onClose, onMinimize, onMaxim
     reader.readAsDataURL(file);
   };
 
+  const handleDownload = () => {
+    if (!currentImageData) return;
+    try {
+      const a = document.createElement('a');
+      a.href = currentImageData;
+      const ext = mimeType.includes('jpeg') ? 'jpg' : (mimeType.includes('png') ? 'png' : 'png');
+      a.download = `image-${Date.now()}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (e) {
+      console.error('Download failed:', e);
+    }
+  };
+
+  const handleSaveShortcut = async () => {
+    if (!currentImageData) return;
+    try {
+      const newFile = {
+        name: title || `Image ${new Date().toLocaleTimeString()}`,
+        icon: '🖼️',
+        type: 'file',
+        parent_id: null,
+        is_shortcut: true,
+        imageData: currentImageData,
+      };
+      await File.create(newFile);
+      window.dispatchEvent(new CustomEvent('refresh-desktop-files'));
+    } catch (e) {
+      console.error('Error saving image shortcut:', e);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -90,7 +124,20 @@ export default function ImageViewerWindow({ isOpen, onClose, onMinimize, onMaxim
           <TrafficLightButton color="bg-green-500" onClick={onMaximize} />
         </div>
         <div className="font-semibold text-sm text-black">{title}</div>
-        <div></div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleSaveShortcut}
+            disabled={!currentImageData}
+            className={`px-2 py-1 text-xs rounded border ${!currentImageData ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-white hover:bg-gray-100 text-black border-gray-300'}`}
+            title="Save shortcut to desktop"
+          >Save</button>
+          <button
+            onClick={handleDownload}
+            disabled={!currentImageData}
+            className={`px-2 py-1 text-xs rounded ${!currentImageData ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
+            title="Download image"
+          >Download</button>
+        </div>
       </div>
       <div className="flex-grow p-4 overflow-y-auto">
         {currentImageData ? (

@@ -15,7 +15,7 @@ function formatMoney(amount, currency) {
 
 export default function StripeAnalyticsWidget() {
   const { theme } = useTheme();
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const connectedAccount = profile?.stripe_account_id || null;
   const [isLoading, setIsLoading] = useState(false);
 
@@ -107,10 +107,15 @@ export default function StripeAnalyticsWidget() {
   const chartData = mockData.sources.map(source => ({ name: source.name, amount: source.value / 100 }));
 
   const handleOnboard = async () => {
+    if (!user || !user.email) {
+      setError('You must be logged in with a valid email to onboard.');
+      return;
+    }
     setIsLoading(true);
+    setError(null);
     try {
       const createConnectAccount = httpsCallable(functions, 'createConnectAccount');
-      const result = await createConnectAccount();
+      const result = await createConnectAccount({ email: user.email });
       const data = result.data;
 
       if (data && data.accountLinkUrl) {
@@ -119,7 +124,8 @@ export default function StripeAnalyticsWidget() {
         throw new Error('Failed to retrieve the Stripe onboarding link.');
       }
     } catch (err) {
-      console.error("Stripe onboarding error:", err);
+      console.error('Stripe onboarding error:', err);
+      setError(err?.message || 'Stripe onboarding failed.');
     } finally {
       setIsLoading(false);
     }
