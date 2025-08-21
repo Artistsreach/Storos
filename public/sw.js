@@ -1,5 +1,5 @@
 // public/sw.js
-const CACHE_NAME = 'storos-cache-v1';
+const CACHE_NAME = 'FreshFront-cache-v1';
 const PRECACHE_URLS = [
   '/',
   '/manifest.webmanifest',

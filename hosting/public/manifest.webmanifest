@@ -1,7 +1,7 @@
 {
-  "name": "Storos",
-  "short_name": "Storos",
-  "description": "Storos Progressive Web App",
+  "name": "FreshFront",
+  "short_name": "FreshFront",
+  "description": "FreshFront Progressive Web App",
   "start_url": "/?source=pwa",
   "scope": "/",
   "display": "fullscreen",

@@ -7,7 +7,7 @@ export default function TermsPage() {
 
       <p>
         These Terms of Service (the "Terms") govern your access to and use of the
-        Storos platform and related websites, applications, and services (collectively,
+        FreshFront platform and related websites, applications, and services (collectively,
         the "Service"). By creating an account, accessing, or using the Service, you
         agree to be bound by these Terms. If you are using the Service on behalf of a
         business or other legal entity, you represent that you have authority to bind
@@ -16,7 +16,7 @@ export default function TermsPage() {
 
       <h2>1. Overview</h2>
       <p>
-        Storos enables business owners to create online stores, publish public store
+        FreshFront enables business owners to create online stores, publish public store
         pages via shareable links, and collect payments from customers. The Service
         includes authentication for users and integrates with Stripe Connect to enable
         payments and payouts to participating business owners ("Sellers").
@@ -37,7 +37,7 @@ export default function TermsPage() {
         and the <a href="https://stripe.com/legal" target="_blank" rel="noreferrer">Stripe Services Agreement</a> (collectively, the "Stripe Terms"). By becoming a Seller and enabling payments, you agree to be bound by the Stripe Terms.
       </p>
       <ul>
-        <li>Storos is not a bank, money transmitter, or payment processor; Stripe processes payments and payouts.</li>
+        <li>FreshFront is not a bank, money transmitter, or payment processor; Stripe processes payments and payouts.</li>
         <li>Sellers are responsible for all fees charged by Stripe and any platform fees disclosed within the Service.</li>
         <li>Sellers authorize us and Stripe to share data necessary to provide payments and fraud prevention.</li>
         <li>Sellers must complete any required KYC/KYB verification and comply with Stripe’s prohibited and restricted activities.</li>
@@ -53,7 +53,7 @@ export default function TermsPage() {
 
       <h2>5. Customer Purchases and Refunds</h2>
       <ul>
-        <li>Customers purchase directly from Sellers. Storos provides the platform but is not the seller of record.</li>
+        <li>Customers purchase directly from Sellers. FreshFront provides the platform but is not the seller of record.</li>
         <li>Refunds and returns are handled by Sellers under their posted policies and applicable law. Where supported, Stripe may facilitate refunds via the Seller’s Stripe account.</li>
         <li>Chargebacks and disputes are the responsibility of Sellers; amounts may be debited from Seller balances.</li>
       </ul>
@@ -104,7 +104,7 @@ export default function TermsPage() {
 
       <h2>14. Indemnification</h2>
       <p>
-        You agree to indemnify, defend, and hold harmless Storos and its affiliates, officers, employees, and agents from and against any claims, liabilities, damages, losses, and expenses (including reasonable attorneys’ fees) arising out of or related to your use of the Service, your violation of these Terms, or your violation of any rights of another.
+        You agree to indemnify, defend, and hold harmless FreshFront and its affiliates, officers, employees, and agents from and against any claims, liabilities, damages, losses, and expenses (including reasonable attorneys’ fees) arising out of or related to your use of the Service, your violation of these Terms, or your violation of any rights of another.
       </p>
 
       <h2>15. Changes to the Service and Terms</h2>
@@ -119,7 +119,7 @@ export default function TermsPage() {
 
       <h2>17. Contact</h2>
       <p>
-        Questions about these Terms? Contact us at <a href="mailto:support@storos.app">support@storos.app</a>.
+        Questions about these Terms? Contact us at <a href="mailto:support@FreshFront.app">support@FreshFront.app</a>.
       </p>
 
       <hr />

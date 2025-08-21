@@ -6,7 +6,7 @@ export default function PrivacyPage() {
       <p><strong>Last Updated:</strong> {lastUpdated}</p>
 
       <p>
-        This Privacy Policy explains how Storos ("we", "us", "our") collects, uses, shares,
+        This Privacy Policy explains how FreshFront ("we", "us", "our") collects, uses, shares,
         and protects personal information when you use our websites, applications, and
         services (the "Service"). By using the Service, you agree to the practices described
         in this Policy.
@@ -23,7 +23,7 @@ export default function PrivacyPage() {
           <strong>Seller/Stripe Connect Data:</strong> To enable payments for business owners ("Sellers"),
           we collect information required by Stripe to onboard and verify accounts (e.g., name,
           business details, tax IDs, banking details). Sensitive payment details are handled by Stripe,
-          not Storos.
+          not FreshFront.
         </li>
         <li>
           <strong>Transactional Data:</strong> Order details, amounts, currency, status, refunds, and related
@@ -135,7 +135,7 @@ export default function PrivacyPage() {
       <h2>13. Contact Us</h2>
       <p>
         If you have questions or requests regarding this Privacy Policy or our data practices, contact us at
-        <a href="mailto:privacy@storos.app"> privacy@storos.app</a>.
+        <a href="mailto:info@freshfront.co"> info@freshfront.co</a>.
       </p>
 
       <hr />

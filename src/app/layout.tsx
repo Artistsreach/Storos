@@ -4,9 +4,9 @@ import React from 'react';
 import PWARegister from '../components/PWARegister';
 
 export const metadata = {
-  title: 'Storos',
-  description: 'Storos Progressive Web App',
-  themeColor: '#0ea5e9',
+  title: 'FreshFront',
+  description: 'FreshFront - AI-Powered Creator Tools',
+  themeColor: '#000000',
 };
 
 export default function RootLayout({
@@ -27,16 +27,16 @@ export default function RootLayout({
 
         {/* PWA: splash/background colors */}
         <meta name="theme-color" content="#0ea5e9" />
-        <meta name="background-color" content="#0b1220" />
+        <meta name="background-color" content="#000000" />
 
         {/* PWA: iOS support for standalone/fullscreen */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="Storos" />
+        <meta name="apple-mobile-web-app-title" content="FreshFront" />
 
         {/* PWA: Android Chrome */}
         <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="application-name" content="Storos" />
+        <meta name="application-name" content="FreshFront" />
 
         {/* Icons (same-origin) */}
         <link rel="icon" sizes="192x192" href="/icons/icon-192.png" />

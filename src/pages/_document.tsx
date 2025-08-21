@@ -14,11 +14,11 @@ export default class MyDocument extends Document {
           {/* iOS: enable standalone/fullscreen */}
           <meta name="apple-mobile-web-app-capable" content="yes" />
           <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-          <meta name="apple-mobile-web-app-title" content="Storos" />
+          <meta name="apple-mobile-web-app-title" content="FreshFront" />
 
           {/* Android: enable standalone */}
           <meta name="mobile-web-app-capable" content="yes" />
-          <meta name="application-name" content="Storos" />
+          <meta name="application-name" content="FreshFront" />
 
           {/* Theme colors */}
           <meta name="theme-color" content="#0ea5e9" />

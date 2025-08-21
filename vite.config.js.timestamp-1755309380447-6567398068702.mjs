@@ -1,8 +1,8 @@
 // vite.config.js
 import path from "node:path";
-import react from "file:///C:/Users/test/FreshFront/Storos/node_modules/@vitejs/plugin-react/dist/index.mjs";
-import { createLogger, defineConfig, loadEnv } from "file:///C:/Users/test/FreshFront/Storos/node_modules/vite/dist/node/index.js";
-var __vite_injected_original_dirname = "C:\\Users\\test\\FreshFront\\Storos";
+import react from "file:///C:/Users/test/FreshFront/FreshFront/node_modules/@vitejs/plugin-react/dist/index.mjs";
+import { createLogger, defineConfig, loadEnv } from "file:///C:/Users/test/FreshFront/FreshFront/node_modules/vite/dist/node/index.js";
+var __vite_injected_original_dirname = "C:\\Users\\test\\FreshFront\\FreshFront";
 var configHorizonsViteErrorHandler = `
 const observer = new MutationObserver((mutations) => {
 	for (const mutation of mutations) {
