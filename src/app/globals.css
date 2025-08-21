@@ -1,0 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* PWA body defaults for fullscreen feel */
+html, body, #__next { height: 100%; }
+body { background: #0b1220; color: white; }
