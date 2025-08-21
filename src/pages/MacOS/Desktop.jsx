@@ -698,7 +698,7 @@ export default function Desktop() {
       { id: 'commandr-shortcut', name: 'Commandr', icon: '🤖', url: 'https://commandr.co/', type: 'app', is_shortcut: true, isHidden: true, position_x: 195, position_y: 420 },
       { id: 'tasks-shortcut', name: 'Tasks', icon: '📝', type: 'app', is_shortcut: true, position_x: 220, position_y: 250 },
       { id: 'tools-folder', name: 'Tools', icon: '📁', type: 'folder', is_shortcut: true, position_x: 300, position_y: 50 },
-      { id: 'drive-shortcut', name: 'Drive', icon: 'https://upload.wikimedia.org/wikipedia/commons/d/da/Google_Drive_logo.png', type: 'app', is_shortcut: true, position_x: 25, position_y: 250 },
+      { id: 'drive-shortcut', name: 'Drive', icon: 'https://upload.wikimedia.org/wikipedia/commons/d/da/Google_Drive_logo.png', type: 'app', is_shortcut: true, position_x: 312, position_y: 250 },
     ];
 
     if (profile && profile.username) {
