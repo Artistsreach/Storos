@@ -1,7 +1,7 @@
 // src/app/layout.tsx
 import './globals.css';
 import React from 'react';
-import PWARegister from '@/components/PWARegister';
+import PWARegister from '../components/PWARegister';
 
 export const metadata = {
   title: 'Storos',
