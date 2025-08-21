@@ -876,7 +876,7 @@ export default function Desktop() {
 
   const loadDesktopFiles = async () => {
     try {
-      let files = await File.filter({ parent_id: null });
+      const files = await File.filter({ parent_id: null });
       setDesktopFiles(files);
     } catch (error) {
       console.error('Error loading desktop files:', error);
@@ -884,167 +884,8 @@ export default function Desktop() {
   };
 
   const handleDesktopIconDoubleClick = (file) => {
-    const id = file.is_shortcut ? file.original_id || file.id : file.id;
-    if (id === 'agent-icon') {
-      const windowId = `agent-${Date.now()}`;
-      setOpenWindows(prev => [
-        ...prev,
-        {
-          id: windowId,
-          type: 'agent',
-          isMaximized: false,
-          zIndex: windowZIndex,
-          position: adjustedNextWindowPosition,
-          width: 520,
-          height: 520,
-          bottom: 0,
-        },
-      ]);
-      setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
-      setWindowZIndex(prev => prev + 1);
-      return;
-    }
-      if (id === 'bank-shortcut') {
-      const windowId = `bank-${Date.now()}`;
-      setOpenWindows(prev => [
-        ...prev,
-        {
-          id: windowId,
-          type: 'bank',
-          isMaximized: false,
-          zIndex: windowZIndex,
-          position: adjustedNextWindowPosition,
-          width: 800,
-          height: 520,
-          bottom: 0,
-        },
-      ]);
-      setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
-      setWindowZIndex(prev => prev + 1);
-      return;
-    }
-    if (id === 'tasks-shortcut') {
-      const windowId = `tasks-${Date.now()}`;
-      setOpenWindows(prev => [
-        ...prev,
-        {
-          id: windowId,
-          type: 'tasks',
-          isMaximized: false,
-          zIndex: windowZIndex,
-          position: adjustedNextWindowPosition,
-          width: 800,
-          height: 400,
-          bottom: 0,
-        },
-      ]);
-      setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
-      setWindowZIndex(prev => prev + 1);
-      return;
-    }
-    if (id === 'drive-shortcut') {
-      const windowId = `drive-${Date.now()}`;
-      setOpenWindows(prev => [
-        ...prev,
-        {
-          id: windowId,
-          type: 'drive',
-          isMaximized: false,
-          zIndex: windowZIndex,
-          position: adjustedNextWindowPosition,
-          width: 800,
-          height: 520,
-          bottom: 0,
-        },
-      ]);
-      setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
-      setWindowZIndex(prev => prev + 1);
-      return;
-    }
-    if (id === 'calculator-shortcut') {
-      const windowId = `calculator-${Date.now()}`;
-      setOpenWindows(prev => [
-        ...prev,
-        {
-          id: windowId,
-          type: 'calculator',
-          isMaximized: false,
-          zIndex: windowZIndex,
-          position: adjustedNextWindowPosition,
-          width: 300,
-          height: 400,
-          bottom: 0,
-        },
-      ]);
-      setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
-      setWindowZIndex(prev => prev + 1);
-      return;
-    }
-    if (id === 'contract-creator-shortcut') {
-      const windowId = `contract-creator-${Date.now()}`;
-      setOpenWindows(prev => [
-        ...prev,
-        {
-          id: windowId,
-          type: 'contract-creator',
-          isMaximized: false,
-          zIndex: windowZIndex,
-          position: adjustedNextWindowPosition,
-          width: 800,
-          height: 600,
-          bottom: 0,
-        },
-      ]);
-      setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
-      setWindowZIndex(prev => prev + 1);
-      return;
-    }
-    if (id === 'notepad-shortcut') {
-      const windowId = `notepad-${Date.now()}`;
-      setOpenWindows(prev => [
-        ...prev,
-        {
-          id: windowId,
-          type: 'notepad',
-          isMaximized: false,
-          zIndex: windowZIndex,
-          position: adjustedNextWindowPosition,
-          content: '',
-          width: 500,
-          height: 400,
-          defaultEditing: true,
-          bottom: 0,
-        },
-      ]);
-      setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
-      setWindowZIndex(prev => prev + 1);
-      return;
-    }
-    if (id === 'image-editor-shortcut') {
-      // Open the Image Viewer/Editor with no image loaded initially
-      setImageViewerWindow({ isOpen: true, imageData: '' });
-      return;
-    }
-    if (id === 'stripe-analytics') {
-      const windowId = `app-stripe-analytics-${Date.now()}`;
-      setOpenWindows(prev => [
-        ...prev,
-        {
-          id: windowId,
-          type: 'app',
-          app: { id: 'stripe-analytics', name: 'Stripe Analytics' },
-          isMaximized: false,
-          zIndex: windowZIndex,
-          position: adjustedNextWindowPosition,
-          width: 800,
-          height: 600,
-        },
-      ]);
-      setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
-      setWindowZIndex(prev => prev + 1);
-      return;
-    }
-    if (file.content) {
+    // Open text files in Notepad
+    if (file?.content) {
       const windowId = `notepad-${Date.now()}`;
       setOpenWindows(prev => [
         ...prev,
@@ -1064,24 +905,30 @@ export default function Desktop() {
       setWindowZIndex(prev => prev + 1);
       return;
     }
-    if (file.url) {
-        const windowId = `app-${file.id || file.name}-${Date.now()}`;
-        setOpenWindows(prev => [
-          ...prev,
-          {
-            id: windowId,
-            type: 'app',
-            app: file,
-            isMaximized: false,
-            zIndex: windowZIndex,
-            position: nextWindowPosition,
-            width: 800,
-            height: 600,
-          },
-        ]);
-        setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
-        setWindowZIndex(prev => prev + 1);
-    } else if (file.type === 'folder') {
+
+    // Open app/link shortcuts in AppWindow
+    if (file?.url || file?.type === 'app' || file?.type === 'link') {
+      const windowId = `app-${file.id || file.name}-${Date.now()}`;
+      setOpenWindows(prev => [
+        ...prev,
+        {
+          id: windowId,
+          type: 'app',
+          app: file,
+          isMaximized: false,
+          zIndex: windowZIndex,
+          position: adjustedNextWindowPosition,
+          width: 800,
+          height: 600,
+        },
+      ]);
+      setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
+      setWindowZIndex(prev => prev + 1);
+      return;
+    }
+
+    // Open folders in Finder window
+    if (file?.type === 'folder') {
       const windowId = `finder-${file.id}-${Date.now()}`;
       setOpenWindows(prev => [
         ...prev,
@@ -1101,7 +948,23 @@ export default function Desktop() {
       setWindowZIndex(prev => prev + 1);
       return;
     }
-  }
+
+    // Open image files or image shortcuts in the ImageViewerWindow
+    if (file?.type === 'file' && file?.icon === '🖼️') {
+      let resolvedImageData = file.imageData || '';
+      if (!resolvedImageData && file.is_shortcut && (file.original_id !== undefined && file.original_id !== null)) {
+        const all = [...staticShortcuts, ...desktopFiles];
+        const original = all.find(f => String(f.id) === String(file.original_id));
+        if (original && original.imageData) {
+          resolvedImageData = original.imageData;
+        }
+      }
+      if (resolvedImageData) {
+        setImageViewerWindow({ isOpen: true, imageData: resolvedImageData, titlePrompt: file.titlePrompt });
+        return;
+      }
+    }
+  };
 
 const handleAppClick = (app) => {
   // If this dock item references a desktop file id, open it like a desktop icon
