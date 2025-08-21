@@ -12,6 +12,7 @@ import YouTubePlayer from './YouTubePlayer';
 import AgentModal from './AgentModal';
 import ExplorerWindow from './ExplorerWindow';
 import ImageViewerWindow from './ImageViewerWindow';
+import VideoPlayerWindow from './VideoPlayerWindow';
 import NotepadWindow from './NotepadWindow';
 import TableWindow from './TableWindow';
 import TasksWindow from './TasksWindow';
@@ -521,11 +522,33 @@ export default function Desktop() {
               if (!prompt) throw new Error('Missing prompt for generateVideo.');
               // 1) Generate image
               const { imageData } = await generateImage(prompt);
+              // Open the image viewer with the generated image while the video generates
+              setImageViewerWindow({ isOpen: true, imageData: `data:image/png;base64,${imageData}` });
               setOpenWindows(prev => prev.map(w => w.id === windowId ? { ...w, content: (w.content || '') + 'Image generated. Starting image-to-video...\n' } : w));
               // 2) Animate image to video (assume PNG output)
               const mimeType = 'image/png';
               const videoUrl = await generateVideoWithVeoFromImage(prompt, imageData, mimeType);
+              // Append URL to the log
               setOpenWindows(prev => prev.map(w => w.id === windowId ? { ...w, content: (w.content || '') + `Done! Video URL:\n${videoUrl}\n` } : w));
+              // Open a dedicated video player window for playback
+              const videoWindowId = `video-${Date.now()}`;
+              setOpenWindows(prev => [
+                ...prev,
+                {
+                  id: videoWindowId,
+                  type: 'video',
+                  isMaximized: false,
+                  zIndex: windowZIndex + 1,
+                  position: adjustedNextWindowPosition,
+                  width: 960,
+                  height: 540,
+                  bottom: 0,
+                  title: 'Generated Video',
+                  videoUrl,
+                },
+              ]);
+              setNextWindowPosition(prev => ({ top: prev.top + 30, left: prev.left + 30 }));
+              setWindowZIndex(prev => prev + 2);
             } catch (err) {
               setOpenWindows(prev => prev.map(w => w.id === windowId ? { ...w, content: (w.content || '') + `Error: ${err?.message || err}` } : w));
             }
@@ -1599,6 +1622,25 @@ return (
                     />
                   );
                 }
+                if (window.type === 'video') {
+                  return (
+                      <VideoPlayerWindow
+                        key={window.id}
+                        isOpen={!minimizedWindows.includes(window.id)}
+                        onClose={() => closeWindow(window.id)}
+                        onMinimize={() => minimizeWindow(window.id)}
+                        onMaximize={() => maximizeWindow(window.id)}
+                        isMaximized={window.isMaximized}
+                        zIndex={window.zIndex}
+                        position={window.position}
+                        onClick={() => bringToFront(window.id)}
+                        onDragEnd={(e, info) => handleWindowDrag(window.id, e, info)}
+                        windowId={window.id}
+                        title={window.title}
+                        videoUrl={window.videoUrl}
+                      />
+                    );
+                  }
                 if (window.type === 'notepad') {
                   return (
                       <NotepadWindow

@@ -5,7 +5,6 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { GeminiDesktopLive } from '../../lib/geminiDesktopLive.js';
 import { File } from '../../entities/File';
 import { Popover, PopoverTrigger, PopoverContent } from '../../components/ui/popover';
-import { Calendar } from '../../components/ui/calendar';
 
 export default function StatusBar({
   onSearchClick,
@@ -20,6 +19,7 @@ export default function StatusBar({
   const { theme, toggleTheme } = useTheme();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [viewDate, setViewDate] = useState(new Date());
   const [geminiLive, setGeminiLive] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [showDrawingOptions, setShowDrawingOptions] = useState(false);
@@ -96,6 +96,85 @@ export default function StatusBar({
     flex justify-between items-center px-4 z-50
     ${theme === 'light' ? 'bg-white/30 text-gray-800' : 'bg-black/20 text-white'}
   `;
+
+  // Mini calendar built from scratch to ensure weekday/date alignment
+  const MiniCalendar = ({ value, onChange }) => {
+    const startOfMonth = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+    const endOfMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
+    const startWeekday = startOfMonth.getDay(); // 0=Sun ... 6=Sat
+
+    // Build 42 cells (6 weeks * 7 days) starting from the Sunday on/before the 1st
+    const firstCellDate = new Date(startOfMonth);
+    firstCellDate.setDate(firstCellDate.getDate() - startWeekday);
+
+    const cells = Array.from({ length: 42 }, (_, i) => {
+      const d = new Date(firstCellDate);
+      d.setDate(firstCellDate.getDate() + i);
+      return d;
+    });
+
+    const isSameDay = (a, b) =>
+      a.getFullYear() === b.getFullYear() &&
+      a.getMonth() === b.getMonth() &&
+      a.getDate() === b.getDate();
+
+    const isToday = (d) => isSameDay(d, new Date());
+    const inCurrentMonth = (d) => d.getMonth() === viewDate.getMonth();
+
+    const header = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    const monthLabel = viewDate.toLocaleDateString('en-US', {
+      month: 'long',
+      year: 'numeric',
+    });
+
+    return (
+      <div className="select-none">
+        <div className="flex items-center justify-between mb-2 px-1">
+          <button
+            className="px-2 py-1 text-xs rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+            onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))}
+          >
+            ‹
+          </button>
+          <div className="text-sm font-medium">{monthLabel}</div>
+          <button
+            className="px-2 py-1 text-xs rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+            onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))}
+          >
+            ›
+          </button>
+        </div>
+        <div className="grid grid-cols-7 gap-1 text-[11px] text-center mb-1 opacity-80">
+          {header.map((h) => (
+            <div key={h} className="py-1">{h}</div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-1">
+          {cells.map((d, idx) => {
+            const current = inCurrentMonth(d);
+            const selected = value && isSameDay(d, value);
+            const today = isToday(d);
+            const base = 'w-8 h-8 flex items-center justify-center rounded-md text-sm cursor-pointer';
+            const dim = current ? '' : ' opacity-40';
+            const sel = selected ? (theme === 'light' ? ' bg-gray-900 text-white' : ' bg-white text-black') : '';
+            const ring = !selected && today ? ' ring-1 ring-blue-500' : '';
+            const hover = selected ? '' : ' hover:bg-gray-200 dark:hover:bg-gray-700';
+            return (
+              <button
+                key={idx}
+                className={`${base}${dim}${sel}${ring}${hover}`}
+                onClick={() => onChange && onChange(new Date(d))}
+                title={d.toDateString()}
+              >
+                {d.getDate()}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className={statusBarClasses}>
@@ -211,11 +290,12 @@ export default function StatusBar({
             </button>
           </PopoverTrigger>
           <PopoverContent align="end" sideOffset={8} className="p-2 w-auto">
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={(d) => d && setSelectedDate(d)}
-              initialFocus
+            <MiniCalendar
+              value={selectedDate}
+              onChange={(d) => {
+                setSelectedDate(d);
+                setViewDate(d);
+              }}
             />
           </PopoverContent>
         </Popover>

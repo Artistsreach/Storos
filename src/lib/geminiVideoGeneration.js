@@ -27,14 +27,14 @@ export const generateVideoWithVeo = async (prompt, config = {}) => {
 
   try {
     let operation = await ai.models.generateVideos({
-      model: "veo-2.0-generate-001",
+      model: "veo-3.0-generate-preview",
       prompt: prompt,
       config: {
-        personGeneration: "dont_allow", // Default, can be overridden by config
-        aspectRatio: "16:9",         // Default, can be overridden by config
-        numberOfVideos: 1,             // We only need one video for the hero
-        durationSeconds: 6,            // Default 5-8s, let's pick 6s
-        ...config, // Allow overriding defaults
+        aspectRatio: "16:9",
+        negativePrompt: config.negativePrompt,
+        // Veo 3 text-to-video supports personGeneration: "allow_all" only.
+        personGeneration: "allow_all",
+        ...config,
       },
     });
 
@@ -57,16 +57,28 @@ export const generateVideoWithVeo = async (prompt, config = {}) => {
     }
     
     const generatedVideos = operation.response?.generatedVideos;
-    if (generatedVideos && generatedVideos.length > 0 && generatedVideos[0].video?.uri) {
-      const baseVideoUri = generatedVideos[0].video.uri;
-      // The URI from Veo requires the API key appended for direct access, as per documentation.
-      const videoUriWithKey = `${baseVideoUri}&key=${apiKey}`;
-      console.log("Generated video URI (with key appended):", videoUriWithKey);
-      return videoUriWithKey; 
-    } else {
-      console.error("No video URI found in the response:", operation.response);
-      throw new Error("Video generation completed, but no video URI was returned.");
+    if (generatedVideos && generatedVideos.length > 0) {
+      const videoRef = generatedVideos[0].video;
+      // If SDK returns a direct URI (some backends do), use it.
+      const directUri = videoRef?.uri;
+      if (directUri) {
+        const videoUriWithKey = `${directUri}${directUri.includes('?') ? '&' : '?'}key=${apiKey}`;
+        console.log("Generated video URI (with key appended):", videoUriWithKey);
+        return videoUriWithKey;
+      }
+      // Browser-friendly download fallback: get blob and create an object URL
+      try {
+        const fileBlob = await ai.files.download({ file: videoRef });
+        const blob = fileBlob instanceof Blob ? fileBlob : new Blob([fileBlob], { type: 'video/mp4' });
+        const objectUrl = URL.createObjectURL(blob);
+        console.log("Generated video via blob URL:", objectUrl);
+        return objectUrl;
+      } catch (e) {
+        console.error("Download fallback failed:", e);
+      }
     }
+    console.error("No video reference found in the response:", operation.response);
+    throw new Error("Video generation completed, but no video URI was returned.");
   } catch (error) {
     console.error("Failed to generate video with Veo:", error);
     // More specific error handling based on error type if needed
@@ -121,18 +133,18 @@ export const generateVideoWithVeoFromImage = async (prompt, base64ImageData, mim
 
   try {
     const videoGenerationPayload = {
-      model: "veo-2.0-generate-001",
+      model: "veo-3.0-generate-preview",
       prompt: prompt,
       image: {
         imageBytes: base64ImageData,
         mimeType: mimeType,
       },
       config: {
-        personGeneration: "dont_allow", // Default, can be overridden by config
-        aspectRatio: "16:9",         // Default, can be overridden by config
-        numberOfVideos: 1,             // We only need one video
-        durationSeconds: 6,            // Default 5-8s, let's pick 6s
-        ...config, // Allow overriding defaults
+        aspectRatio: "16:9",
+        negativePrompt: config.negativePrompt,
+        // Veo 3 image-to-video requires allow_adult for person generation per docs.
+        personGeneration: "allow_adult",
+        ...config,
       },
     };
 
@@ -160,15 +172,26 @@ export const generateVideoWithVeoFromImage = async (prompt, base64ImageData, mim
     }
     
     const generatedVideos = operation.response?.generatedVideos;
-    if (generatedVideos && generatedVideos.length > 0 && generatedVideos[0].video?.uri) {
-      const baseVideoUri = generatedVideos[0].video.uri;
-      const videoUriWithKey = `${baseVideoUri}&key=${apiKey}`;
-      console.log("Generated image-to-video URI (with key appended):", videoUriWithKey);
-      return videoUriWithKey;
-    } else {
-      console.error("No video URI found in the image-to-video response:", operation.response);
-      throw new Error("Image-to-video generation completed, but no video URI was returned.");
+    if (generatedVideos && generatedVideos.length > 0) {
+      const videoRef = generatedVideos[0].video;
+      const directUri = videoRef?.uri;
+      if (directUri) {
+        const videoUriWithKey = `${directUri}${directUri.includes('?') ? '&' : '?'}key=${apiKey}`;
+        console.log("Generated image-to-video URI (with key appended):", videoUriWithKey);
+        return videoUriWithKey;
+      }
+      try {
+        const fileBlob = await ai.files.download({ file: videoRef });
+        const blob = fileBlob instanceof Blob ? fileBlob : new Blob([fileBlob], { type: 'video/mp4' });
+        const objectUrl = URL.createObjectURL(blob);
+        console.log("Generated image-to-video via blob URL:", objectUrl);
+        return objectUrl;
+      } catch (e) {
+        console.error("Download fallback failed (image-to-video):", e);
+      }
     }
+    console.error("No video reference found in the image-to-video response:", operation.response);
+    throw new Error("Image-to-video generation completed, but no video URI was returned.");
   } catch (error) {
     console.error("Failed to generate image-to-video with Veo:", error);
     if (error.message && error.message.includes("Quota")) {
